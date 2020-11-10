@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'PyDeequ'
-copyright = '2020, Calvin Wang, Chris Ghyzel, Joan Aoanan, Veronika Megler'
+copyright = 'Copyright 2020, Amazon'
 author = 'Calvin Wang, Chris Ghyzel, Joan Aoanan, Veronika Megler'
 
 # The full version, including alpha/beta/rc tags
