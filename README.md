@@ -1,6 +1,6 @@
 # PyDeequ 
 
-PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets. PyDeequ is written to support usage of Deequ in Python. PyDeequ makes Deequ's Fluent Interface available in Python 
+PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets. PyDeequ is written to support usage of Deequ in Python.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -21,7 +21,7 @@ There are 4 main components of Deequ, and they are:
 
 ## Quickstart
 
-Install PyDeequ into your Python environment with `pip install pydeequ`. The following will quickstart you with some basic usage. For more in-depth examples, take a look in the [`tutorials/`](tutorials/) directory for executable Jupyter notebooks of each module. For documentation on supported interfaces, look in the [`docs`](docs/) directory. 
+Install PyDeequ into your Python environment with `pip install pydeequ`. The following will quickstart you with some basic usage. For more in-depth examples, take a look in the [`tutorials/`](tutorials/) directory for executable Jupyter notebooks of each module. For documentation on supported interfaces, view the [`documentation`](https://pydeequ.readthedocs.io/). 
 
 ### Set up a PySpark session 
 ```python

@@ -7,13 +7,13 @@ with open("README.md", "r") as fh:
 def setup_package():
     setup(
         name='pydeequ',
-        version="0.1.1",
+        version="0.1.2",
         author="Christopher Ghyzel",
         author_email="cghyzel@amazon.com",
-        description="Python Binding for Deequ",
+        description="Python API for Deequ",
         long_description=long_description,
         long_description_content_type="text/markdown",
-        # TODO url="",
+        url="https://github.com/awslabs/python-deequ",
         packages=['pydeequ'],
         package_dir={
             "pydeequ": "pydeequ"
