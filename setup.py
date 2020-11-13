@@ -1,13 +1,12 @@
 from setuptools import setup, find_packages
 
-VERSION="0.1.3"
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 def setup_package():
     setup(
         name='pydeequ',
-        version="0.1.2",
+        version="0.1.3",
         author="Christopher Ghyzel",
         author_email="cghyzel@amazon.com",
         description="Python API for Deequ",
@@ -23,9 +22,9 @@ def setup_package():
             "Programming Language :: Python :: 3",
             "License :: OSI Approved :: Apache Software License"
         ],
-        install_requires=['pyspark>=2.4.5'],
-        setup_requires=['pyspark>=2.4.5', 'pytest-runner'],
-        tests_require=['pyspark>=2.4.5','pytest']
+        install_requires=['pyspark==2.4.7', 'pandas'],
+        setup_requires=['pyspark==2.4.7', 'pytest-runner', 'pandas'],
+        tests_require=['pyspark==2.4.7','pytest', 'pandas']
 
     )
 

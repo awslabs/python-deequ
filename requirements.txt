@@ -1,4 +1,4 @@
-pyspark==2.4.5
+pyspark==2.4.7
 numpy
 pytest
-# sagemaker_pyspark
+pandas
