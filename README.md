@@ -142,10 +142,10 @@ result_metrep_df = repository.load() \
     .getSuccessMetricsAsDataFrame()
 ```
 
-## [Contributing](CONTRIBUTING.md)
-Please refer to the [contributing doc](CONTRIBUTING.md) for how to contribute to PyDeequ. 
+## [Contributing](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md)
+Please refer to the [contributing doc](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md) for how to contribute to PyDeequ. 
 
-## [License](LICENSE)
+## [License](https://github.com/awslabs/python-deequ/blob/master/LICENSE)
 
 This library is licensed under the Apache 2.0 License.
 
