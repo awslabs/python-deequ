@@ -21,7 +21,15 @@ There are 4 main components of Deequ, and they are:
 
 ## Quickstart
 
-Install PyDeequ into your Python environment with `pip install pydeequ`. The following will quickstart you with some basic usage. For more in-depth examples, take a look in the [`tutorials/`](tutorials/) directory for executable Jupyter notebooks of each module. For documentation on supported interfaces, view the [`documentation`](https://pydeequ.readthedocs.io/). 
+The following will quickstart you with some basic usage. For more in-depth examples, take a look in the [`tutorials/`](tutorials/) directory for executable Jupyter notebooks of each module. For documentation on supported interfaces, view the [`documentation`](https://pydeequ.readthedocs.io/).
+
+### Installation
+
+You can install [PyDeequ via pip](https://pypi.org/project/pydeequ/).
+
+```
+pip install pydeequ
+``` 
 
 ### Set up a PySpark session 
 ```python
