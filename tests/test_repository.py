@@ -1,41 +1,34 @@
-import unittest
-from pyspark.sql import SparkSession, Row, DataFrame
-from pydeequ.analyzers import *
+import pytest
+from pyspark.sql import Row
+
+from pydeequ.checks import *
 from pydeequ.repository import *
 from pydeequ.verification import *
-from pydeequ.checks import *
 
 
-class TestRepository(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3"
-        f2j_maven_coord = "net.sourceforge.f2j:arpack_combined_all"  # This package is excluded because it causes an error in the SparkSession fig
-        cls.spark = (SparkSession
-                      .builder
-                      .master('local[*]')
-                      .config("spark.executor.memory", "2g")
-                      .config("spark.jars.packages", deequ_maven_coord)
-                      .config("spark.pyspark.python", "/usr/bin/python3")
-                      .config("spark.pyspark.driver.python", "/usr/bin/python3")
-                      .config("spark.jars.excludes", f2j_maven_coord)
-                      .config("spark.driver.extraJavaOptions", "-XX:+UseG1GC")
-                      .config("spark.executor.extraJavaOptions", "-XX:+UseG1GC")
-                      .config("spark.sql.autoBroadcastJoinThreshold", "-1")
-                      .appName('test-analyzers-local')
-                      .getOrCreate())
-        cls.AnalysisRunner = AnalysisRunner(cls.spark)
-        cls.VerificationSuite = VerificationSuite(cls.spark)
-        cls.sc = cls.spark.sparkContext
-        cls.df = cls.sc.parallelize([
+class TestRepository():
+
+    @pytest.fixture(autouse=True)
+    def _initialize(self, spark_session):
+        self.spark = spark_session
+        self.sc = self.spark.sparkContext
+        self.df = self.sc.parallelize([
+            Row(a="foo", b=1, c=5),
+            Row(a="bar", b=2, c=6),
+            Row(a="baz", b=3, c=None)]).toDF()
+        self.AnalysisRunner = AnalysisRunner(self.spark)
+        self.VerificationSuite = VerificationSuite(self.spark)
+        self.sc = self.spark.sparkContext
+        self.df = self.sc.parallelize([
             Row(a="foo", b=1, c=5),
             Row(a="bar", b=2, c=6),
             Row(a="baz", b=3, c=None)]).toDF()
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.spark.sparkContext._gateway.shutdown_callback_server()
-        cls.spark.stop()
+    def assertEqual(self, expected, actual):
+        assert expected == actual
+
+    def assertNotIn(self, expected, actual):
+        assert expected not in actual
 
     def test_analyzers_FSmetrep(self):
         metrics_file = FileSystemMetricsRepository.helper_metrics_file(self.spark, 'metrics.json')
@@ -265,7 +258,7 @@ class TestRepository(unittest.TestCase):
         print(df.collect())
         print(result_metrep.collect())
 
-    @unittest.expectedFailure
+    @pytest.mark.xfail
     def test_fail_no_useRepository(self):
         """This test should fail because it doesn't call useRepository() before saveOrAppendResult()"""
         metrics_file = FileSystemMetricsRepository.helper_metrics_file(self.spark, 'metrics.json')
@@ -279,8 +272,7 @@ class TestRepository(unittest.TestCase):
             .saveOrAppendResult(resultKey) \
             .run()
 
-
-    @unittest.expectedFailure
+    @pytest.mark.xfail
     def test_fail_no_load(self):
         """This test should fail because we do not load() for the repository reading"""
         metrics_file = FileSystemMetricsRepository.helper_metrics_file(self.spark, 'metrics.json')
