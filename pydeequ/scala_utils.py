@@ -9,7 +9,7 @@ class PythonCallback:
         self.gateway = gateway
         # P4j will return false if the callback server is already started
         # https://github.com/bartdag/py4j/blob/master/py4j-python/src/py4j/java_gateway.py
-        callback_server = self.gateway.get_callback_server(callback_server_parameters=CallbackServerParameters(port=0))
+        callback_server = self.gateway.get_callback_server(callback_server_parameters = CallbackServerParameters(port = 0))
         # TODO clean
         if callback_server is None:
             self.gateway.start_callback_server()
