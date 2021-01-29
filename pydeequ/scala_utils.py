@@ -1,5 +1,7 @@
 """A collection of utility functions and classes for manipulating with scala objects anc classes through py4j
 """
+from py4j.java_gateway import CallbackServerParameters
+
 class PythonCallback:
     # https://www.py4j.org/advanced_topics.html#py4j-memory-model
     # https://stackoverflow.com/questions/50878834/py4j-error-while-obtaining-a-new-communication-channel-on-multithreaded-java
@@ -7,7 +9,7 @@ class PythonCallback:
         self.gateway = gateway
         # P4j will return false if the callback server is already started
         # https://github.com/bartdag/py4j/blob/master/py4j-python/src/py4j/java_gateway.py
-        callback_server = self.gateway.get_callback_server()
+        callback_server = self.gateway.get_callback_server(callback_server_parameters=CallbackServerParameters(port=0))
         # TODO clean
         if callback_server is None:
             self.gateway.start_callback_server()
