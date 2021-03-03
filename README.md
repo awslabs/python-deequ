@@ -17,7 +17,7 @@ There are 4 main components of Deequ, and they are:
 
 ![](imgs/pydeequ_architecture.jpg)
 
-## Announcements
+## 🎉 Announcements 🎉
 We've release a blogpost on integrating PyDeequ onto AWS leveraging services such as AWS Glue, Athena, and SageMaker! Check it out: [Monitor data quality in your data lake using PyDeequ and AWS Glue](https://aws.amazon.com/blogs/big-data/monitor-data-quality-in-your-data-lake-using-pydeequ-and-aws-glue/).
 
 ## Quickstart
