@@ -1,14 +1,12 @@
 import unittest
 from pydeequ.scala_utils import ScalaFunction1, ScalaFunction2
 from pyspark.sql import SparkSession
-
+from pydeequ import *
 
 class TestScalaUtils(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # TODO share spark context between test cases?
-        deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3-rc2" # TODO get Maven Coord from Configs
-        f2j_maven_coord = "net.sourceforge.f2j:arpack_combined_all" # This package is excluded because it causes an error in the SparkSession fig
+        # deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3-rc2" # TODO This ran rc2?
         cls.spark = (SparkSession
                  .builder
                  .master('local[*]')

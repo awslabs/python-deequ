@@ -4,12 +4,11 @@ from pydeequ.verification import *
 from pydeequ.anomaly_detection import *
 from pydeequ.repository import *
 from pydeequ.analyzers import *
+from pydeequ import *
 
 class TestAnomalies(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3"
-        f2j_maven_coord = "net.sourceforge.f2j:arpack_combined_all" # This package is excluded because it causes an error in the SparkSession fig
         cls.spark = (SparkSession
                  .builder
                  .master('local[*]')

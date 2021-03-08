@@ -2,13 +2,11 @@ import unittest
 from pydeequ.profiles import ColumnProfilerRunBuilder, ColumnProfilerRunner
 from pydeequ.analyzers import KLLParameters
 from pyspark.sql import SparkSession, Row
-
+from pydeequ import *
 
 class TestProfiles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3"
-        f2j_maven_coord = "net.sourceforge.f2j:arpack_combined_all" # This package is excluded because it causes an error in the SparkSession fig
         cls.spark = (SparkSession
                  .builder
                  .master('local[*]')
