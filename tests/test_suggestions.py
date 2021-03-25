@@ -1,37 +1,21 @@
-import unittest
-from pyspark.sql import SparkSession, Row, DataFrame
+import pytest
+from pyspark.sql import Row
+
 from pydeequ.suggestions import *
-import json
 
 
-class TestSuggestions(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3"
-        f2j_maven_coord = "net.sourceforge.f2j:arpack_combined_all"  # This package is excluded because it causes an error in the SparkSession fig
-        cls.spark = (SparkSession
-                      .builder
-                      .master('local[*]')
-                      .config("spark.jars.packages", deequ_maven_coord)
-                      .config("spark.pyspark.python", "/usr/bin/python3")
-                      .config("spark.pyspark.driver.python", "/usr/bin/python3")
-                      .config("spark.jars.excludes", f2j_maven_coord)
-                      .config("spark.driver.extraJavaOptions", "-XX:+UseG1GC")
-                      .config("spark.executor.extraJavaOptions", "-XX:+UseG1GC")
-                      .config("spark.sql.autoBroadcastJoinThreshold", "-1")
-                      .appName('test-analyzers-local')
-                      .getOrCreate())
-        cls.ConstraintSuggestionRunner = ConstraintSuggestionRunner(cls.spark)
-        cls.sc = cls.spark.sparkContext
-        cls.df = cls.sc.parallelize([
+class TestSuggestions():
+
+    @pytest.fixture(autouse=True)
+    def _initialize(self, spark_session):
+        self.spark = spark_session
+        self.sc = self.spark.sparkContext
+        self.ConstraintSuggestionRunner = ConstraintSuggestionRunner(self.spark)
+        self.df = self.sc.parallelize([
             Row(a="foo", b=1, c=5),
             Row(a="bar", b=2, c=6),
             Row(a="baz", b=3, c=None)]).toDF()
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.spark.sparkContext._gateway.shutdown_callback_server()
-        cls.spark.stop()
 
     def test_CategoricalRangeRule(self):
         result = self.ConstraintSuggestionRunner \

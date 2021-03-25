@@ -1,45 +1,31 @@
-import unittest
-from pyspark.sql import SparkSession, Row
-from pydeequ.analyzers import *
 from pydeequ.suggestions import *
-import json
-from pydeequ.profiles import ColumnProfilerRunBuilder, ColumnProfilerRunner
-from pydeequ.verification import *
-from pydeequ.checks import *
-from pydeequ import PyDeequSession
-from pandas import DataFrame as pandasDF
 import numpy as np
+from pandas import DataFrame as pandasDF
+import pytest
 
-class TestPandasUtils(unittest.TestCase):
+from pydeequ import PyDeequSession
+from pydeequ.checks import *
+from pydeequ.profiles import ColumnProfilerRunner
+from pydeequ.suggestions import *
+from pydeequ.verification import *
 
-    @classmethod
-    def setUpClass(cls):
-        deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3"  # TODO: get Maven Coord from Configs
-        f2j_maven_coord = "net.sourceforge.f2j:arpack_combined_all"  # This package is excluded because it causes an error in the SparkSession fig
-        cls.spark = (SparkSession
-                      .builder
-                      .master('local[*]')
-                      .config("spark.executor.memory", "2g")
-                      .config("spark.jars.packages", deequ_maven_coord)
-                      .config("spark.pyspark.python", "/usr/bin/python3")
-                      .config("spark.pyspark.driver.python", "/usr/bin/python3")
-                      .config("spark.jars.excludes", f2j_maven_coord)
-                      .config("spark.driver.extraJavaOptions", "-XX:+UseG1GC")
-                      .config("spark.executor.extraJavaOptions", "-XX:+UseG1GC")
-                      .config("spark.sql.autoBroadcastJoinThreshold", "-1")
-                      .appName('test-analyzers-local')
-                      .getOrCreate())
-        cls.pydeequ_session = PyDeequSession(cls.spark)
-        cls.AnalysisRunner = cls.pydeequ_session.createAnalysisRunner()
-        cls.ColumnProfilerRunner = ColumnProfilerRunner(cls.spark)
-        cls.ConstraintSuggestionRunner = ConstraintSuggestionRunner(cls.spark)
-        cls.sc = cls.spark.sparkContext
+
+class TestPandasUtils():
+
+    @pytest.fixture(autouse=True)
+    def _initialize(self, spark_session):
+        self.spark = spark_session
+        self.sc = self.spark.sparkContext
+        self.pydeequ_session = PyDeequSession(self.spark)
+        self.AnalysisRunner = self.pydeequ_session.createAnalysisRunner()
+        self.ColumnProfilerRunner = ColumnProfilerRunner(self.spark)
+        self.ConstraintSuggestionRunner = ConstraintSuggestionRunner(self.spark)
         data = [
             ('foo', 1, True, 1.0, float('nan')),
             ('bar', 2, False, 2.0, float('nan'))
         ]
-        cls.pyspark_df = cls.spark.createDataFrame(data, schema=['strings', 'ints', 'bools','floats','nans'])
-        cls.pandas_df = pandasDF({
+        self.pyspark_df = self.spark.createDataFrame(data, schema=['strings', 'ints', 'bools','floats','nans'])
+        self.pandas_df = pandasDF({
             'strings': ['foo','bar'],
             'ints': [1,2],
             'bools': [True, False],
@@ -47,10 +33,11 @@ class TestPandasUtils(unittest.TestCase):
             'nans': [np.nan, np.nan]
         })
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.spark.sparkContext._gateway.shutdown_callback_server()
-        cls.spark.stop()
+    def assertEqual(self, expected, actual):
+        assert expected == actual
+
+    def assertIsInstance(self, expected, actual):
+        assert isinstance(expected, actual)
 
     def test_p2s_analyzer(self):
         pd_result = self.AnalysisRunner.onData(self.pandas_df) \
