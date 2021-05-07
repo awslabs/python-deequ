@@ -22,7 +22,7 @@ class TestChecks(unittest.TestCase):
         cls.df = cls.sc.parallelize([
             Row(a="foo", b=1, c=5, d=5, e=3, f=1, g='a', h=0, creditCard="5130566665286573", email="foo@example.com", ssn="123-45-6789", URL="http://userid@example.com:8080", boolean="true"),
             Row(a="bar", b=2, c=6, d=5, e=2, f=2, g='b', h=-1, creditCard="4532677117740914", email="bar@example.com", ssn="123456789", URL="http://foo.com/(something)?after=parens", boolean="false"),
-            Row(a="baz", b=3, c=None, d=5, e=1, f=1, g=None, h=2, creditCard="340145324521741", email="yourusername@example.com", ssn="000-00-0000", URL ="http://userid@example.com:8080", boolean="true")]).toDF()
+            Row(a="baz", b=3, c=None, d=5, e=1, f=1, g=None, h=2, creditCard="3401453245217421", email="yourusername@meow.com", ssn="000-00-0000", URL ="http://userid@example.com:8080", boolean="true")]).toDF()
 
     @classmethod
     def tearDownClass(cls):
@@ -47,6 +47,16 @@ class TestChecks(unittest.TestCase):
 
         result = VerificationSuite(self.spark).onData(self.df) \
             .addCheck(check.hasSize(assertion, hint)) \
+            .run()
+
+        df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        return df.select('constraint_status').collect()
+
+    def hasPattern(self, column, pattern, assertion=None, name=None, hint=None):
+        check = Check(self.spark, CheckLevel.Warning, "test hasPattern")
+
+        result = VerificationSuite(self.spark).onData(self.df) \
+            .addCheck((check.hasPattern(column, pattern, assertion, name, hint))) \
             .run()
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
@@ -401,6 +411,40 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasSize(lambda x: x >= 5.0, "size of dataframe should be 3"), [Row(constraint='Success')])
         self.assertEqual(self.hasSize(lambda x: (x >2.0), "size of dataframe should be 3"),
                          [Row(constraint_status='Failure')])
+
+    def test_hasPattern(self):
+        self.assertEqual(self.hasPattern(column='email',
+                                         pattern=r".*@meow.com",
+                                         assertion=lambda x: x == 1/3),
+                         [Row(constraint_status='Success')])
+
+        self.assertEqual(self.hasPattern(column='creditCard',
+                                         pattern=r"\(|\)|\d{16}",
+                                         assertion=lambda x: x == 0.0),
+                         [Row(constraint_status='Failure')])
+
+        self.assertEqual(self.hasPattern(column='email',
+                                         pattern=r"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])""",
+                                         assertion=lambda x: x == 1.0),
+                         [Row(constraint_status='Success')])
+
+
+    @unittest.expectedFailure
+    def test_fail_hasPattern(self):
+        self.assertEqual(self.hasPattern(column='email',
+                                         pattern=r".*@meow.com",
+                                         assertion=lambda x: x == 2 / 3),
+                         [Row(constraint_status='Success')])
+
+        self.assertEqual(self.hasPattern(column='creditCard',
+                                         pattern=r"\(|\)|\d{16}",
+                                         assertion=lambda x: x == 1.0),
+                         [Row(constraint_status='Failure')])
+
+        self.assertEqual(self.hasPattern(column='email',
+                                         pattern=r"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])""",
+                                         assertion=lambda x: x == 0.0),
+                         [Row(constraint_status='Success')])
 
     def test_containsCreditCardNumber(self):
         self.assertEqual(self.containsCreditCardNumber("creditCard"), [Row(constraint_status='Success')])
