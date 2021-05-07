@@ -20,9 +20,9 @@ class TestChecks(unittest.TestCase):
                  .getOrCreate())
         cls.sc = cls.spark.sparkContext
         cls.df = cls.sc.parallelize([
-            Row(a="foo", b=1, c=5, d=5, e=3, f=1, g='a', h=0, creditCard="5130566665286573", email="foo@example.com", ssn="123-45-6789", URL="http://userid@example.com:8080", boolean="true"),
-            Row(a="bar", b=2, c=6, d=5, e=2, f=2, g='b', h=-1, creditCard="4532677117740914", email="bar@example.com", ssn="123456789", URL="http://foo.com/(something)?after=parens", boolean="false"),
-            Row(a="baz", b=3, c=None, d=5, e=1, f=1, g=None, h=2, creditCard="3401453245217421", email="yourusername@meow.com", ssn="000-00-0000", URL ="http://userid@example.com:8080", boolean="true")]).toDF()
+            Row(a="foo", b=1, c=5, d=5, e=3, f=1, g='a', h=0,     creditCard="5130566665286573", email="foo@example.com", ssn="123-45-6789", URL="http://userid@example.com:8080", boolean="true"),
+            Row(a="bar", b=2, c=6, d=5, e=2, f=2, g='b', h=-1,    creditCard="4532677117740914", email="bar@example.com", ssn="123456789", URL="http://foo.com/(something)?after=parens", boolean="false"),
+            Row(a="baz", b=3, c=None, d=5, e=1, f=1, g=None, h=2, creditCard="340145324521741", email="yourusername@meow.com", ssn="000-00-0000", URL ="http://userid@example.com:8080", boolean="true")]).toDF()
 
     @classmethod
     def tearDownClass(cls):
@@ -804,7 +804,7 @@ class TestChecks(unittest.TestCase):
                          [Row(constraint_status='Success')])
 
     def test_hasMaxLength(self):
-        self.assertEqual(self.hasMaxLength("email", lambda x: x == 24, "Column email has 24 characters max"),
+        self.assertEqual(self.hasMaxLength("email", lambda x: x == 21, "Column email has 24 characters max"),
                          [Row(constraint_status='Success')])
         self.assertEqual(self.hasMaxLength('email', lambda x: x == 25, "does not meet criteria"),
                          [Row(constraint_status='Failure')])
