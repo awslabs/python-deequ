@@ -19,7 +19,8 @@ from pydeequ.profiles import ColumnProfilerRunner
 from pydeequ.analyzers import AnalysisRunner
 from pydeequ.checks import Check, CheckLevel
 
-deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3"
+deequ_maven_coord = "com.amazon.deequ:deequ:1.1.0_spark-2.4-scala-2.11"
+# deequ_maven_coord = "com.amazon.deequ:deequ:1.1.0_spark-3.0-scala-2.12"
 f2j_maven_coord = "net.sourceforge.f2j:arpack_combined_all"
 
 class PyDeequSession:
