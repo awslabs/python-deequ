@@ -31,6 +31,28 @@ class TestChecks(unittest.TestCase):
         cls.spark.sparkContext._gateway.shutdown_callback_server()
         cls.spark.stop()
 
+    def testCheckConstraints(self):
+        check = Check(self.spark, CheckLevel.Warning, "test list constraints")
+        check.addConstraints([check.isComplete('c'),
+                            check.isUnique('b')])
+        check.addConstraint(check.hasSize(lambda x: x == 3.0))
+
+        result = VerificationSuite(self.spark).onData(self.df) \
+            .addCheck(check) \
+            .run()
+
+        result_df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+
+        check2 = Check(self.spark, CheckLevel.Warning, "test list constraints")
+
+        result2 = VerificationSuite(self.spark).onData(self.df) \
+            .addCheck(check2.isComplete('c').isUnique('b').hasSize(lambda x: x == 3.0)) \
+            .run()
+
+        result_df2 = VerificationResult.checkResultsAsDataFrame(self.spark, result2)
+
+        self.assertEqual(result_df.select('constraint').collect(), result_df2.select('constraint').collect())
+
     def test_initializer(self):
         # TODO verify that it does more than run
         check = Check(self.spark, CheckLevel.Warning, "test initializer")
