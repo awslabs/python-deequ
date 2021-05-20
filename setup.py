@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 def setup_package():
     setup(
         name='pydeequ',
-        version="0.1.6",
+        version="0.1.7",
         author="PyDeequ Developers",
         author_email="calviwan@amazon.com",
         description="Python API for Deequ",
