@@ -1,11 +1,14 @@
+# -*- coding: utf-8 -*-
 """
-Analyzers file for all the different analyzers classes in Deequ 
+Analyzers file for all the different analyzers classes in Deequ
 """
-from pydeequ.scala_utils import to_scala_seq
+import json
+
+from pyspark.sql import DataFrame, SparkSession, SQLContext
+
 from pydeequ.pandas_utils import ensure_pyspark_df
 from pydeequ.repository import MetricsRepository, ResultKey
-from pyspark.sql import SparkSession, DataFrame, SQLContext
-import json
+from pydeequ.scala_utils import to_scala_seq
 
 
 class _AnalyzerObject:
@@ -19,11 +22,11 @@ class _AnalyzerObject:
 
     @property
     def _deequAnalyzers(self):
-        if (self._jvm):
+        if self._jvm:
             return self._jvm.com.amazon.deequ.analyzers
-        else:
-            raise AttributeError(
-                "JVM not set, please run _set_jvm() method first.")  # TODO: Test that this exception gets raised
+        raise AttributeError(
+            "JVM not set, please run _set_jvm() method first."
+        )  # TODO: Test that this exception gets raised
 
 
 class AnalysisRunner:
@@ -52,8 +55,11 @@ class AnalyzerContext:
     """
     The result returned from AnalysisRunner and Analysis.
     """
+
     @classmethod
-    def successMetricsAsDataFrame(cls, spark_session: SparkSession, analyzerContext, forAnalyzers: list = None, pandas: bool = False):
+    def successMetricsAsDataFrame(
+        cls, spark_session: SparkSession, analyzerContext, forAnalyzers: list = None, pandas: bool = False
+    ):
         """
         Get the Analysis Run as a DataFrame.
 
@@ -63,16 +69,20 @@ class AnalyzerContext:
         :return DataFrame: DataFrame of Analysis Run
         """
         if forAnalyzers:
-            raise NotImplementedError('forAnalyzers have not been implemented yet.')
-        forAnalyzers = getattr(spark_session._jvm.com.amazon.deequ.analyzers.runners.AnalyzerContext, "successMetricsAsDataFrame$default$3")()
-        analysis_result = spark_session._jvm.com.amazon.deequ.analyzers.runners.AnalyzerContext.successMetricsAsDataFrame(
-            spark_session._jsparkSession,
-            analyzerContext,
-            forAnalyzers
+            raise NotImplementedError("forAnalyzers have not been implemented yet.")
+        forAnalyzers = getattr(
+            spark_session._jvm.com.amazon.deequ.analyzers.runners.AnalyzerContext, "successMetricsAsDataFrame$default$3"
+        )()
+        analysis_result = (
+            spark_session._jvm.com.amazon.deequ.analyzers.runners.AnalyzerContext.successMetricsAsDataFrame(
+                spark_session._jsparkSession, analyzerContext, forAnalyzers
+            )
         )
-        sql_ctx = SQLContext(sparkContext=spark_session._sc,
-                             sparkSession=spark_session,
-                             jsqlContext=spark_session._jsparkSession.sqlContext())
+        sql_ctx = SQLContext(
+            sparkContext=spark_session._sc,
+            sparkSession=spark_session,
+            jsqlContext=spark_session._jsparkSession.sqlContext(),
+        )
         return DataFrame(analysis_result, sql_ctx).toPandas() if pandas else DataFrame(analysis_result, sql_ctx)
 
     @classmethod
@@ -86,12 +96,12 @@ class AnalyzerContext:
         :return JSON : JSON output of Analysis Run
         """
         if forAnalyzers:
-            raise NotImplementedError('forAnalyzers have not been implemented yet.')
-        forAnalyzers = getattr(spark_session._jvm.com.amazon.deequ.analyzers.runners.AnalyzerContext,
-                               "successMetricsAsJson$default$2")()
+            raise NotImplementedError("forAnalyzers have not been implemented yet.")
+        forAnalyzers = getattr(
+            spark_session._jvm.com.amazon.deequ.analyzers.runners.AnalyzerContext, "successMetricsAsJson$default$2"
+        )()
         analysis_result = spark_session._jvm.com.amazon.deequ.analyzers.runners.AnalyzerContext.successMetricsAsJson(
-            analyzerContext,
-            forAnalyzers
+            analyzerContext, forAnalyzers
         )
         return json.loads(analysis_result)
 
@@ -103,6 +113,7 @@ class AnalysisRunBuilder:
     :param spark_session SparkSession: SparkSession
     :param DataFrame  df: DataFrame to run the Analysis on.
     """
+
     def __init__(self, spark_session: SparkSession, df: DataFrame):
 
         self._spark_session = spark_session
@@ -173,10 +184,7 @@ class ApproxCountDistinct(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.ApproxCountDistinct(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.ApproxCountDistinct(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class ApproxQuantile(_AnalyzerObject):
@@ -206,10 +214,7 @@ class ApproxQuantile(_AnalyzerObject):
         :return self
         """
         return self._deequAnalyzers.ApproxQuantile(
-            self.column,
-            self.quantile,
-            self.relativeError,
-            self._jvm.scala.Option.apply(self.where)
+            self.column, self.quantile, self.relativeError, self._jvm.scala.Option.apply(self.where)
         )
 
 
@@ -240,18 +245,16 @@ class ApproxQuantiles(_AnalyzerObject):
         :return self
         """
         return self._deequAnalyzers.ApproxQuantiles(
-            self.column,
-            to_scala_seq(self._jvm, self.quantiles),
-            self.relativeError
+            self.column, to_scala_seq(self._jvm, self.quantiles), self.relativeError
         )
 
 
 class Completeness(_AnalyzerObject):
-    """ Completeness is the fraction of non-null values in a column.
+    """Completeness is the fraction of non-null values in a column.
 
     :param str column: Column in DataFrame for which Completeness is analyzed.
     :param str where: additional filter to apply before the analyzer is run.
-     """
+    """
 
     def __init__(self, column, where=None):
         """
@@ -267,10 +270,7 @@ class Completeness(_AnalyzerObject):
 
         :return self: access the value of the Completeness analyzer.
         """
-        return self._deequAnalyzers.Completeness(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Completeness(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class Compliance(_AnalyzerObject):
@@ -289,6 +289,7 @@ class Compliance(_AnalyzerObject):
     :param str where: additional filter to apply before
         the analyzer is run.
     """
+
     def __init__(self, instance, predicate, where=None):
 
         self.instance = instance
@@ -301,11 +302,7 @@ class Compliance(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Compliance(
-            self.instance,
-            self.predicate,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Compliance(self.instance, self.predicate, self._jvm.scala.Option.apply(self.where))
 
 
 class Correlation(_AnalyzerObject):
@@ -328,11 +325,7 @@ class Correlation(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Correlation(
-            self.column1,
-            self.column2,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Correlation(self.column1, self.column2, self._jvm.scala.Option.apply(self.where))
 
 
 class CountDistinct(_AnalyzerObject):
@@ -351,11 +344,9 @@ class CountDistinct(_AnalyzerObject):
     def _analyzer_jvm(self):
         """Returns the value of the computed distinctness
 
-          :return self
-          """
-        return self._deequAnalyzers.CountDistinct(
-            to_scala_seq(self._jvm, self.columns)
-        )
+        :return self
+        """
+        return self._deequAnalyzers.CountDistinct(to_scala_seq(self._jvm, self.columns))
 
 
 class DataType(_AnalyzerObject):
@@ -377,10 +368,7 @@ class DataType(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.DataType(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.DataType(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class Distinctness(_AnalyzerObject):
@@ -395,7 +383,8 @@ class Distinctness(_AnalyzerObject):
     """
 
     def __init__(self, columns, where: str = None):
-        if isinstance(columns, str): columns = [columns]
+        if isinstance(columns, str):
+            columns = [columns]
         self.columns = columns
         self.where = where
 
@@ -407,8 +396,7 @@ class Distinctness(_AnalyzerObject):
         :return self: access the value of the distincness analyzer.
         """
         return self._deequAnalyzers.Distinctness(
-            to_scala_seq(self._jvm, self.columns),
-            self._jvm.scala.Option.apply(self.where)
+            to_scala_seq(self._jvm, self.columns), self._jvm.scala.Option.apply(self.where)
         )
 
 
@@ -433,10 +421,7 @@ class Entropy(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Entropy(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Entropy(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class Histogram(_AnalyzerObject):
@@ -470,13 +455,12 @@ class Histogram(_AnalyzerObject):
         :return self
         """
         if not self.maxDetailBins:
-            self.maxDetailBins = getattr(self._jvm.com.amazon.deequ.analyzers.Histogram,
-                                                                "apply$default$3")()
+            self.maxDetailBins = getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$3")()
         return self._deequAnalyzers.Histogram(
             self.column,
             self._jvm.scala.Option.apply(self.binningUdf),
             self.maxDetailBins,
-            self._jvm.scala.Option.apply(self.where)
+            self._jvm.scala.Option.apply(self.where),
         )
 
 
@@ -501,9 +485,7 @@ class KLLParameters:
         Return the JVM KLLParameter object
         """
         return self._spark_session._jvm.com.amazon.deequ.analyzers.KLLParameters(
-            self.sketchSize,
-            self.shrinkingFactor,
-            self.numberOfBuckets
+            self.sketchSize, self.shrinkingFactor, self.numberOfBuckets
         )
 
 
@@ -526,12 +508,9 @@ class KLLSketch(_AnalyzerObject):
 
         :return self
         """
-        if not self.kllParameters: self.kllParameters = getattr(self._jvm.com.amazon.deequ.analyzers.KLLSketch,
-                                                                "apply$default$2")()
-        return self._deequAnalyzers.KLLSketch(
-            self.column,
-            self._jvm.scala.Option.apply(self.kllParameters._param)
-        )
+        if not self.kllParameters:
+            self.kllParameters = getattr(self._jvm.com.amazon.deequ.analyzers.KLLSketch, "apply$default$2")()
+        return self._deequAnalyzers.KLLSketch(self.column, self._jvm.scala.Option.apply(self.kllParameters._param))
 
 
 class Maximum(_AnalyzerObject):
@@ -551,10 +530,7 @@ class Maximum(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Maximum(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Maximum(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class MaxLength(_AnalyzerObject):
@@ -576,10 +552,7 @@ class MaxLength(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.MaxLength(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.MaxLength(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class Mean(_AnalyzerObject):
@@ -602,10 +575,7 @@ class Mean(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Mean(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Mean(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class Minimum(_AnalyzerObject):
@@ -625,10 +595,7 @@ class Minimum(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Minimum(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Minimum(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class MinLength(_AnalyzerObject):
@@ -651,10 +618,7 @@ class MinLength(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.MinLength(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.MinLength(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class MutualInformation(_AnalyzerObject):
@@ -677,8 +641,7 @@ class MutualInformation(_AnalyzerObject):
         :return self
         """
         return self._deequAnalyzers.MutualInformation(
-            to_scala_seq(self._jvm, self.columns),
-            self._jvm.scala.Option.apply(self.where)
+            to_scala_seq(self._jvm, self.columns), self._jvm.scala.Option.apply(self.where)
         )
 
 
@@ -700,7 +663,7 @@ class PatternMatch(_AnalyzerObject):
 
     def __init__(self, column, pattern_regex: str, *pattern_groupNames, where: str = None):
         self.column = column
-        self.pattern_regex = pattern_regex,
+        self.pattern_regex = (pattern_regex,)
         if pattern_groupNames:
             raise NotImplementedError("pattern_groupNames have not been implemented yet.")
         self.pattern_groupNames = None
@@ -718,7 +681,7 @@ class PatternMatch(_AnalyzerObject):
             self._jvm.scala.util.matching.Regex(str(self.pattern_regex), None),
             # TODO: revisit bc scala constructor does some weird implicit type casting from python str -> java list
             #  if we don't cast it to str()
-            self._jvm.scala.Option.apply(self.where)
+            self._jvm.scala.Option.apply(self.where),
         )
 
 
@@ -739,9 +702,7 @@ class Size(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Size(
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Size(self._jvm.scala.Option.apply(self.where))
 
 
 class StandardDeviation(_AnalyzerObject):
@@ -763,10 +724,7 @@ class StandardDeviation(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.StandardDeviation(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.StandardDeviation(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class Sum(_AnalyzerObject):
@@ -789,10 +747,7 @@ class Sum(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Sum(
-            self.column,
-            self._jvm.scala.Option.apply(self.where)
-        )
+        return self._deequAnalyzers.Sum(self.column, self._jvm.scala.Option.apply(self.where))
 
 
 class Uniqueness(_AnalyzerObject):
@@ -816,8 +771,7 @@ class Uniqueness(_AnalyzerObject):
         :return self
         """
         return self._deequAnalyzers.Uniqueness(
-            to_scala_seq(self._jvm, self.columns),
-            self._jvm.scala.Option.apply(self.where)
+            to_scala_seq(self._jvm, self.columns), self._jvm.scala.Option.apply(self.where)
         )
 
 
@@ -842,6 +796,5 @@ class UniqueValueRatio(_AnalyzerObject):
         :return self
         """
         return self._deequAnalyzers.UniqueValueRatio(
-            to_scala_seq(self._jvm, self.columns),
-            self._jvm.scala.Option.apply(self.where)
+            to_scala_seq(self._jvm, self.columns), self._jvm.scala.Option.apply(self.where)
         )

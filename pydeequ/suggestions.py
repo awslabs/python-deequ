@@ -1,12 +1,14 @@
+# -*- coding: utf-8 -*-
 """
 Suggestions file for all the Constraint Suggestion classes in Deequ
 
 Author: Calvin Wang
 """
-from pydeequ.scala_utils import to_scala_seq
-from pydeequ.pandas_utils import ensure_pyspark_df
-from pyspark.sql import SparkSession, DataFrame
 import json
+
+from pyspark.sql import DataFrame, SparkSession
+
+from pydeequ.pandas_utils import ensure_pyspark_df
 
 
 class ConstraintSuggestionRunner:
@@ -43,8 +45,9 @@ class ConstraintSuggestionRunBuilder:
         self._jvm = spark_session._jvm
         self._jspark_session = spark_session._jsparkSession
         self._df = df
-        self._ConstraintSuggestionRunBuilder = self._jvm.com.amazon.deequ.suggestions.ConstraintSuggestionRunBuilder(df._jdf)
-
+        self._ConstraintSuggestionRunBuilder = self._jvm.com.amazon.deequ.suggestions.ConstraintSuggestionRunBuilder(
+            df._jdf
+        )
 
     def addConstraintRule(self, constraintRule):
         """
@@ -68,7 +71,6 @@ class ConstraintSuggestionRunBuilder:
 
         return self
 
-
     def run(self):
         """
         A method that runs the desired ConstraintSuggestionRunBuilder functions on the data to obtain a constraint
@@ -78,11 +80,10 @@ class ConstraintSuggestionRunBuilder:
         """
         result = self._ConstraintSuggestionRunBuilder.run()
 
-        jvmSuggestionResult = self._jvm.com.amazon.deequ \
-            .suggestions.ConstraintSuggestionResult
+        jvmSuggestionResult = self._jvm.com.amazon.deequ.suggestions.ConstraintSuggestionResult
         result_json = json.loads(jvmSuggestionResult.getConstraintSuggestionsAsJson(result))
-        for cs in result_json['constraint_suggestions']:
-            cs['code_for_constraint'] = self.__s2p_filter(cs['code_for_constraint'])
+        for cs in result_json["constraint_suggestions"]:
+            cs["code_for_constraint"] = self.__s2p_filter(cs["code_for_constraint"])
         return result_json
 
     @staticmethod
@@ -95,31 +96,31 @@ class ConstraintSuggestionRunBuilder:
 
         :return code that is translated to look more like python code
         """
-        if ' _ ' in code:
-            code = code.replace(' _ ', ' lambda x: x ')
+        if " _ " in code:
+            code = code.replace(" _ ", " lambda x: x ")
 
-        if 'Some(' in code:
+        if "Some(" in code:
             # Usually at the end as 'where' or 'hint' strings as optional
-            code = code.replace('Some(', '')[:-1]
+            code = code.replace("Some(", "")[:-1]
 
-        if 'Array(' in code:
+        if "Array(" in code:
             # TODO: what if multiple?
             # TODO: Probz redo with regex
-            start = code.index('Array(') + len('Array(')
+            start = code.index("Array(") + len("Array(")
             for idx in range(start, len(code)):
-                if code[idx] == ')':
-                    code = code[:idx] + ']' + code[idx + 1:]
-                    code = code.replace('Array(', '[')
+                if code[idx] == ")":
+                    code = code[:idx] + "]" + code[idx + 1 :]
+                    code = code.replace("Array(", "[")
                     break
 
-        if 'Seq(' in code:
+        if "Seq(" in code:
             # TODO: what if multiple?
             # TODO: Probz redo with regex
-            start = code.index('Seq(') + len('Seq(')
+            start = code.index("Seq(") + len("Seq(")
             for idx in range(start, len(code)):
-                if code[idx] == ')':
-                    code = code[:idx] + ']' + code[idx + 1:]
-                    code = code.replace('Seq(', '[')
+                if code[idx] == ")":
+                    code = code[:idx] + "]" + code[idx + 1 :]
+                    code = code.replace("Seq(", "[")
                     break
 
         return code
@@ -134,11 +135,11 @@ class ConstraintSuggestionResult:
     """
     The result returned from the ConstraintSuggestionSuite
     """
-    pass
 
 
 class _RulesObject:
-    """ Rules base object to pass and accumulate the rules of the run with respect to the JVM"""
+    """Rules base object to pass and accumulate the rules of the run with respect to the JVM"""
+
     def _set_jvm(self, jvm):
 
         self._jvm = jvm
@@ -146,36 +147,40 @@ class _RulesObject:
 
     @property
     def _deequSuggestions(self):
-        if (self._jvm):
+        if self._jvm:
             return self._jvm.com.amazon.deequ.suggestions
-        else:
-            raise AttributeError(
-                "JVM not set, please run _set_jvm() method first.")  # TODO: Test that this exception gets raised
+        raise AttributeError(
+            "JVM not set, please run _set_jvm() method first."
+        )  # TODO: Test that this exception gets raised
 
 
 class DEFAULT(_RulesObject):
     """
     DEFAULT runs all the rules on the dataset.
     """
+
     @property
     def rule_jvm(self):
         """
 
         :return:
         """
-        return [CategoricalRangeRule(),
-                CompleteIfCompleteRule(),
-                FractionalCategoricalRangeRule(),
-                NonNegativeNumbersRule(),
-                RetainCompletenessRule(),
-                RetainTypeRule(),
-                UniqueIfApproximatelyUniqueRule()]
+        return [
+            CategoricalRangeRule(),
+            CompleteIfCompleteRule(),
+            FractionalCategoricalRangeRule(),
+            NonNegativeNumbersRule(),
+            RetainCompletenessRule(),
+            RetainTypeRule(),
+            UniqueIfApproximatelyUniqueRule(),
+        ]
 
 
 class CategoricalRangeRule(_RulesObject):
     """
     If we see a categorical range for a column, we suggest an IS IN (...) constraint
     """
+
     @property
     def rule_jvm(self):
         return self._deequSuggestions.rules.CategoricalRangeRule()
@@ -185,6 +190,7 @@ class CompleteIfCompleteRule(_RulesObject):
     """
     If a column is complete in the sample, we suggest a NOT NULL constraint
     """
+
     @property
     def rule_jvm(self):
         return self._deequSuggestions.rules.CompleteIfCompleteRule()
@@ -198,7 +204,8 @@ class FractionalCategoricalRangeRule(_RulesObject):
     :param float targetDataCoverageFraction: The numerical fraction for which the data should stay within range
     of eachother
     """
-    def __init__(self, targetDataCoverageFraction: float=0.9):
+
+    def __init__(self, targetDataCoverageFraction: float = 0.9):
 
         self.targetDataCoverageFraction = targetDataCoverageFraction
 
@@ -211,6 +218,7 @@ class NonNegativeNumbersRule(_RulesObject):
     """
     If we see only non-negative numbers in a column, we suggest a corresponding constraint
     """
+
     @property
     def rule_jvm(self):
         return self._deequSuggestions.rules.NonNegativeNumbersRule()
@@ -221,6 +229,7 @@ class RetainCompletenessRule(_RulesObject):
     If a column is incomplete in the sample, we model its completeness as a binomial variable,
     estimate a confidence interval and use this to define a lower bound for the completeness
     """
+
     @property
     def rule_jvm(self):
         return self._deequSuggestions.rules.RetainCompletenessRule()
@@ -230,6 +239,7 @@ class RetainTypeRule(_RulesObject):
     """
     If we detect a non-string type, we suggest a type constraint
     """
+
     @property
     def rule_jvm(self):
         return self._deequSuggestions.rules.RetainTypeRule()
@@ -240,7 +250,7 @@ class UniqueIfApproximatelyUniqueRule(_RulesObject):
     If the ratio of approximate num distinct values in a column is close to the number of records
     (within error of HLL sketch), we suggest a UNIQUE constraint
     """
+
     @property
     def rule_jvm(self):
         return self._deequSuggestions.rules.UniqueIfApproximatelyUniqueRule()
-

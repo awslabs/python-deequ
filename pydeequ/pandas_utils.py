@@ -1,24 +1,37 @@
+# -*- coding: utf-8 -*-
 """
 Utility methods to help PyDeequ interface with Pandas
 """
-from pyspark.sql.types import *
-from pandas import DataFrame as pandasDF
-from pyspark.sql import DataFrame as sparkDF
-from pyspark.sql import SparkSession
 import warnings
 from typing import Union
 
+from pandas import DataFrame as pandasDF
+from pyspark.sql import DataFrame as sparkDF
+from pyspark.sql import SparkSession
+from pyspark.sql.types import (
+    BooleanType,
+    DateType,
+    FloatType,
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+)
+
 
 def ensure_pyspark_df(spark_session: SparkSession, df: Union[pandasDF, sparkDF]):
-    """ Method for checking dataframe type for each onData() call from a RunBuilder. """
+    """Method for checking dataframe type for each onData() call from a RunBuilder."""
     if not isinstance(df, sparkDF):
-        warnings.warn("WARNING: You passed in a Pandas DF, so we will be using our experimental utility to "
-                      "convert it to a PySpark DF.")
+        warnings.warn(
+            "WARNING: You passed in a Pandas DF, so we will be using our experimental utility to "
+            "convert it to a PySpark DF."
+        )
         df = PandasConverter.pandasDF_to_pysparkDF(spark_session, df)
     return df
 
 
-class PandasConverter():
+class PandasConverter:
     """
     Pandas Functor to interface between Pandas and PyDeequ
 
@@ -39,11 +52,11 @@ class PandasConverter():
     """
 
     p2s_map = {
-        'datetime64[ns]': DateType(),
-        'int64': LongType(),
-        'int32': IntegerType(),
-        'float64': FloatType(),
-        'bool': BooleanType()
+        "datetime64[ns]": DateType(),
+        "int64": LongType(),
+        "int32": IntegerType(),
+        "float64": FloatType(),
+        "bool": BooleanType(),
     }
 
     @classmethod
@@ -55,9 +68,8 @@ class PandasConverter():
     def pandasDF_to_pysparkDF(cls, spark_session: SparkSession, pandas_df: pandasDF):
         columns = list(pandas_df.columns)
         types = list(pandas_df.dtypes)
-        struct_list = []
-        for column, typo in zip(columns, types):
-            struct_list.append(cls._define_structure(column, typo))
+        struct_list = [cls._define_structure(column, typo) for column, typo in zip(columns, types)]
+
         p_schema = StructType(struct_list)
         return spark_session.createDataFrame(pandas_df, p_schema)
 
