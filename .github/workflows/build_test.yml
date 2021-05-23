@@ -1,0 +1,152 @@
+name: BuildAndTest
+
+on:
+  push:
+    branches:
+      - master
+      - '!release*'
+  pull_request:
+    branches:
+      - master
+      - '!release*'
+jobs:
+  build:
+    name: "BuildTest with Python ${{ matrix.python-version }} JDK ${{ matrix.java }}, Hadoop ${{ matrix.hadoop }}, Spark ${{ matrix.spark-version }}"
+    # os: [ubuntu-latest, macos-latest, windows-latest]
+    strategy:
+      fail-fast: false
+      matrix:
+        hadoop: [3.2]
+        java: [11]
+        spark-version: [3.0.2]  # ToDO: Check deequ with 3.1.1
+        python-version: [3.7, 3.8]
+        scala-version: [2.12]
+    # Run on ubuntu
+    runs-on: ubuntu-20.04
+    env:
+      GITHUB_PREV_SHA: ${{ github.event.before }}
+      PYTHON_VERSION: ${{ matrix.python-version }}
+      SPARK_VERSION: ${{ matrix.spark-version }}
+      SCALA_VERSION: 2.12
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Spark repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # Setup Python
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'adopt'
+
+      # Setup Python
+      - name: Install Poetry
+        uses: snok/install-poetry@v1.1.4
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      # Install spark from apache-mirror: https://apachemirror.wuchna.com/spark/
+      - name: Run setup-spark ${{ matrix.spark-version }}
+        uses: vemonet/setup-spark@v1
+        with:
+          spark-version: ${{ matrix.spark-version }}
+          hadoop-version: ${{ matrix.hadoop }}
+
+      - name: Check Java ${{ matrix.java }} version
+        run: java -version
+
+      # - name: Check Scala ${{ matrix.scala }} version
+      #   run: scala -version
+
+      - name: Check Python ${{ matrix.python-version }} version
+        run: python -V
+
+      - name: Check ${{ matrix.spark-version }} version
+        run: spark-submit --version
+
+      - name: Check Disk Size before Cache
+        run: |
+          df -hm
+
+      # load cached venv if cache exists
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v2
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      # load cached maven if cache m2 exists
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      # load cached maven if cache m2-com exists
+      - name: Check Maven-com Cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository/com
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Check Disk Size before Build
+        run: |
+          df -hm
+
+      # Install dependencies if cache does not exist
+      - name: Install poetry dependencies if no cache hit
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry add --no-interaction pyspark==${{ matrix.spark-version }} && poetry install --no-interaction --no-root
+      - name: Install poetry dependencies if cache hit
+        if: steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
+        run: poetry add --no-interaction pyspark==${{ matrix.spark-version }}
+
+      - name: Install the package
+        run: poetry install --no-interaction
+
+      - name: Check the information about packages.
+        run: poetry show
+
+      - name: Check the version of the project
+        run: poetry version
+
+      # Run Tests
+      # # python -m pytest -n auto --reruns 3 --reruns-delay 5
+      - name: Run tests
+        run: |
+          # source .venv/bin/activate
+          # python -m pytest
+
+          poetry run coverage run -m pytest --reruns 5 --reruns-delay 30
+          poetry run coverage report
+          poetry run coverage xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # files: ./coverage*.xml
+          # directory: ./
+          flags: unittests
+          env_vars: OS,PYTHON
+          name: codecov-${{ matrix.os}}-python${{ matrix.python-version }}
+          fail_ci_if_error: true
+          # path_to_write_report: ./codecov_report.xml
+          verbose: true
+
+      - name: Check Disk Size after Build
+        run: |
+          df -hm
