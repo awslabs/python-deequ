@@ -1,6 +1,6 @@
 
 from pyspark.sql import SparkSession, DataFrame
-from pydeequ.checks import CheckStatus, CheckResult, Check
+from pydeequ.checks import CheckStatus, CheckResult, Check, CheckLevel
 from pydeequ.analyzers import *
 from pydeequ.anomaly_detection import *
 import json
@@ -8,8 +8,26 @@ from pydeequ.pandas_utils import ensure_pyspark_df
 
 # TODO integrate Analyzer context
 
+
 class AnomalyCheckConfig:
-    pass
+
+    def __init__(self, level: CheckLevel, description):
+        self.level = level
+        self.description = description
+
+    def _get_java_object(self, jvm):
+        self._jvm = jvm
+        self._java_level = self.level._get_java_object(self._jvm)
+        self._check_java_class = self._jvm.com.amazon.deequ.AnomalyCheckConfig
+        self._anomalyCheckConfig_jvm = self._check_java_class(
+            self._java_level,
+            self.description,
+            getattr(self._check_java_class, 'apply$default3')(),
+            None,
+            None
+        )
+        return self._anomalyCheckConfig_jvm
+
 
 class VerificationResult:
     """ The results returned from the VerificationSuite
@@ -157,7 +175,7 @@ class VerificationRunBuilder:
         self._VerificationRunBuilder.addCheck(check._Check)
         return self
 
-    def addAnomalyCheck(self, anomaly, analyzer: AnalysisRunBuilder, anomalyCheckConfig=None):
+    def addAnomalyCheck(self, anomaly, analyzer: AnalysisRunBuilder, anomalyCheckConfig: AnomalyCheckConfig = None):
         """
         Add a check using anomaly_detection methods. The Anomaly Detection Strategy only checks
         if the new value is an Anomaly.
@@ -167,9 +185,11 @@ class VerificationRunBuilder:
         :param anomalyCheckConfig: Some configuration settings for the Check
         :return: Adds an anomaly strategy to the run
         """
-        if anomalyCheckConfig: raise NotImplementedError("anomalyCheckConfigs have not been implemented yet, using default value")
+        anomalyCheckConfig_jvm = None
+        if anomalyCheckConfig:
+            anomalyCheckConfig_jvm = anomalyCheckConfig._get_java_object(self._jvm)
 
-        AnomalyCheckConfig = self._jvm.scala.Option.apply(anomalyCheckConfig)
+        AnomalyCheckConfig = self._jvm.scala.Option.apply(anomalyCheckConfig_jvm)
 
         anomaly._set_jvm(self._jvm)
         anomaly_jvm = anomaly._anomaly_jvm
