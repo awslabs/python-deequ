@@ -23,8 +23,8 @@ class AnomalyCheckConfig:
             self._java_level,
             self.description,
             getattr(self._check_java_class, 'apply$default$3')(),
-            None,
-            None
+            getattr(self._check_java_class, 'apply$default$4')(),
+            getattr(self._check_java_class, 'apply$default$5')(),
         )
         return self._anomalyCheckConfig_jvm
 
