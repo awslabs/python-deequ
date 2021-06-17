@@ -22,7 +22,7 @@ class AnomalyCheckConfig:
         self._anomalyCheckConfig_jvm = self._check_java_class(
             self._java_level,
             self.description,
-            getattr(self._check_java_class, 'apply$default3')(),
+            getattr(self._check_java_class, 'apply$default$3')(),
             None,
             None
         )
