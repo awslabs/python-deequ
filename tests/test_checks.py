@@ -53,6 +53,23 @@ class TestChecks(unittest.TestCase):
 
         self.assertEqual(result_df.select('constraint').collect(), result_df2.select('constraint').collect())
 
+    def test_addRequiredAnalyzer(self):
+        vs_result = VerificationSuite(self.spark).onData(self.df) \
+            .addRequiredAnalyzer(Completeness('a')) \
+            .run()
+
+        vs_result_df = vs_result.successMetricsAsDataFrame(self.spark, vs_result)
+
+        self.assertEqual(vs_result.status, str(CheckStatus.Success).split(".")[1])
+
+        analysis_result = AnalysisRunner(self.spark).onData(self.df) \
+            .addAnalyzer(Completeness("a")) \
+            .run()
+
+        analysis_result_df = AnalyzerContext.successMetricsAsDataFrame(self.spark, analysis_result)
+
+        self.assertEqual(vs_result_df.collect(), analysis_result_df.collect())
+
     def test_initializer(self):
         # TODO verify that it does more than run
         check = Check(self.spark, CheckLevel.Warning, "test initializer")

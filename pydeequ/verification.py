@@ -1,7 +1,7 @@
 
 from pyspark.sql import SparkSession, DataFrame
 from pydeequ.checks import CheckStatus, CheckResult, Check
-from pydeequ.analyzers import *
+from pydeequ.analyzers import _AnalyzerObject, SQLContext, AnalysisRunBuilder
 from pydeequ.anomaly_detection import *
 import json
 from pydeequ.pandas_utils import ensure_pyspark_df
@@ -155,6 +155,19 @@ class VerificationRunBuilder:
         # TODO Support Multiple checks
         self.checks.append(check)
         self._VerificationRunBuilder.addCheck(check._Check)
+        return self
+
+    def addRequiredAnalyzer(self, analyzer: _AnalyzerObject):
+        """
+        Adds analyzer to the run using analyzer method.
+
+        Can be used to enforce the calculation of some metric regardless of if there is a constraint on it
+
+        :param AnalyzerObject analyzer: A analyzer object to be executed during the run
+        """
+        analyzer._set_jvm(self._jvm)
+        _analyzer_jvm = analyzer._analyzer_jvm
+        self._VerificationRunBuilder.addRequiredAnalyzer(_analyzer_jvm)
         return self
 
     def addAnomalyCheck(self, anomaly, analyzer: AnalysisRunBuilder, anomalyCheckConfig=None):
