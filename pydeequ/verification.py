@@ -2,8 +2,6 @@
 from pyspark.sql import SparkSession, DataFrame
 from pydeequ.checks import CheckStatus, CheckResult, Check
 from pydeequ.analyzers import _AnalyzerObject, SQLContext, AnalysisRunBuilder
-
-
 from pydeequ.anomaly_detection import *
 import json
 from pydeequ.pandas_utils import ensure_pyspark_df
