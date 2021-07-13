@@ -33,8 +33,8 @@ from pydeequ.analyzers import (
     Uniqueness,
     UniqueValueRatio,
 )
-from tests.conftest import setup_pyspark
 
+from tests.conftest import setup_pyspark
 
 class TestAnalyzers(unittest.TestCase):
     @classmethod
