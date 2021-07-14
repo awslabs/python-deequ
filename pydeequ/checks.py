@@ -1,11 +1,14 @@
+# -*- coding: utf-8 -*-
 from enum import Enum
-from pyspark.sql import SparkSession
-from pydeequ.scala_utils import ScalaFunction1, to_scala_seq
 
+from pyspark.sql import SparkSession
+
+from pydeequ.scala_utils import ScalaFunction1, to_scala_seq
 
 # TODO implement custom assertions
 # TODO implement all methods without outside class dependencies
 # TODO Integration with Constraints
+
 
 class CheckLevel(Enum):
     Error = "Error"
@@ -14,10 +17,9 @@ class CheckLevel(Enum):
     def _get_java_object(self, jvm):
         if self == CheckLevel.Error:
             return jvm.com.amazon.deequ.checks.CheckLevel.Error()
-        elif self == CheckLevel.Warning:
+        if self == CheckLevel.Warning:
             return jvm.com.amazon.deequ.checks.CheckLevel.Warning()
-        else:
-            raise ValueError(f"Invalid value for CheckLevel Enum")
+        raise ValueError("Invalid value for CheckLevel Enum")
 
 
 class CheckStatus(Enum):
@@ -30,12 +32,11 @@ class CheckStatus(Enum):
         check_status_class = java_object._jvm.com.amazon.deequ.checks.CheckStatus
         if java_object.equals(check_status_class.Success()):
             return CheckStatus.Success
-        elif java_object.equals(check_status_class.Warning()):
+        if java_object.equals(check_status_class.Warning()):
             return CheckStatus.Warning
-        elif java_object.equals(check_status_class.Error()):
+        if java_object.equals(check_status_class.Error()):
             return CheckStatus.Error
-        else:
-            raise ValueError(f"{java_object} is not a valid CheckStatus Object")
+        raise ValueError(f"{java_object} is not a valid CheckStatus Object")
 
 
 class ConstrainableDataTypes(Enum):
@@ -49,18 +50,17 @@ class ConstrainableDataTypes(Enum):
     def _get_java_object(self, jvm):
         if self == ConstrainableDataTypes.Null:
             return jvm.com.amazon.deequ.constraints.ConstrainableDataTypes.Null()
-        elif self == ConstrainableDataTypes.Fractional:
+        if self == ConstrainableDataTypes.Fractional:
             return jvm.com.amazon.deequ.constraints.ConstrainableDataTypes.Fractional()
-        elif self == ConstrainableDataTypes.Integral:
+        if self == ConstrainableDataTypes.Integral:
             return jvm.com.amazon.deequ.constraints.ConstrainableDataTypes.Integral()
-        elif self == ConstrainableDataTypes.Boolean:
+        if self == ConstrainableDataTypes.Boolean:
             return jvm.com.amazon.deequ.constraints.ConstrainableDataTypes.Boolean()
-        elif self == ConstrainableDataTypes.String:
+        if self == ConstrainableDataTypes.String:
             return jvm.com.amazon.deequ.constraints.ConstrainableDataTypes.String()
-        elif self == ConstrainableDataTypes.Numeric:
+        if self == ConstrainableDataTypes.Numeric:
             return jvm.com.amazon.deequ.constraints.ConstrainableDataTypes.Numeric()
-        else:
-            raise ValueError(f"Invalid value for ConstrainableDataType Enum")
+        raise ValueError("Invalid value for ConstrainableDataType Enum")
 
 
 class CheckResult:
@@ -69,15 +69,15 @@ class CheckResult:
 
 class Check:
     """
-     A class representing a list of constraints that can be applied to a given
-      [[org.apache.spark.sql.DataFrame]]. In order to run the checks, use the `run` method. You can
-      also use VerificationSuite.run to run your checks along with other Checks and Analysis objects.
-      When run with VerificationSuite, Analyzers required by multiple checks/analysis blocks is
-      optimized to run once.
+    A class representing a list of constraints that can be applied to a given
+     [[org.apache.spark.sql.DataFrame]]. In order to run the checks, use the `run` method. You can
+     also use VerificationSuite.run to run your checks along with other Checks and Analysis objects.
+     When run with VerificationSuite, Analyzers required by multiple checks/analysis blocks is
+     optimized to run once.
     """
 
     def __init__(self, spark_session: SparkSession, level: CheckLevel, description: str, constraints: list = None):
-        """"
+        """ "
 
         :param SparkSession spark_session: SparkSession
         :param CheckLevel level: Assertion level of the check group. If any of the constraints fail this level is used for
@@ -93,16 +93,12 @@ class Check:
         self._java_level = self.level._get_java_object(self._jvm)
         self._check_java_class = self._jvm.com.amazon.deequ.checks.Check
         self.description = description
-        self._Check = self._check_java_class(self._java_level,
-                                             self.description,
-                                             getattr(self._check_java_class, 'apply$default$3')()
-                                             )
-        self.constraints = constraints if constraints else []
-
-    def addConstraints(self, constraints: list):
-        self.constraints.extend(constraints)
-        for constraint in constraints:
-            self._Check = constraint._Check
+        self._Check = self._check_java_class(
+            self._java_level, self.description, getattr(self._check_java_class, "apply$default$3")()
+        )
+        self.constraints = constraints or []
+        for constraint in self.constraints:
+            self.addConstraint(constraint)
 
     def addConstraint(self, constraint):
         """
@@ -110,11 +106,10 @@ class Check:
         :param Constraint constraint: new constraint to be added.
         :return: new Check object
         """
-        self.constraints.append(constraint)
-        self._Check = constraint._Check
+        raise NotImplementedError("Private factory method for other check methods")
 
     def addFilterableContstraint(self, creationFunc):
-        """ Adds a constraint that can subsequently be replaced with a filtered version
+        """Adds a constraint that can subsequently be replaced with a filtered version
         :param creationFunc:
         :return:
         """
@@ -132,7 +127,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.hasSize(assertion_func, hint) # getattr(self._Check, "hasSize$default$2"))
+        self._Check = self._Check.hasSize(assertion_func, hint)  # getattr(self._Check, "hasSize$default$2"))
         return self
 
     def isComplete(self, column, hint=None):
@@ -240,8 +235,8 @@ class Check:
         :return: isPrimaryKey self: A Check.scala object that asserts completion in the columns.
         """
         hint = self._jvm.scala.Option.apply(hint)
+        print(f"Unsolved integration: {hint}")
         raise NotImplementedError("Unsolved integration of Python tuple => varArgs")
-
 
     def hasUniqueness(self, columns, assertion, hint=None):
         """
@@ -542,8 +537,11 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: satisfies self: A Check object that runs the condition on the data frame.
         """
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion_func = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "satisfies$default$2")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.satisfies(columnCondition, constraintName, assertion_func, hint)
         return self
@@ -561,13 +559,6 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: hasPattern self: A Check object that runs the condition on the column.
         """
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
-            else getattr(self._Check, "hasPattern$default$2")()
-        name = self._jvm.scala.Option.apply(name)
-        hint = self._jvm.scala.Option.apply(hint)
-        pattern_regex = self._jvm.scala.util.matching.Regex(pattern, None)
-        self._Check = self._Check.hasPattern(column, pattern_regex, assertion_func, name, hint)
-        return self
 
     def containsCreditCardNumber(self, column, assertion=None, hint=None):
         """
@@ -578,8 +569,11 @@ class Check:
         :param hint hint: A hint that states why a constraint could have failed.
         :return: containsCreditCardNumber self: A Check object that runs the compliance on the column.
         """
-        assertion = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "containsCreditCardNumber$default$2")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.containsCreditCardNumber(column, assertion, hint)
         return self
@@ -593,8 +587,11 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: containsCreditCardNumber self: A Check object that runs the compliance on the column.
         """
-        assertion = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "containsEmail$default$2")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.containsEmail(column, assertion, hint)
         return self
@@ -608,8 +605,11 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: containsURL self: A Check object that runs the compliance on the column.
         """
-        assertion = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "containsURL$default$2")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.containsURL(column, assertion, hint)
         return self
@@ -624,8 +624,11 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: containsSocialSecurityNumber self: A Check object that runs the compliance on the column.
         """
-        assertion = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "containsSocialSecurityNumber$default$2")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.containsSocialSecurityNumber(column, assertion, hint)
         return self
@@ -642,8 +645,11 @@ class Check:
         :return: hasDataType self: A Check object that runs the compliance on the column.
         """
         datatype_jvm = datatype._get_java_object(self._jvm)
-        assertion = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "hasDataType$default$3")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.hasDataType(column, datatype_jvm, assertion, hint)
         return self
@@ -658,8 +664,11 @@ class Check:
 
         :return: self (isNonNegative): A Check object that runs the compliance on the column.
         """
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion_func = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "isNonNegative$default$2")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.isNonNegative(column, assertion_func, hint)
         return self
@@ -673,8 +682,11 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: isNonNegative self: A Check object that runs the assertion on the column.
         """
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion_func = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "isPositive$default$2")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.isPositive(column, assertion_func, hint)
         return self
@@ -689,8 +701,11 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: isLessThan self : A Check object that checks the assertion on the columns.
         """
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion_func = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "isLessThan$default$3")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.isLessThan(columnA, columnB, assertion_func, hint)
         return self
@@ -705,8 +720,11 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: isLessThanOrEqualTo self (isLessThanOrEqualTo): A Check object that checks the assertion on the columns.
         """
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion_func = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "isLessThanOrEqualTo$default$3")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.isLessThanOrEqualTo(columnA, columnB, assertion_func, hint)
         return self
@@ -721,8 +739,11 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: isGreaterThan self: A Check object that runs the assertion on the columns.
         """
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion_func = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "isGreaterThan$default$3")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.isGreaterThan(columnA, columnB, assertion_func, hint)
         return self
@@ -737,28 +758,28 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: isGreaterThanOrEqualTo self: A Check object that runs the assertion on the columns.
         """
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+        assertion_func = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
             else getattr(self._Check, "isGreaterThanOrEqualTo$default$3")()
+        )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.isGreaterThanOrEqualTo(columnA, columnB, assertion_func, hint)
         return self
 
-    def isContainedIn(self, column, allowed_values, assertion=None, hint=None):
+    def isContainedIn(self, column, allowed_values):
         """
         Asserts that every non-null value in a column is contained in a set of predefined values
+
         :param str column: Column in DataFrame to run the assertion on.
         :param list[str] allowed_values: A function that accepts allowed values for the column.
-        :param lambda assertion: A function that accepts an int or float parameter.
         :param str hint: A hint that states why a constraint could have failed.
         :return: isContainedIn self: A Check object that runs the assertion on the columns.
         """
         arr = self._spark_session.sparkContext._gateway.new_array(self._jvm.java.lang.String, len(allowed_values))
-        for i in range(0, len(allowed_values)):
+        for i in range(len(allowed_values)):
             arr[i] = allowed_values[i]
-        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
-            else getattr(self._Check, "IsOne")()
-        hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.isContainedIn(column, arr, assertion_func, hint)
+        self._Check = self._Check.isContainedIn(column, arr)
         return self
 
     def evaluate(self, context):

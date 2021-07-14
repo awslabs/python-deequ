@@ -1,4 +1,0 @@
-pyspark==2.4.7
-numpy
-pytest
-pandas

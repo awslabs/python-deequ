@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 """A collection of utility functions and classes for manipulating with scala objects anc classes through py4j
 """
+
+
 class PythonCallback:
     # https://www.py4j.org/advanced_topics.html#py4j-memory-model
     # https://stackoverflow.com/questions/50878834/py4j-error-while-obtaining-a-new-communication-channel-on-multithreaded-java
@@ -11,7 +14,7 @@ class PythonCallback:
         # TODO clean
         if callback_server is None:
             self.gateway.start_callback_server()
-            print("Python Callback server started!") # TODO Logging
+            print("Python Callback server started!")  # TODO Logging
         elif callback_server.is_shutdown:
             callback_server.close()
             self.gateway.restart_callback_server()
@@ -24,6 +27,7 @@ class PythonCallback:
 class ScalaFunction1(PythonCallback):
     """Implements scala.Function1 interface so we can pass lambda functions to Check
     https://www.scala-lang.org/api/current/scala/Function1.html"""
+
     def __init__(self, gateway, lambda_function):
         super().__init__(gateway)
         self.lambda_function = lambda_function
@@ -34,12 +38,14 @@ class ScalaFunction1(PythonCallback):
 
     class Java:
         """scala.Function1: a function that takes one argument"""
+
         implements = ["scala.Function1"]
 
 
 class ScalaFunction2(PythonCallback):
     """Implements scala.Function2 interface
     https://www.scala-lang.org/api/current/scala/Function2.html"""
+
     def __init__(self, gateway, lambda_function):
         super().__init__(gateway)
         self.lambda_function = lambda_function
@@ -50,6 +56,7 @@ class ScalaFunction2(PythonCallback):
 
     class Java:
         """scala.Function2: a function that takes two arguments"""
+
         implements = ["scala.Function2"]
 
 
@@ -57,8 +64,7 @@ def get_or_else_none(scala_option):
     # TODO Checks
     if scala_option.isEmpty():
         return None
-    else:
-        return scala_option.get()
+    return scala_option.get()
 
 
 def to_scala_seq(jvm, iterable):
@@ -93,13 +99,13 @@ def scala_map_to_java_map(jvm, scala_map):
     return jvm.scala.collection.JavaConversions.mapAsJavaMap(scala_map)
 
 
-def java_list_to_python_list(java_list:str, datatype):
+def java_list_to_python_list(java_list: str, datatype):
     # TODO: Improve
     # Currently turn the java object into a string and pass it through
-    start = java_list.index('(')
-    end = java_list.index(')')
-    empty_val = '' if datatype == str else None
-    vals = [datatype(i) if i !='' else empty_val for i in java_list[start+1:end].split(',')]
-    return vals
+    start = java_list.index("(")
+    end = java_list.index(")")
+    empty_val = "" if datatype == str else None
+    return [datatype(i) if i != "" else empty_val for i in java_list[start + 1 : end].split(",")]
+
 
 # TODO Tuple => Python Tuple
