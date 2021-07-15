@@ -1,19 +1,19 @@
-# PyDeequ 
+# PyDeequ
 
-PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets. PyDeequ is written to support usage of Deequ in Python.
+PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets. PyDeequ is written to support usage of Deequ in Python .
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![Coverage](https://img.shields.io/badge/coverage-90%25-green)
 
-There are 4 main components of Deequ, and they are: 
-- Metrics Computation: 
-    - `Profiles` leverages Analyzers to analyze each column of a dataset. 
-    - `Analyzers` serve here as a foundational module that computes metrics for data profiling and validation at scale. 
-- Constraint Suggestion: 
+There are 4 main components of Deequ, and they are:
+- Metrics Computation:
+    - `Profiles` leverages Analyzers to analyze each column of a dataset.
+    - `Analyzers` serve here as a foundational module that computes metrics for data profiling and validation at scale.
+- Constraint Suggestion:
     - Specify rules for various groups of Analyzers to be run over a dataset to return back a collection of constraints suggested to run in a Verification Suite.
-- Constraint Verification: 
+- Constraint Verification:
     - Perform data validation on a dataset with respect to various constraints set by you.   
 - Metrics Repository
-    - Allows for persistence and tracking of Deequ runs over time. 
+    - Allows for persistence and tracking of Deequ runs over time.
 
 ![](imgs/pydeequ_architecture.jpg)
 
@@ -30,9 +30,9 @@ You can install [PyDeequ via pip](https://pypi.org/project/pydeequ/).
 
 ```
 pip install pydeequ
-``` 
+```
 
-### Set up a PySpark session 
+### Set up a PySpark session
 ```python
 from pyspark.sql import SparkSession, Row
 import pydeequ
@@ -49,7 +49,7 @@ df = spark.sparkContext.parallelize([
             Row(a="baz", b=3, c=None)]).toDF()
 ```
 
-### Analyzers 
+### Analyzers
 
 ```python
 from pydeequ.analyzers import *
@@ -59,12 +59,12 @@ analysisResult = AnalysisRunner(spark) \
                     .addAnalyzer(Size()) \
                     .addAnalyzer(Completeness("b")) \
                     .run()
-                    
+
 analysisResult_df = AnalyzerContext.successMetricsAsDataFrame(spark, analysisResult)
 analysisResult_df.show()
 ```
 
-### Profile 
+### Profile
 
 ```python
 from pydeequ.profiles import *
@@ -77,7 +77,7 @@ for col, profile in result.profiles.items():
     print(profile)
 ```
 
-### Constraint Suggestions 
+### Constraint Suggestions
 
 ```python
 from pydeequ.suggestions import *
@@ -88,10 +88,10 @@ suggestionResult = ConstraintSuggestionRunner(spark) \
              .run()
 
 # Constraint Suggestions in JSON format
-print(suggestionResult) 
+print(suggestionResult)
 ```
 
-### Constraint Verification 
+### Constraint Verification
 
 ```python
 from pydeequ.checks import *
@@ -109,14 +109,14 @@ checkResult = VerificationSuite(spark) \
         .isContainedIn("a", ["foo", "bar", "baz"]) \
         .isNonNegative("b")) \
     .run()
-    
+
 checkResult_df = VerificationResult.checkResultsAsDataFrame(spark, checkResult)
 checkResult_df.show()
 ```
 
-### Repository 
+### Repository
 
-Save to a Metrics Repository by adding the `useRepository()` and `saveOrAppendResult()` calls to your Analysis Runner. 
+Save to a Metrics Repository by adding the `useRepository()` and `saveOrAppendResult()` calls to your Analysis Runner.
 ```python
 from pydeequ.repository import *
 from pydeequ.analyzers import *
@@ -134,19 +134,18 @@ analysisResult = AnalysisRunner(spark) \
     .run()
 ```
 
-To load previous runs, use the `repository` object to load previous results back in. 
+To load previous runs, use the `repository` object to load previous results back in.
 
 ```python
 result_metrep_df = repository.load() \
-    .before(ResultKey.current_milli_time()) \ 
+    .before(ResultKey.current_milli_time()) \
     .forAnalyzers([ApproxCountDistinct('b')]) \
     .getSuccessMetricsAsDataFrame()
 ```
 
 ## [Contributing](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md)
-Please refer to the [contributing doc](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md) for how to contribute to PyDeequ. 
+Please refer to the [contributing doc](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md) for how to contribute to PyDeequ.
 
 ## [License](https://github.com/awslabs/python-deequ/blob/master/LICENSE)
 
-This library is licensed under the Apache 2.0 License. 
-
+This library is licensed under the Apache 2.0 License.
