@@ -148,5 +148,5 @@ Please refer to the [contributing doc](https://github.com/awslabs/python-deequ/b
 
 ## [License](https://github.com/awslabs/python-deequ/blob/master/LICENSE)
 
-This library is licensed under the Apache 2.0 License.
+This library is licensed under the Apache 2.0 License. 
 
