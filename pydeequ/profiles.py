@@ -1,4 +1,5 @@
 """ Profiles file for all the Profiles classes in Deequ"""
+import string
 
 from pydeequ.scala_utils import get_or_else_none, to_scala_seq, to_scala_map, scala_map_to_dict, scala_map_to_java_map, java_list_to_python_list
 from pydeequ.pandas_utils import ensure_pyspark_df
@@ -7,6 +8,7 @@ from collections import namedtuple
 from pydeequ.analyzers import *
 from pydeequ.metrics import *
 import json
+from enum import Enum
 
 # ColumnProfilerRunner Classes
 # TODO refactor documentation (https://devguide.python.org/documenting/)
@@ -166,14 +168,18 @@ class ColumnProfilerRunBuilder:
         )
         return self
 
-    def setPredefinedTypes(self, dataTypes: dict):
+    def setPredefinedTypes(self, dataTypesDict: dict):
         """
         Set predefined data types for each column (e.g. baseline)
 
-        :param dict dataTypes: dataType map for baseline columns
-        :return: Baseline for each column
+        :param dict{"columnName": DataTypeInstance} dataTypes: dataType map for baseline columns.
+        :return: Baseline for each column. I.E. returns the dataType label to the desired DataTypeInstance
         """
-        self._ColumnProfilerRunBuilder.setPredefinedTypes(to_scala_map(self._spark_session, dataTypes))
+        dataType_scala_map = {}
+        for key, value in dataTypesDict.items():
+            val = value._create_java_object(self._jvm)
+            dataType_scala_map[key] = val
+        self._ColumnProfilerRunBuilder.setPredefinedTypes(to_scala_map(self._spark_session, dataType_scala_map))
         return self
 
     def useRepository(self, repository):
@@ -482,3 +488,4 @@ class NumericColumnProfile(ColumnProfile):
         :return: gets the approximate percentiles of the column
         """
         return self._approxPercentiles
+

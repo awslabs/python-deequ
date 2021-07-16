@@ -1,6 +1,6 @@
 import unittest
 from pydeequ.profiles import ColumnProfilerRunBuilder, ColumnProfilerRunner
-from pydeequ.analyzers import KLLParameters
+from pydeequ.analyzers import KLLParameters, DataTypeInstances
 from pyspark.sql import SparkSession, Row
 from pydeequ import *
 
@@ -29,12 +29,22 @@ class TestProfiles(unittest.TestCase):
         cls.spark.sparkContext._gateway.shutdown_callback_server()
         cls.spark.stop()
 
+    def test_setPredefinedTypes(self):
+        result = ColumnProfilerRunner(self.spark) \
+            .onData(self.df) \
+            .setPredefinedTypes({'a': DataTypeInstances.Unknown, 'b': DataTypeInstances.String, 'c': DataTypeInstances.Fractional}) \
+            .run()
+        print(result)
+        for col, profile in result.profiles.items():
+            print("Profiles:", profile)
+
     def test_profile_run(self):
         result = ColumnProfilerRunner(self.spark) \
             .onData(self.df) \
             .run()
         for col, profile in result.profiles.items():
             print(profile)
+        print("Results: ", result)
 
         print(result.profiles['a'].column, result.profiles['a'].completeness)
 
