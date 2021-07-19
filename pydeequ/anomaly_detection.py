@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 from enum import Enum
-from pyspark.sql import SparkSession, DataFrame
 
-######################## BASE ANALYZER CLASS ########################
+######################## BASE ANALYZER CLASS #######################
 
 
 class _AnomalyObject:
@@ -13,14 +13,15 @@ class _AnomalyObject:
 
     @property
     def _deequAnomalies(self):
-        if (self._jvm):
+        if self._jvm:
             return self._jvm.com.amazon.deequ.anomalydetection
-        else:
-            raise AttributeError(
-                "JVM not set, please run _set_jvm() method first.")  # TODO: Test that this exception gets raised
+        raise AttributeError(
+            "JVM not set, please run _set_jvm() method first."
+        )  # TODO: Test that this exception gets raised
 
 
 ######################## INDIVIDUAL ANOMALY STRATEGIES  ########################
+
 
 class RelativeRateOfChangeStrategy(_AnomalyObject):
     """
@@ -30,12 +31,13 @@ class RelativeRateOfChangeStrategy(_AnomalyObject):
 
     :param float maxRateDecrease: Lower bound of accepted relative change (as new value / old value).
     :param float maxRateIncrease: Upper bound of accepted relative change (as new value / old value).
-    :param int order: Order of the calculated difference. Defaulted to 1, it calculates the difference between two consecutive
+    :param int order: Order of the calculated difference.
+            Defaulted to 1, it calculates the difference between two consecutive
             values. The order of the difference can be set manually. If it is set to 0, this strategy acts
             like the SimpleThresholdStrategy class.
     """
 
-    def __init__(self, maxRateDecrease = None, maxRateIncrease = None, order=1):
+    def __init__(self, maxRateDecrease=None, maxRateIncrease=None, order=1):
 
         self.maxRateDecrease = maxRateDecrease
         self.maxRateIncrease = maxRateIncrease
@@ -44,8 +46,10 @@ class RelativeRateOfChangeStrategy(_AnomalyObject):
     @property
     def _anomaly_jvm(self):
         return self._deequAnomalies.RelativeRateOfChangeStrategy(
-                self._jvm.scala.Option.apply(self.maxRateDecrease),
-                self._jvm.scala.Option.apply(self.maxRateIncrease), self.order)
+            self._jvm.scala.Option.apply(self.maxRateDecrease),
+            self._jvm.scala.Option.apply(self.maxRateIncrease),
+            self.order,
+        )
 
 
 class AbsoluteChangeStrategy(_AnomalyObject):
@@ -56,11 +60,13 @@ class AbsoluteChangeStrategy(_AnomalyObject):
 
     :param float maxRateDecrease: Upper bound of accepted decrease (lower bound of increase).
     :param float maxRateIncrease: Upper bound of accepted growth.
-    :param int order:  Order of the calculated difference. Defaulted to 1, it calculates the difference between two consecutive
+    :param int order:  Order of the calculated difference.
+            Defaulted to 1, it calculates the difference between two consecutive
             values. The order of the difference can be set manually. If it is set to 0, this strategy acts
             like the SimpleThresholdStrategy class.
     """
-    def __init__(self, maxRateDecrease = None, maxRateIncrease = None, order = 1):
+
+    def __init__(self, maxRateDecrease=None, maxRateIncrease=None, order=1):
 
         self.maxRateDecrease = maxRateDecrease
         self.maxRateIncrease = maxRateIncrease
@@ -69,16 +75,19 @@ class AbsoluteChangeStrategy(_AnomalyObject):
     @property
     def _anomaly_jvm(self):
         return self._deequAnomalies.AbsoluteChangeStrategy(
-                self._jvm.scala.Option.apply(self.maxRateDecrease),
-                self._jvm.scala.Option.apply(self.maxRateIncrease), self.order)
+            self._jvm.scala.Option.apply(self.maxRateDecrease),
+            self._jvm.scala.Option.apply(self.maxRateIncrease),
+            self.order,
+        )
 
 
 class SimpleThresholdStrategy(_AnomalyObject):
-    """ A simple anomaly detection strategy that checks if values are  in a specified range.
+    """A simple anomaly detection strategy that checks if values are  in a specified range.
 
-        :param float lowerBound: Lower bound of accepted range of values
-        :param float upperBound: Upper bound of accepted range of values
+    :param float lowerBound: Lower bound of accepted range of values
+    :param float upperBound: Upper bound of accepted range of values
     """
+
     def __init__(self, lowerBound, upperBound):
 
         self.lowerBound = float(lowerBound)
@@ -89,7 +98,6 @@ class SimpleThresholdStrategy(_AnomalyObject):
         return self._deequAnomalies.SimpleThresholdStrategy(self.lowerBound, self.upperBound)
 
 
-
 class RateOfChangeStrategy(_AnomalyObject):
     """
     @Deprecated
@@ -98,7 +106,8 @@ class RateOfChangeStrategy(_AnomalyObject):
     previous values.
 
     """
-    def __init__(self, maxRateDecrease = None, maxRateIncrease = None, order = 1):
+
+    def __init__(self, maxRateDecrease=None, maxRateIncrease=None, order=1):
         # self.maxRateDecrease = maxRateDecrease
         # self.maxRateIncrease = maxRateIncrease
         # self.order = order
@@ -120,7 +129,14 @@ class OnlineNormalStrategy(_AnomalyObject):
                         (mean and stdDev are probably not representative before).
     :param boolean ignoreAnomalies: If set to true, ignores anomalous points in mean and variance calculation
     """
-    def __init__(self, lowerDeviationFactor = 3.0, upperDeviationFactor =3.0, ignoreStartPercentage =.1, ignoreAnomalies = True):
+
+    def __init__(
+        self,
+        lowerDeviationFactor=3.0,
+        upperDeviationFactor=3.0,
+        ignoreStartPercentage=0.1,
+        ignoreAnomalies=True,
+    ):
         self.lowerDeviationFactor = lowerDeviationFactor
         self.upperDeviationFactor = upperDeviationFactor
         self.ignoreStartPercentage = ignoreStartPercentage
@@ -130,8 +146,11 @@ class OnlineNormalStrategy(_AnomalyObject):
     @property
     def _anomaly_jvm(self):
         return self._deequAnomalies.OnlineNormalStrategy(
-                self._jvm.scala.Option.apply(self.lowerDeviationFactor),
-                self._jvm.scala.Option.apply(self.upperDeviationFactor), self.ignoreStartPercentage, self.ignoreAnomalies)
+            self._jvm.scala.Option.apply(self.lowerDeviationFactor),
+            self._jvm.scala.Option.apply(self.upperDeviationFactor),
+            self.ignoreStartPercentage,
+            self.ignoreAnomalies,
+        )
 
 
 class BatchNormalStrategy(_AnomalyObject):
@@ -144,7 +163,8 @@ class BatchNormalStrategy(_AnomalyObject):
     :param boolean includeInterval: Discerns whether or not the values inside the detection interval should
                 be included in the calculation of the mean / stdDev.
     """
-    def __init__(self, lowerDeviationFactor = 3.0, upperDeviationFactor =3.0, includeInterval = False):
+
+    def __init__(self, lowerDeviationFactor=3.0, upperDeviationFactor=3.0, includeInterval=False):
         self.lowerDeviationFactor = lowerDeviationFactor
         self.upperDeviationFactor = upperDeviationFactor
         self.includeInterval = includeInterval
@@ -152,30 +172,34 @@ class BatchNormalStrategy(_AnomalyObject):
     @property
     def _anomaly_jvm(self):
         return self._deequAnomalies.BatchNormalStrategy(
-                self._jvm.scala.Option.apply(self.lowerDeviationFactor),
-                self._jvm.scala.Option.apply(self.upperDeviationFactor), self.includeInterval)
+            self._jvm.scala.Option.apply(self.lowerDeviationFactor),
+            self._jvm.scala.Option.apply(self.upperDeviationFactor),
+            self.includeInterval,
+        )
 
 
 ######################## HoltWinters  ########################
 
+
 class MetricInterval(Enum):
-    """ Metric Interval is how often the metric of interest is computed (e.g. daily)."""
+    """Metric Interval is how often the metric of interest is computed (e.g. daily)."""
 
     Daily = "Daily"
     Monthly = "Monthly"
 
     def _get_java_object(self, jvm):
         if self == MetricInterval.Daily:
-            daily_jvm = getattr(jvm.com.amazon.deequ.anomalydetection.seasonal.HoltWinters,
-                                "MetricInterval$")().Daily()
-            return daily_jvm
+            return getattr(
+                jvm.com.amazon.deequ.anomalydetection.seasonal.HoltWinters,
+                "MetricInterval$",
+            )().Daily()
 
-        elif self == MetricInterval.Monthly:
-            monthly_jvm = getattr(jvm.com.amazon.deequ.anomalydetection.seasonal.HoltWinters,
-                                  "MetricInterval$")().Monthly()
-            return monthly_jvm
-        else:
-            raise ValueError(f"Invalid value for MetricInterval Enum")
+        if self == MetricInterval.Monthly:
+            return getattr(
+                jvm.com.amazon.deequ.anomalydetection.seasonal.HoltWinters,
+                "MetricInterval$",
+            )().Monthly()
+        raise ValueError("Invalid value for MetricInterval Enum")
 
 
 class SeriesSeasonality(Enum):
@@ -183,45 +207,50 @@ class SeriesSeasonality(Enum):
     SeriesSeasonality is the expected metric seasonality which defines the longest cycle in series. This is also
     referred to as periodicity.
     """
+
     Weekly = "Weekly"
     Yearly = "Yearly"
 
     def _get_java_object(self, jvm):
         if self == SeriesSeasonality.Weekly:
-            weekly_jvm = getattr(jvm.com.amazon.deequ.anomalydetection.seasonal.HoltWinters,
-                            "SeriesSeasonality$")().Weekly()
-            return weekly_jvm
-        elif self == SeriesSeasonality.Yearly:
-            yearly_jvm = getattr(jvm.com.amazon.deequ.anomalydetection.seasonal.HoltWinters,
-                             "SeriesSeasonality$")().Yearly()
-            return yearly_jvm
-        else:
-            raise ValueError(f"Invalid value for MetricInterval Enum")
+            return getattr(
+                jvm.com.amazon.deequ.anomalydetection.seasonal.HoltWinters,
+                "SeriesSeasonality$",
+            )().Weekly()
+
+        if self == SeriesSeasonality.Yearly:
+            return getattr(
+                jvm.com.amazon.deequ.anomalydetection.seasonal.HoltWinters,
+                "SeriesSeasonality$",
+            )().Yearly()
+        raise ValueError("Invalid value for MetricInterval Enum")
 
 
 class HoltWinters(_AnomalyObject):
     """
     Detects anomalies based on the additive Holt-Winters model.
-    For example if a metric is produced daily and repeats itself every Monday, then the model should be created
-    with a Daily metric interval and a Weekly seasonality parameter.
-    To implement two cycles of data a minimum of 15 entries must be given for SeriesSeasonality.Weekly, MetricInterval.Daily,
-    and 25 for SeriesSeasonality.Yearly, MetricInterval.Monthly.
+    For example if a metric is produced daily and repeats itself every Monday,
+    then the model should be created with a Daily metric interval and a Weekly seasonality parameter.
+    To implement two cycles of data a minimum of 15 entries must be given for SeriesSeasonality.Weekly,
+    MetricInterval.Daily, and 25 for SeriesSeasonality.Yearly, MetricInterval.Monthly.
 
     :param MetricInterval metricsInterval: How often a metric is available
     :param SeriesSeasonality seasonality: Cycle length (or periodicity) of the metric
     """
 
-    def __init__(self, metricsInterval:MetricInterval, seasonality: SeriesSeasonality):
+    def __init__(self, metricsInterval: MetricInterval, seasonality: SeriesSeasonality):
         self.metricsInterval = metricsInterval
         self.seasonality = seasonality
 
     @property
     def _anomaly_jvm(self):
         return self._deequAnomalies.seasonal.HoltWinters(
-            self.metricsInterval._get_java_object(self._jvm),
-            self.seasonality._get_java_object(self._jvm))
+            self.metricsInterval._get_java_object(self._jvm), self.seasonality._get_java_object(self._jvm)
+        )
+
 
 ######################## Anomaly Detector  ########################
+
 
 class _AnomalyDetector(_AnomalyObject):
 
@@ -240,9 +269,10 @@ class _DataPoint:
     def __init__(self, time, metricValue):
         raise NotImplementedError("DataPoint has not been implemented yet!")
 
+
 ######################## Detection Result  ########################
+
 
 class _Anomaly:
     def __init__(self, value, confidence, detail):
         raise NotImplementedError("Anomaly has not been implemented yet!")
-

@@ -1,20 +1,22 @@
-
-from pyspark.sql import SparkSession, DataFrame
-
 from pydeequ.analyzers import _AnalyzerObject
-from pydeequ.checks import CheckStatus, CheckResult, Check
-from pydeequ.analyzers import *
-from pydeequ.anomaly_detection import *
 import json
+
+from pyspark import SQLContext
+from pyspark.sql import DataFrame, SparkSession
+
+from pydeequ.analyzers import AnalysisRunBuilder
+from pydeequ.checks import Check
 from pydeequ.pandas_utils import ensure_pyspark_df
 
 # TODO integrate Analyzer context
 
+
 class AnomalyCheckConfig:
     pass
 
+
 class VerificationResult:
-    """ The results returned from the VerificationSuite
+    """The results returned from the VerificationSuite
     :param verificationRunBuilder verificationRun:  verification result run()
     """
 
@@ -46,9 +48,10 @@ class VerificationResult:
         """
         return self.verificationRun.metrics()
 
-
     @classmethod
-    def successMetricsAsDataFrame(cls, spark_session: SparkSession, verificationResult, forAnalyzers:list = None, pandas: bool = False):
+    def successMetricsAsDataFrame(
+        cls, spark_session: SparkSession, verificationResult, forAnalyzers: list = None, pandas: bool = False
+    ):
         """
         The results returned in a Data Frame
 
@@ -57,21 +60,25 @@ class VerificationResult:
         :param forAnalyzers: Subset of Analyzers from the Analysis Run
         :return: Data frame of the verification Run()
         """
-        if forAnalyzers: raise NotImplementedError('forAnalyzers have not been implemented yet.')
-        forAnalyzers = getattr(spark_session._jvm.com.amazon.deequ.VerificationResult, "successMetricsAsDataFrame$default$3")()
+        if forAnalyzers:
+            raise NotImplementedError("forAnalyzers have not been implemented yet.")
+        forAnalyzers = getattr(
+            spark_session._jvm.com.amazon.deequ.VerificationResult, "successMetricsAsDataFrame$default$3"
+        )()
 
         df = spark_session._jvm.com.amazon.deequ.VerificationResult.successMetricsAsDataFrame(
-            spark_session._jsparkSession,
-            verificationResult.verificationRun,
-            forAnalyzers
+            spark_session._jsparkSession, verificationResult.verificationRun, forAnalyzers
         )
-        sql_ctx = SQLContext(sparkContext=spark_session._sc,
-                             sparkSession=spark_session,
-                             jsqlContext=spark_session._jsparkSession.sqlContext())
+
+        sql_ctx = SQLContext(
+            sparkContext=spark_session._sc,
+            sparkSession=spark_session,
+            jsqlContext=spark_session._jsparkSession.sqlContext(),
+        )
         return DataFrame(df, sql_ctx).toPandas() if pandas else DataFrame(df, sql_ctx)
 
     @classmethod
-    def successMetricsAsJson(cls, spark_session: SparkSession, verificationResult, forAnalyzers:list = None):
+    def successMetricsAsJson(cls, spark_session: SparkSession, verificationResult, forAnalyzers: list = None):
         """
         The results returned in a JSON
 
@@ -80,11 +87,13 @@ class VerificationResult:
         :param forAnalyzers: Subset of Analyzers from the Analysis Run
         :return: JSON of the verification Run()
         """
-        if forAnalyzers: raise NotImplementedError("forAnalyzers have not been implemented yet.")
-        forAnalyzers = getattr(spark_session._jvm.com.amazon.deequ.VerificationResult, "successMetricsAsJson$default$2")()
+        if forAnalyzers:
+            raise NotImplementedError("forAnalyzers have not been implemented yet.")
+        forAnalyzers = getattr(
+            spark_session._jvm.com.amazon.deequ.VerificationResult, "successMetricsAsJson$default$2"
+        )()
         df = spark_session._jvm.com.amazon.deequ.VerificationResult.successMetricsAsJson(
-            verificationResult.verificationRun,
-            forAnalyzers
+            verificationResult.verificationRun, forAnalyzers
         )
         return json.loads(df)
 
@@ -98,16 +107,18 @@ class VerificationResult:
         :param forChecks: Subset of Checks
         :return: returns a JSON
         """
-        if forChecks: raise NotImplementedError("forChecks have not been implemented yet.")
+        if forChecks:
+            raise NotImplementedError("forChecks have not been implemented yet.")
         forChecks = getattr(spark_session._jvm.com.amazon.deequ.VerificationResult, "checkResultsAsJson$default$2")()
         df = spark_session._jvm.com.amazon.deequ.VerificationResult.checkResultsAsJson(
-            verificationResult.verificationRun,
-            forChecks
+            verificationResult.verificationRun, forChecks
         )
         return json.loads(df)
 
     @classmethod
-    def checkResultsAsDataFrame(cls, spark_session: SparkSession, verificationResult, forChecks=None, pandas: bool = False):
+    def checkResultsAsDataFrame(
+        cls, spark_session: SparkSession, verificationResult, forChecks=None, pandas: bool = False
+    ):
         """
         Returns the verificaton Results as a Data Frame
 
@@ -116,30 +127,37 @@ class VerificationResult:
         :param forChecks: Subset of Checks
         :return: returns a Data Frame of the results
         """
-        if forChecks: raise NotImplementedError("forChecks have not been implemented yet.")
-        forChecks = getattr(spark_session._jvm.com.amazon.deequ.VerificationResult, "checkResultsAsDataFrame$default$3")()
+        if forChecks:
+            raise NotImplementedError("forChecks have not been implemented yet.")
+        forChecks = getattr(
+            spark_session._jvm.com.amazon.deequ.VerificationResult, "checkResultsAsDataFrame$default$3"
+        )()
 
         df = spark_session._jvm.com.amazon.deequ.VerificationResult.checkResultsAsDataFrame(
-            spark_session._jsparkSession,
-            verificationResult.verificationRun,
-            forChecks
+            spark_session._jsparkSession, verificationResult.verificationRun, forChecks
         )
-        sql_ctx = SQLContext(sparkContext=spark_session._sc,
-                             sparkSession=spark_session,
-                             jsqlContext=spark_session._jsparkSession.sqlContext())
+        sql_ctx = SQLContext(
+            sparkContext=spark_session._sc,
+            sparkSession=spark_session,
+            jsqlContext=spark_session._jsparkSession.sqlContext(),
+        )
         return DataFrame(df, sql_ctx).toPandas() if pandas else DataFrame(df, sql_ctx)
+
 
 class VerificationRunBuilder:
     # TODO Remaining Methods
 
     """A class to build a Verification Run"""
+
     def __init__(self, spark_session: SparkSession, data: DataFrame):
         """
         :param SparkSession spark_session: SparkSession
         :param DataFrame data: DataFrame of the data
         """
-        if not isinstance(spark_session, SparkSession): raise TypeError(f"Expected SparkSession object for spark_session, not {type(spark_session)}")
-        if not isinstance(data, DataFrame): raise TypeError(f"Expected DataFrame object for data, not {type(data)}")
+        if not isinstance(spark_session, SparkSession):
+            raise TypeError(f"Expected SparkSession object for spark_session, not {type(spark_session)}")
+        if not isinstance(data, DataFrame):
+            raise TypeError(f"Expected DataFrame object for data, not {type(data)}")
 
         self._spark_session = spark_session
         self._sc = spark_session.sparkContext
@@ -169,7 +187,8 @@ class VerificationRunBuilder:
         :param anomalyCheckConfig: Some configuration settings for the Check
         :return: Adds an anomaly strategy to the run
         """
-        if anomalyCheckConfig: raise NotImplementedError("anomalyCheckConfigs have not been implemented yet, using default value")
+        if anomalyCheckConfig:
+            raise NotImplementedError("anomalyCheckConfigs have not been implemented yet, using default value")
 
         AnomalyCheckConfig = self._jvm.scala.Option.apply(anomalyCheckConfig)
 
@@ -191,7 +210,8 @@ class VerificationRunBuilder:
 
     def useRepository(self, repository):
         """
-        This method reassigns our AnalysisRunBuilder because useRepository returns back a different class: AnalysisRunBuilderWithRepository
+        This method reassigns our AnalysisRunBuilder because useRepository returns back a different
+        class: AnalysisRunBuilderWithRepository
 
         Sets a metrics repository associated with the current data to enable features like reusing previously computed
         results and storing the results of the current run.
@@ -211,18 +231,22 @@ class VerificationRunBuilder:
         self._VerificationRunBuilder.saveOrAppendResult(resultKey.resultKey)
         return self
 
+
 class VerificationRunBuilderWithSparkSession(VerificationRunBuilder):
     pass
 
+
 class VerificationSuite:
     # TODO Remaining Methods
-    """ Responsible for running checks, the required analysis and return the results"""
+    """Responsible for running checks, the required analysis and return the results"""
+
     def __init__(self, spark_session):
         """
 
         :param SparkSession spark_session: The SparkSession
         """
-        if not isinstance(spark_session, SparkSession): raise TypeError(f"Expected SparkSession object for spark_session, not {type(spark_session)}")
+        if not isinstance(spark_session, SparkSession):
+            raise TypeError(f"Expected SparkSession object for spark_session, not {type(spark_session)}")
 
         self._spark_session = spark_session
         self._sc = spark_session.sparkContext

@@ -1,12 +1,15 @@
+# -*- coding: utf-8 -*-
 """
 Repository file for all the different metrics repository classes in Deequ
 
 Author: Calvin Wang
 """
-from pyspark.sql import SparkSession, DataFrame
-from pydeequ.scala_utils import to_scala_map, to_scala_seq
-import time
 import json
+import time
+
+from pyspark.sql import DataFrame, SparkSession
+
+from pydeequ.scala_utils import to_scala_map, to_scala_seq
 
 
 class MetricsRepository:
@@ -21,8 +24,7 @@ class MetricsRepository:
         """
         tempDir = spark_session._jvm.com.google.common.io.Files.createTempDir()
         f = spark_session._jvm.java.io.File(tempDir, filename)
-        f_path = f.getAbsolutePath()
-        return f_path
+        return f.getAbsolutePath()
 
     def _check_RepositoryLoader(self):
         """
@@ -80,7 +82,7 @@ class MetricsRepository:
         self.RepositoryLoader.after(dateTime)
         return self
 
-    def getSuccessMetricsAsJson(self, withTags: list=None):
+    def getSuccessMetricsAsJson(self, withTags: list = None):
         """
         Get the AnalysisResult as JSON
         :param withTags: List of tags to filter previous Metrics Repository runs with
@@ -92,14 +94,14 @@ class MetricsRepository:
             withTags = to_scala_seq(self._jvm, withTags)
         return json.loads(self.RepositoryLoader.getSuccessMetricsAsJson(withTags))
 
-    def getSuccessMetricsAsDataFrame(self, withTags: list=None, pandas: bool=False):
+    def getSuccessMetricsAsDataFrame(self, withTags: list = None, pandas: bool = False):
         """
         Get the AnalysisResult as DataFrame
         :param withTags: List of tags to filter previous Metrics Repository runs with
         """
         self._check_RepositoryLoader()
         if not withTags:
-            withTags = getattr(self.repository.load(), "getSuccessMetricsAsDataFrame$default$2")() # empty sequence
+            withTags = getattr(self.repository.load(), "getSuccessMetricsAsDataFrame$default$2")()  # empty sequence
         else:
             withTags = to_scala_seq(self._jvm, withTags)
         success = self.RepositoryLoader.getSuccessMetricsAsDataFrame(self._jspark_session, withTags)
@@ -132,7 +134,8 @@ class FileSystemMetricsRepository(MetricsRepository):
         self._spark_session = spark_session
         self._jvm = spark_session._jvm
         self._jspark_session = spark_session._jsparkSession
-        if not path: path = self.helper_metrics_file(self._spark_session)
+        if not path:
+            path = self.helper_metrics_file(self._spark_session)
         self.path = path
         self.deequFSmetRep = spark_session._jvm.com.amazon.deequ.repository.fs.FileSystemMetricsRepository
         self.repository = self.deequFSmetRep(self._jspark_session, path)
@@ -147,6 +150,7 @@ class ResultKey:
     :param tags: A map with additional annotations
 
     """
+
     def __init__(self, spark_session: SparkSession, dataSetDate: int = None, tags: dict = None):
 
         self.resultKey = self.__key(spark_session, dataSetDate, tags)
@@ -159,9 +163,12 @@ class ResultKey:
         :param dataSetDate: A date related to the AnalysisResult
         :param tags: A map with additional annotations
         """
-        if not dataSetDate: dataSetDate = self.current_milli_time()
+        if not dataSetDate:
+            dataSetDate = self.current_milli_time()
         if not tags:
-            tags = getattr(spark_session._jvm.com.amazon.deequ.repository.ResultKey, "apply$default$2")() # empty scala map
+            tags = getattr(
+                spark_session._jvm.com.amazon.deequ.repository.ResultKey, "apply$default$2"
+            )()  # empty scala map
         else:
             tags = to_scala_map(spark_session, tags)
 

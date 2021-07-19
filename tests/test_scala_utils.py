@@ -1,20 +1,14 @@
+# -*- coding: utf-8 -*-
 import unittest
+
 from pydeequ.scala_utils import ScalaFunction1, ScalaFunction2
-from pyspark.sql import SparkSession
-from pydeequ import *
+from tests.conftest import setup_pyspark
+
 
 class TestScalaUtils(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # deequ_maven_coord = "com.amazon.deequ:deequ:1.0.3-rc2" # TODO This ran rc2?
-        cls.spark = (SparkSession
-                 .builder
-                 .master('local[*]')
-                 .config("spark.executor.memory", "2g")
-                 .config("spark.jars.packages",
-                         deequ_maven_coord).config("spark.jars.excludes", f2j_maven_coord)
-                 .appName('test-scala-utils-local')
-                 .getOrCreate())
+        cls.spark = setup_pyspark().appName("test-scala-utils-local").getOrCreate()
         cls.sc = cls.spark.sparkContext
 
     @classmethod
@@ -29,15 +23,15 @@ class TestScalaUtils(unittest.TestCase):
 
         notNoneTest = ScalaFunction1(self.sc._gateway, lambda x: x is not None)
         self.assertFalse(notNoneTest.apply(None))
-        self.assertTrue(notNoneTest.apply('foo'))
+        self.assertTrue(notNoneTest.apply("foo"))
 
-        appendTest = ScalaFunction1(self.sc._gateway, lambda x: "{}test".format(x))
-        self.assertEqual("xtest", appendTest.apply('x'))
+        appendTest = ScalaFunction1(self.sc._gateway, "{}test".format)
+        self.assertEqual("xtest", appendTest.apply("x"))
 
     def test_scala_function2(self):
         concatFunction = ScalaFunction2(self.sc._gateway, lambda x, y: x + y)
         self.assertEqual("ab", concatFunction.apply("a", "b"))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -11,14 +11,20 @@ There are 4 main components of Deequ, and they are:
 - Constraint Suggestion:
     - Specify rules for various groups of Analyzers to be run over a dataset to return back a collection of constraints suggested to run in a Verification Suite.
 - Constraint Verification:
+<<<<<<< HEAD
     - Perform data validation on a dataset with respect to various constraints set by you.   
+=======
+    - Perform data validation on a dataset with respect to various constraints set by you.
+>>>>>>> 30375bb8645728a539b7b2f6d2d85f89266ac047
 - Metrics Repository
     - Allows for persistence and tracking of Deequ runs over time.
 
 ![](imgs/pydeequ_architecture.jpg)
 
 ## 🎉 Announcements 🎉
-We've release a blogpost on integrating PyDeequ onto AWS leveraging services such as AWS Glue, Athena, and SageMaker! Check it out: [Monitor data quality in your data lake using PyDeequ and AWS Glue](https://aws.amazon.com/blogs/big-data/monitor-data-quality-in-your-data-lake-using-pydeequ-and-aws-glue/).
+- We've release a blogpost on integrating PyDeequ onto AWS leveraging services such as AWS Glue, Athena, and SageMaker! Check it out: [Monitor data quality in your data lake using PyDeequ and AWS Glue](https://aws.amazon.com/blogs/big-data/monitor-data-quality-in-your-data-lake-using-pydeequ-and-aws-glue/).
+- Check out the [PyDeequ Release Announcement Blogpost](https://aws.amazon.com/blogs/big-data/testing-data-quality-at-scale-with-pydeequ/) with a tutorial walkthrough the Amazon Reviews dataset!
+- Join the PyDeequ community on [PyDeequ Slack](https://join.slack.com/t/pydeequ/shared_invite/zt-qopmmfgm-ajKRyxx0HgCiK50b9JhAFg) to chat with the devs!
 
 ## Quickstart
 
@@ -149,3 +155,86 @@ Please refer to the [contributing doc](https://github.com/awslabs/python-deequ/b
 ## [License](https://github.com/awslabs/python-deequ/blob/master/LICENSE)
 
 This library is licensed under the Apache 2.0 License.
+
+******
+
+## Contributing Developer Setup
+
+1. Setup [SDKMAN](#setup-sdkman)
+1. Setup [Java](#setup-java)
+1. Setup [Apache Spark](#setup-apache-spark)
+1. Install [Poetry](#poetry)
+1. Run [tests locally](#running-tests-locally)
+
+### Setup SDKMAN
+
+SDKMAN is a tool for managing parallel Versions of multiple Software Development Kits on any Unix based
+system. It provides a convenient command line interface for installing, switching, removing and listing
+Candidates. SDKMAN! installs smoothly on Mac OSX, Linux, WSL, Cygwin, etc... Support Bash and ZSH shells. See
+documentation on the [SDKMAN! website](https://sdkman.io).
+
+Open your favourite terminal and enter the following:
+
+```bash
+$ curl -s https://get.sdkman.io | bash
+If the environment needs tweaking for SDKMAN to be installed,
+the installer will prompt you accordingly and ask you to restart.
+
+Next, open a new terminal or enter:
+
+$ source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+Lastly, run the following code snippet to ensure that installation succeeded:
+
+$ sdk version
+```
+
+### Setup Java
+
+Install Java Now open favourite terminal and enter the following:
+
+```bash
+List the AdoptOpenJDK OpenJDK versions
+$ sdk list java
+
+To install For Java 11
+$ sdk install java 11.0.10.hs-adpt
+
+To install For Java 11
+$ sdk install java 8.0.292.hs-adpt
+```
+
+### Setup Apache Spark
+
+Install Java Now open favourite terminal and enter the following:
+
+```bash
+List the Apache Spark versions:
+$ sdk list spark
+
+To install For Spark 3
+$ sdk install spark 3.0.2
+```
+
+### Poetry
+
+Poetry [Commands](https://python-poetry.org/docs/cli/#search)
+
+```bash
+poetry install
+
+poetry update
+
+# --tree: List the dependencies as a tree.
+# --latest (-l): Show the latest version.
+# --outdated (-o): Show the latest version but only for packages that are outdated.
+poetry show -o
+```
+
+## Running Tests Locally
+
+Take a look at tests in `tests/dataquality` and `tests/jobs`
+
+```bash
+$ poetry run pytest
+```

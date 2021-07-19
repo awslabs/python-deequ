@@ -1,0 +1,120 @@
+[tool.poetry]
+name = "pydeequ"
+version = "0.1.8"
+description = "PyDeequ - Unit Tests for Data"
+authors = ["Calvin Wang <calviwan@amazon.com>"]
+maintainers = ["Calvin Wang <calviwan@amazon.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://pydeequ.readthedocs.io"
+repository = "https://github.com/awslabs/python-deequ"
+documentation = "https://pydeequ.readthedocs.io"
+keywords = [
+    "deequ",
+    "pydeequ",
+    "data-engineering",
+    "data-quality",
+    "data-profiling",
+    "dataquality",
+    "dataunittest",
+    "data-unit-tests",
+    "data-profilers"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License"
+]
+
+
+[tool.poetry.dependencies]
+python = ">=3.6.2,<4"
+numpy = ">=1.14.1"
+pandas = ">=0.23.0"
+pyspark = { version = ">=2.4.7, <3.1.1", optional = true }
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.4"
+pytest-cov = "^2.11.1"
+coverage = "^5.5"
+pytest-runner = "^5.3.0"
+black = "^21.5b1"
+flake8 = "^3.9.2"
+flake8-docstrings = "^1.6.0"
+pytest-flake8 = "^1.0.7"
+pre-commit = "^2.12.1"
+pytest-rerunfailures = "^9.1.1"
+twine = "^3.4.1"
+safety = "^1.10.3"
+
+[tool.poetry.extras]
+pyspark = ["pyspark"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+# https://github.com/psf/black
+line-length = 110
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+target_version = ['py38']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.tox
+  | \.venv
+  | htmlcov
+  | _build
+  | buck-out
+  | build
+  | dist
+  # The following are specific to Black, you probably don't want those.
+  | blib2to3
+  | tests/data
+  | profiling
+)/
+'''
+
+[tool.isort]
+# https://github.com/timothycrosley/isort
+# https://github.com/timothycrosley/isort/wiki/isort-Settings
+profile = "black"
+line_length = 110
+indent = '    '
+multi_line_output = 3
+include_trailing_comma = true
+skip_glob = ['__init__.py']
+#force_grid_wrap = 0
+atomic = true
+#lines_after_imports = 2
+#lines_between_types = 1
+#src_paths=isort,test
+
+# [mypy]
+# python_version = 3.8
+#warn_return_any = True
+#warn_unused_configs = True
+
+#[mypy-pyspark.*]
+#ignore_missing_imports = True
+
+# pytest -n 2 --reruns 3 --reruns-delay 5 --dist loadscope --tx 2*popen//python=python
+[pytest]
+testpaths = "tests"
+norecursedirs = ".git .* *.egg* old docs dist build"
+cache_dir = "./.pytest_cache"
+python_files = "*test_*.py"
+looponfailroots = "pydeequ tests"
+# addopts = "-n3 --reruns 3 --reruns-delay 5 --dist loadscope"
+# rsyncdirs = . mypkg helperpkg
+# rsyncignore = .hg
