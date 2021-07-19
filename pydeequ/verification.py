@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-# from pydeequ.analyzers import *
-# from pydeequ.anomaly_detection import *
+from pydeequ.analyzers import _AnalyzerObject
 import json
 
 from pyspark import SQLContext
@@ -179,7 +177,7 @@ class VerificationRunBuilder:
         self._VerificationRunBuilder.addCheck(check._Check)
         return self
 
-    def addAnomalyCheck(self, anomaly, analyzer: AnalysisRunBuilder, anomalyCheckConfig=None):
+    def addAnomalyCheck(self, anomaly, analyzer: _AnalyzerObject, anomalyCheckConfig=None):
         """
         Add a check using anomaly_detection methods. The Anomaly Detection Strategy only checks
         if the new value is an Anomaly.

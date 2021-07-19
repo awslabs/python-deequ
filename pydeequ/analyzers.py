@@ -8,6 +8,7 @@ from pyspark.sql import DataFrame, SparkSession, SQLContext
 
 from pydeequ.pandas_utils import ensure_pyspark_df
 from pydeequ.repository import MetricsRepository, ResultKey
+from enum import Enum
 from pydeequ.scala_utils import to_scala_seq
 
 
@@ -798,3 +799,28 @@ class UniqueValueRatio(_AnalyzerObject):
         return self._deequAnalyzers.UniqueValueRatio(
             to_scala_seq(self._jvm, self.columns), self._jvm.scala.Option.apply(self.where)
         )
+
+class DataTypeInstances(Enum):
+    """
+    An enum class that types columns to scala datatypes
+    """
+    Boolean = "Boolean"
+    Unknown = "Unknown"
+    Fractional = "Fractional"
+    Integral = "Integral"
+    String = "String"
+
+    def _create_java_object(self, jvm):
+        dataType_analyzers_class = jvm.com.amazon.deequ.analyzers.DataTypeInstances
+        if self == DataTypeInstances.String:
+            return dataType_analyzers_class.String()
+        elif self == DataTypeInstances.Boolean:
+            return dataType_analyzers_class.Boolean()
+        elif self == DataTypeInstances.Unknown:
+            return dataType_analyzers_class.Unknown()
+        elif self == DataTypeInstances.Integral:
+            return dataType_analyzers_class.Integral()
+        elif self == DataTypeInstances.Fractional:
+            return dataType_analyzers_class.Fractional()
+        else:
+            raise ValueError(f"{jvm} is not a valid datatype Object")

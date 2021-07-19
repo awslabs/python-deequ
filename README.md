@@ -1,6 +1,6 @@
 # PyDeequ
 
-PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets. PyDeequ is written to support usage of Deequ in Python.
+PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets. PyDeequ is written to support usage of Deequ in Python .
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![Coverage](https://img.shields.io/badge/coverage-90%25-green)
 
@@ -11,7 +11,11 @@ There are 4 main components of Deequ, and they are:
 - Constraint Suggestion:
     - Specify rules for various groups of Analyzers to be run over a dataset to return back a collection of constraints suggested to run in a Verification Suite.
 - Constraint Verification:
+<<<<<<< HEAD
+    - Perform data validation on a dataset with respect to various constraints set by you.   
+=======
     - Perform data validation on a dataset with respect to various constraints set by you.
+>>>>>>> 30375bb8645728a539b7b2f6d2d85f89266ac047
 - Metrics Repository
     - Allows for persistence and tracking of Deequ runs over time.
 
@@ -152,13 +156,14 @@ Please refer to the [contributing doc](https://github.com/awslabs/python-deequ/b
 
 This library is licensed under the Apache 2.0 License.
 
-## Getting Started
+******
+
+## Contributing Developer Setup
 
 1. Setup [SDKMAN](#setup-sdkman)
 1. Setup [Java](#setup-java)
 1. Setup [Apache Spark](#setup-apache-spark)
 1. Install [Poetry](#poetry)
-1. Install Pre-commit and [follow instruction in here](PreCommit.MD)
 1. Run [tests locally](#running-tests-locally)
 
 ### Setup SDKMAN
