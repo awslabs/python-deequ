@@ -11,11 +11,7 @@ There are 4 main components of Deequ, and they are:
 - Constraint Suggestion:
     - Specify rules for various groups of Analyzers to be run over a dataset to return back a collection of constraints suggested to run in a Verification Suite.
 - Constraint Verification:
-<<<<<<< HEAD
     - Perform data validation on a dataset with respect to various constraints set by you.   
-=======
-    - Perform data validation on a dataset with respect to various constraints set by you.
->>>>>>> 30375bb8645728a539b7b2f6d2d85f89266ac047
 - Metrics Repository
     - Allows for persistence and tracking of Deequ runs over time.
 
