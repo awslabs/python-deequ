@@ -767,19 +767,28 @@ class Check:
         self._Check = self._Check.isGreaterThanOrEqualTo(columnA, columnB, assertion_func, hint)
         return self
 
-    def isContainedIn(self, column, allowed_values):
+    def isContainedIn(self, column, allowed_values, assertion=None, hint=None):
         """
         Asserts that every non-null value in a column is contained in a set of predefined values
 
         :param str column: Column in DataFrame to run the assertion on.
         :param list[str] allowed_values: A function that accepts allowed values for the column.
+        :param lambda assertion: A function that accepts an int or float parameter.
         :param str hint: A hint that states why a constraint could have failed.
         :return: isContainedIn self: A Check object that runs the assertion on the columns.
         """
         arr = self._spark_session.sparkContext._gateway.new_array(self._jvm.java.lang.String, len(allowed_values))
         for i in range(len(allowed_values)):
             arr[i] = allowed_values[i]
-        self._Check = self._Check.isContainedIn(column, arr)
+            
+        if assertion:
+            assertion_func = (
+                ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            )
+            hint = self._jvm.scala.Option.apply(hint)
+            self._Check = self._Check.isContainedIn(column, arr, assertion_func, hint)
+        else:
+            self._Check = self._Check.isContainedIn(column, arr)
         return self
 
     def evaluate(self, context):
