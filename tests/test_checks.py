@@ -476,7 +476,7 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_status="Failure")],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasSize(self):
         self.assertEqual(self.hasSize(lambda x: x >= 5.0, "size of dataframe should be 3"), [Row(constraint="Success")])
         self.assertEqual(
@@ -494,7 +494,7 @@ class TestChecks(unittest.TestCase):
         )
         self.assertEqual(self.containsCreditCardNumber("ssn", lambda x: x == 1), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_containsCreditCardNumber(self):
         self.assertEqual(
             self.containsCreditCardNumber("5130566665286573", "Not a column"), [Row(constraint_status="Success")]
@@ -520,7 +520,7 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_status="Failure")],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_containsEmail(self):
         self.assertEqual(
             self.containsEmail("a", lambda x: x == 0.5, "No rows contain an email"), [Row(constraint_status="Success")]
@@ -542,7 +542,7 @@ class TestChecks(unittest.TestCase):
             self.containsURL("URL", lambda x: x == 0, "All rows contain an email"), [Row(constraint_status="Failure")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_containsURL(self):
         self.assertEqual(
             self.containsURL("email", lambda x: x == 0.5, "No rows contain an email"),
@@ -567,7 +567,7 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_message="")],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_containsSocialSecurityNumber(self):
         self.assertEqual(
             self.containsSocialSecurityNumber("a", lambda x: x == 0.5, "No rows contain a ssn"),
@@ -589,7 +589,7 @@ class TestChecks(unittest.TestCase):
             self.hasDataType("boolean", ConstrainableDataTypes.Boolean), [Row(constraint_status="Success")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasDataType(self):
         self.assertEqual(
             self.hasDataType("nonexistent_row", ConstrainableDataTypes.Null), [Row(constraint_status="Success")]
@@ -603,7 +603,7 @@ class TestChecks(unittest.TestCase):
         )
         self.assertEqual(self.isComplete("c", "Is incomplete"), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_isComplete(self):
         self.assertEqual(self.isComplete("c", "Is incomplete"), [Row(constraint_status="Success")])
         self.assertEqual(self.isComplete("a", "Is complete"), [Row(constraint_status="Failure")])
@@ -614,7 +614,7 @@ class TestChecks(unittest.TestCase):
 
         self.assertEqual(self.isUnique("d", "Is not unique"), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_isUnique(self):
         self.assertEqual(self.isUnique("d"), [Row(constraint_status="Success")])
         self.assertEqual(self.isUnique("email" "All rows are unique"), [Row(constraint_status="Failure")])
@@ -628,7 +628,7 @@ class TestChecks(unittest.TestCase):
             self.hasUniqueness(["d"], lambda x: x == 1, "All rows are not unique"), [Row(constraint_status="Failure")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasUniqueness(self):
         self.assertEqual(
             self.hasUniqueness(["b", "e"], lambda x: x == 0, "There is 1 Uniqueness"),
@@ -639,7 +639,7 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_status="Failure")],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_chained_call(self):
         check = Check(self.spark, CheckLevel.Warning, "test chained_call")
         result = (
@@ -728,7 +728,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.areComplete(["c"], "c is not complete"), [Row(constraint_status="Failure")])
         self.assertEqual(self.areComplete(["c", "b"], "c is not complete"), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_areComplete(self):
         self.assertEqual(self.areComplete(["email", "ssn"], "both complete"), [Row(constraint_status="Failure")])
         self.assertEqual(self.areComplete(["URL", "a"], "Both Complete"), [Row(constraint_status="Failure")])
@@ -745,7 +745,7 @@ class TestChecks(unittest.TestCase):
             self.haveCompleteness(["a", "b"], lambda x: x == 1, "both are complete"), [Row(constraint_status="Success")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_haveCompleteness(self):
         self.assertEqual(
             self.haveCompleteness(["a", "ssn"], lambda x: x == 2 / 3, "both are complete"),
@@ -763,7 +763,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.areAnyComplete(["c"], "c is not complete"), [Row(constraint_status="Failure")])
         self.assertEqual(self.areAnyComplete(["a", "c"], "Column a is complete"), [Row(constraint_status="Success")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_areComplete(self):
         self.assertEqual(self.areAnyComplete(["email", "ssn"], "both complete"), [Row(constraint_status="Failure")])
         self.assertEqual(self.areAnyComplete(["URL", "a"], "Both Complete"), [Row(constraint_status="Failure")])
@@ -779,7 +779,7 @@ class TestChecks(unittest.TestCase):
             self.hasCompleteness("c", lambda x: x == 2 / 3, "c is not complete"), [Row(constraint_status="Success")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasCompleteness(self):
         self.assertEqual(
             self.hasCompleteness("URL", lambda x: x == 1, "URL is complete"), [Row(constraint_status="Failure")]
@@ -804,7 +804,7 @@ class TestChecks(unittest.TestCase):
             self.haveAnyCompleteness(["c"], lambda x: x == 1, "c is incomplete"), [Row(constraint_status="Failure")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_haveAnyCompleteness(self):
         self.assertEqual(
             self.haveAnyCompleteness(["c"], lambda x: x == 2 / 3, "Column c is incomplete"),
@@ -843,7 +843,7 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_status="Failure")],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasDistinctness(self):
         self.assertEqual(
             self.hasDistinctness("d", lambda x: x == 1, "URL is complete"), [Row(constraint_status="Success")]
@@ -875,7 +875,7 @@ class TestChecks(unittest.TestCase):
             self.hasUniqueValueRatio(["d"], lambda x: x == 1, "d is not unique"), [Row(constraint_status="Failure")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasUniqueValueRatio(self):
         self.assertEqual(
             self.hasUniqueValueRatio("d", lambda x: x == 1, "d is not unique"), [Row(constraint_status="Success")]
@@ -903,7 +903,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasEntropy("c", lambda x: x == 0.6931471805599453), [Row(constraint_status="Success")])
         self.assertEqual(self.hasEntropy("f", lambda x: x == 0.5), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasEntropy(self):
         self.assertEqual(
             self.hasEntropy("a", lambda x: float(x) == 1.0986122886681096, "Has an entropy of 1.0986122886681096"),
@@ -927,7 +927,7 @@ class TestChecks(unittest.TestCase):
         )
         self.assertEqual(self.hasMutualInformation("f", "b", lambda x: x == 0.5), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasMutualInformation(self):
         self.assertEqual(
             self.hasMutualInformation(
@@ -947,7 +947,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasApproxQuantile("f", ".75", lambda x: x == 2), [Row(constraint_status="Success")])
         self.assertEqual(self.hasApproxQuantile("c", ".75", lambda x: x == 2), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasMutualInformation(self):
         self.assertEqual(
             self.hasApproxQuantile("a", ".25", lambda x: x == 0, "Non string values only"),
@@ -968,7 +968,7 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_status="Failure")],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasMinLength(self):
         self.assertEqual(
             self.hasMinLength("b", lambda x: x == 0, "string values only"), [Row(constraint_status="Failure")]
@@ -988,7 +988,7 @@ class TestChecks(unittest.TestCase):
             self.hasMaxLength("email", lambda x: x > 20, "does not meet criteria"), [Row(constraint_status="Success")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasMaxLength(self):
         self.assertEqual(
             self.hasMaxLength("b", lambda x: x == 0, "string values only"), [Row(constraint_status="Failure")]
@@ -1006,7 +1006,7 @@ class TestChecks(unittest.TestCase):
         # See if it works with a None
         self.assertEqual(self.hasMin("c", lambda x: x == 5), [Row(constraint_status="Success")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasMin(self):
         self.assertEqual(self.hasMin("b", lambda x: x == 0, "string values only"), [Row(constraint_status="Success")])
         self.assertEqual(self.hasMin("c", lambda x: x == 6), [Row(constraint_status="Failure")])
@@ -1019,7 +1019,7 @@ class TestChecks(unittest.TestCase):
         # See if it works with a None
         self.assertEqual(self.hasMax("c", lambda x: x == 6), [Row(constraint_status="Success")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasMax(self):
         self.assertEqual(self.hasMin("b", lambda x: x == 0), [Row(constraint_status="Success")])
         self.assertEqual(self.hasMin("c", lambda x: x == 6), [Row(constraint_status="Failure")])
@@ -1036,7 +1036,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasMean("f", lambda x: x == 4 / 3), [Row(constraint_status="Success")])
         self.assertEqual(self.hasMean("f", lambda x: x == 5), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasMean(self):
         self.assertEqual(self.hasMean("b", lambda x: x == 0), [Row(constraint_status="Success")])
         self.assertEqual(self.hasMean("c", lambda x: x == 11 / 2), [Row(constraint_status="Failure")])
@@ -1052,7 +1052,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasSum("f", lambda x: x > 3), [Row(constraint_status="Success")])
         self.assertEqual(self.hasSum("f", lambda x: x == 5), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasSum(self):
         self.assertEqual(self.hasSum("b", lambda x: x == 6), [Row(constraint_status="Failure")])
         self.assertEqual(self.hasSum("c", lambda x: x == 12), [Row(constraint_status="Success")])
@@ -1070,7 +1070,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasStandardDeviation("f", lambda x: x > 0.2), [Row(constraint_status="Success")])
         self.assertEqual(self.hasStandardDeviation("f", lambda x: x == 5), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasStandardDeviation(self):
         self.assertEqual(
             self.hasStandardDeviation("b", lambda x: x == 0.816496580927726), [Row(constraint_status="Failure")]
@@ -1087,7 +1087,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasApproxCountDistinct("f", lambda x: x > 1), [Row(constraint_status="Success")])
         self.assertEqual(self.hasApproxCountDistinct("f", lambda x: x == 5), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasApproxCountDistinct(self):
         self.assertEqual(self.hasApproxCountDistinct("b", lambda x: x == 3), [Row(constraint_status="Failure")])
         self.assertEqual(self.hasApproxCountDistinct("c", lambda x: x == 12), [Row(constraint_status="Success")])
@@ -1104,7 +1104,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasCorrelation("f", "c", lambda x: x == 1), [Row(constraint_status="Success")])
         self.assertEqual(self.hasCorrelation("f", "c", lambda x: x == 5), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasCorrelation(self):
         self.assertEqual(self.hasCorrelation("b", "e", lambda x: x == 1), [Row(constraint_status="Success")])
         self.assertEqual(self.hasCorrelation("b", "e", lambda x: x == -1), [Row(constraint_status="Failure")])
@@ -1121,7 +1121,7 @@ class TestChecks(unittest.TestCase):
             self.satisfies('a = "foo"', "find a", lambda x: x == 2 / 3), [Row(constraint_status="Failure")]
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_satisfies(self):
         self.assertEqual(
             self.satisfies("b >=2 AND d >= 2", "b and d", lambda x: x == 5 / 6), [Row(constraint_status="Failure")]
@@ -1138,7 +1138,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isNonNegative("c", lambda x: x == 1), [Row(constraint_status="Success")])
         self.assertEqual(self.isNonNegative("f", lambda x: x == 0), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_isNonNegative(self):
         self.assertEqual(self.isNonNegative("b", lambda x: x == 1), [Row(constraint_status="Failure")])
         self.assertEqual(self.isNonNegative("e", lambda x: x == 0), [Row(constraint_status="Success")])
@@ -1150,7 +1150,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isPositive("c", lambda x: x == 1), [Row(constraint_status="Success")])
         self.assertEqual(self.isPositive("f", lambda x: x == 0), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_isPositive(self):
         self.assertEqual(self.isPositive("b", lambda x: x == 1), [Row(constraint_status="Failure")])
         self.assertEqual(self.isPositive("e", lambda x: x == 0), [Row(constraint_status="Success")])
@@ -1164,7 +1164,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isLessThan("b", "c", lambda x: x == 2 / 3), [Row(constraint_status="Success")])
         self.assertEqual(self.isLessThan("d", "b", lambda x: x == 1), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_isLessThan(self):
         self.assertEqual(
             self.isLessThan("b", "d", lambda x: x == 1, "Column B < Column D"), [Row(constraint_status="Failure")]
@@ -1186,7 +1186,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isGreaterThan("d", "b"), [Row(constraint_status="Success")])
         self.assertEqual(self.isGreaterThan("c", "b"), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_isGreaterThan(self):
         self.assertEqual(
             self.isGreaterThan("d", "b", lambda x: x == 1, "Column B < Column D"), [Row(constraint_status="Failure")]
@@ -1199,7 +1199,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isContainedIn("c", ["5", "6"]), [Row(constraint_status="Success")])
         self.assertEqual(self.isContainedIn("b", ["15", "2", "3"]), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_isContainedIn(self):
         self.assertEqual(self.isContainedIn("a", [1, 2, 3]), [Row(constraint_status="Success")])
         self.assertEqual(self.isContainedIn("f", [1, 2]), [Row(constraint_status="Failure")])
@@ -1212,7 +1212,7 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isGreaterThanOrEqualTo("d", "b"), [Row(constraint_status="Success")])
         self.assertEqual(self.isGreaterThanOrEqualTo("c", "b"), [Row(constraint_status="Failure")])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_isGreaterThanOrEqualTo(self):
         self.assertEqual(
             self.isGreaterThanOrEqualTo("d", "b", lambda x: x == 1, "Column B < Column D"),
@@ -1274,3 +1274,30 @@ class TestChecks(unittest.TestCase):
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         df.show()
         print(df.select("constraint_message").collect())
+
+    def test_list_of_constraints(self):
+        check = Check(self.spark, CheckLevel.Warning, "test list of constraints")
+
+        check.addConstraints([check.isComplete('b'),
+                              check.containsEmail('email')])
+
+        result = VerificationSuite(self.spark) \
+                .onData(self.df).addCheck(check) \
+                .run()
+
+        df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        self.assertEqual(df.select("constraint_status").collect(), [Row(constraint_status="Success"), Row(constraint_status="Success")])
+
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
+    def test_fail_list_of_constraints(self):
+        check = Check(self.spark, CheckLevel.Warning, "test list of constraints")
+
+        check.addConstraints([check.isComplete('c'),
+                              check.containsEmail('email')])
+
+        result = VerificationSuite(self.spark) \
+                .onData(self.df).addCheck(check) \
+                .run()
+
+        df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        self.assertEqual(df.select("constraint_status").collect(), [Row(constraint_status="Success"), Row(constraint_status="Success")])

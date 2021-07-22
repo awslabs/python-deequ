@@ -273,7 +273,7 @@ class TestRepository(unittest.TestCase):
         print(df.collect())
         print(result_metrep.collect())
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_no_useRepository(self):
         """This test should fail because it doesn't call useRepository() before saveOrAppendResult()"""
         metrics_file = FileSystemMetricsRepository.helper_metrics_file(self.spark, "metrics.json")
@@ -289,7 +289,7 @@ class TestRepository(unittest.TestCase):
             .run()
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_no_load(self):
         """This test should fail because we do not load() for the repository reading"""
         metrics_file = FileSystemMetricsRepository.helper_metrics_file(self.spark, "metrics.json")
