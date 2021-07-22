@@ -302,7 +302,7 @@ class TestAnomalies(unittest.TestCase):
     # TODO - Failing bcoz of
     # can not implement breeze.stats.DescriptiveStats, because it is not an interface
     # (breeze.stats.DescriptiveStats is in unnamed module of loader 'app')
-    @pytest.mark.skip(reason="TODO: breeze.stats.DescriptiveStats is in unnamed module of loader 'app'")
+    @pytest.mark.xfail(reason="TODO: breeze.stats.DescriptiveStats is in unnamed module of loader 'app'")
     def test_BatchNormalStrategy(self):
 
         # Interval is inclusive, so meet the requirements upper value is up to 9
@@ -363,7 +363,7 @@ class TestAnomalies(unittest.TestCase):
     # TODO - Fix in deequ - Failing bcoz of
     # can not implement breeze.stats.DescriptiveStats, because it is not an interface
     # (breeze.stats.DescriptiveStats is in unnamed module of loader 'app')
-    @pytest.mark.skip(reason="TODO: breeze.stats.DescriptiveStats is in unnamed module of loader 'app'")
+    @pytest.mark.xfail(reason="TODO: breeze.stats.DescriptiveStats is in unnamed module of loader 'app'")
     def test_holtWinters(self):
 
         # must have 15 points of data
@@ -482,7 +482,7 @@ class TestAnomalies(unittest.TestCase):
         AnomalyDetector._set_jvm(self._jvm, strategy_jvm)
         return AnomalyDetector._anomaly_jvm
 
-    @unittest.skip("Not implemented yet!")
+    @pytest.mark.skip("Not implemented yet!")
     def test_anomalyDetector(self):
         self.get_anomalyDetector(SimpleThresholdStrategy(1.0, 3.0))
 

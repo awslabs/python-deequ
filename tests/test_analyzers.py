@@ -232,7 +232,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.ApproxCountDistinct("b"), [Row(value=3)])
         self.assertEqual(self.ApproxCountDistinct("c"), [Row(value=2)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_approxCountDistinct(self):
         self.assertEqual(self.ApproxCountDistinct("b"), [Row(value=2)])
 
@@ -257,7 +257,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(df_from_json.select("value").collect(), result_df.select("value").collect())
         return result_df.select("value").collect()
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_approxQuantiles(self):
         self.assertEqual(self.ApproxQuantiles("b", [0.2, 0.5, 0.73]), [Row(value=1.5), Row(value=2.0), Row(value=3.0)])
 
@@ -270,7 +270,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.Completeness("c"), [Row(value=2 / 3)])
         self.assertEqual(self.Completeness("a"), [Row(value=1)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Completeness(self):
         self.assertEqual(self.Completeness("c"), [Row(value=1.0)])
 
@@ -285,7 +285,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.Correlation("b", "d"), [Row(value=0.0)])
         self.assertEqual(self.Correlation("b", "a"), [])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Correlation(self):
         self.assertEqual(self.Correlation("b", "c"), [Row(value=-1.0)])
 
@@ -294,7 +294,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.CountDistinct(["b", "c"]), [Row(value=3.0)])
         self.assertEqual(self.CountDistinct(["b", "d"]), [Row(value=3.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_CountDistinct(self):
         self.assertEqual(self.CountDistinct("b"), [Row(value=1.0)])
 
@@ -332,7 +332,7 @@ class TestAnalyzers(unittest.TestCase):
             ],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Datatype(self):
         self.assertEqual(
             self.Datatype("c"),
@@ -356,7 +356,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.Distinctness(["b", "c"]), [Row(value=1.0)])
         self.assertEqual(self.Distinctness(["b", "d"]), [Row(value=1.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Distinctness(self):
         self.assertEqual(self.Distinctness("b"), [Row(value=0)])
 
@@ -365,7 +365,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.Entropy("a"), [Row(value=1.0986122886681096)])
         self.assertEqual(self.Entropy("c"), [Row(value=0.6931471805599453)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Entropy(self):
         self.assertEqual(self.Entropy("b"), [Row(value=0)])
 
@@ -395,7 +395,7 @@ class TestAnalyzers(unittest.TestCase):
             ],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Histogram(self):
         self.assertEqual(
             self.Histogram("b"),
@@ -432,7 +432,7 @@ class TestAnalyzers(unittest.TestCase):
             ],
         )
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Histogram_maxBins(self):
         self.assertEqual(
             self.Histogram_maxBins("b"),
@@ -450,14 +450,14 @@ class TestAnalyzers(unittest.TestCase):
     def test_Maximum(self):
         self.assertEqual(self.Maximum("b"), [Row(value=3.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Maximum(self):
         self.assertEqual(self.Maximum("c"), [Row(value=3.0)])
 
     def test_MaxLength(self):
         self.assertEqual(self.MaxLength("a"), [Row(value=3.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_MaxLength(self):
         self.assertEqual(self.MaxLength("b"), [Row(value=3.0)])
 
@@ -465,7 +465,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.Mean("b"), [Row(value=2.0)])
         self.assertEqual(self.Mean("c"), [Row(value=11 / 2)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Mean(self):
         self.assertEqual(self.Mean("b"), [Row(value=3.0)])
 
@@ -473,7 +473,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.Minimum("b"), [Row(value=1.0)])
         self.assertEqual(self.Minimum("c"), [Row(value=5.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Minimum(self):
         self.assertEqual(self.Minimum("a"), [Row(value=3.0)])
         self.assertEqual(self.Minimum("b"), [Row(value=3.0)])
@@ -481,7 +481,7 @@ class TestAnalyzers(unittest.TestCase):
     def test_MinLength(self):
         self.assertEqual(self.MinLength("a"), [Row(value=3.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_MinLength(self):
         self.assertEqual(self.MinLength("a"), [])
 
@@ -489,7 +489,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.MutualInformation(["b", "c"]), [Row(value=0.7324081924454064)])
         self.assertEqual(self.MutualInformation(["b", "d"]), [Row(value=0.6365141682948128)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_MutualInformation(self):
         self.assertEqual(self.MutualInformation(["b", "d"]), [])
 
@@ -511,7 +511,7 @@ class TestAnalyzers(unittest.TestCase):
         result_df_row = result_df.select("value").collect()
         self.assertEqual(result_df_row, [Row(value=3.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Size(self):
         result = self.AnalysisRunner.onData(self.df).addAnalyzer(Size()).run()
         result_df = result.select("value").collect()
@@ -521,7 +521,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.StandardDeviation("b"), [Row(value=0.816496580927726)])
         self.assertEqual(self.StandardDeviation("c"), [Row(value=0.5)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_StandardDeviation(self):
         self.assertEqual(self.StandardDeviation("c"), [Row(value=0.8)])
 
@@ -529,7 +529,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.Sum("b"), [Row(value=6.0)])
         self.assertEqual(self.Sum("c"), [Row(value=11.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Sum(self):
         self.assertEqual(self.Sum("b"), [Row(value=3.0)])
 
@@ -538,7 +538,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.Uniqueness(["b", "d"]), [Row(value=1.0)])
         self.assertEqual(self.Uniqueness(["a", "a"]), [Row(value=1.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_Uniqueness(self):
         self.assertEqual(self.Uniqueness(["a", "a"]), [])
 
@@ -546,7 +546,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(self.UniqueValueRatio(["b", "d"]), [Row(value=1.0)])
         self.assertEqual(self.UniqueValueRatio(["b"]), [Row(value=1.0)])
 
-    @pytest.mark.skip(reason="@unittest.expectedFailure")
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_UniqueValueRatio(self):
         self.assertEqual(self.UniqueValueRatio(["a", "a"]), [])
 

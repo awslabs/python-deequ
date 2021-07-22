@@ -100,13 +100,19 @@ class Check:
         for constraint in self.constraints:
             self.addConstraint(constraint)
 
+    def addConstraints(self, constraints: list):
+        self.constraints.extend(constraints)
+        for constraint in constraints:
+            self._Check = constraint._Check
+
     def addConstraint(self, constraint):
         """
         Returns a new Check object with the given constraints added to the constraints list.
         :param Constraint constraint: new constraint to be added.
         :return: new Check object
         """
-        raise NotImplementedError("Private factory method for other check methods")
+        self.constraints.append(constraint)
+        self._Check = constraint._Check
 
     def addFilterableContstraint(self, creationFunc):
         """Adds a constraint that can subsequently be replaced with a filtered version
