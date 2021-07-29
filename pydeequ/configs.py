@@ -6,8 +6,10 @@ logger = logging.getLogger("logger")
 configs = {
     "deequ_maven_coord": "com.amazon.deequ:deequ:1.2.2-spark-3.0",
     "deequ_maven_coord_spark3": "com.amazon.deequ:deequ:1.2.2-spark-3.0",
-    "deequ_maven_coord_spark2_4": "com.amazon.deequ:deequ:1.2.2-spark-2.4",
-    "deequ_maven_coord_spark2_2": "com.amazon.deequ:deequ:1.2.2-spark-2.2",
+    # "deequ_maven_coord_spark2_4": "com.amazon.deequ:deequ:1.2.2-spark-2.4", # 1.2.2 is broken, rolling back to 1.1.0 with scala 11
+    "deequ_maven_coord_spark2_4": "com.amazon.deequ:deequ:1.1.0_spark-2.4-scala-2.11",
+    # "deequ_maven_coord_spark2_2": "com.amazon.deequ:deequ:1.2.2-spark-2.2",
+    "deequ_maven_coord_spark2_2": "com.amazon.deequ:deequ:1.1.0_spark-2.2-scala-2.11",
     "f2j_maven_coord": "net.sourceforge.f2j:arpack_combined_all",
 }
 
