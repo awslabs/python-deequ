@@ -664,7 +664,7 @@ class PatternMatch(_AnalyzerObject):
 
     def __init__(self, column, pattern_regex: str, *pattern_groupNames, where: str = None):
         self.column = column
-        self.pattern_regex = (pattern_regex,)
+        self.pattern_regex = pattern_regex
         if pattern_groupNames:
             raise NotImplementedError("pattern_groupNames have not been implemented yet.")
         self.pattern_groupNames = None
@@ -679,7 +679,7 @@ class PatternMatch(_AnalyzerObject):
         """
         return self._deequAnalyzers.PatternMatch(
             self.column,
-            self._jvm.scala.util.matching.Regex(str(self.pattern_regex), None),
+            self._jvm.scala.util.matching.Regex(self.pattern_regex, None),
             # TODO: revisit bc scala constructor does some weird implicit type casting from python str -> java list
             #  if we don't cast it to str()
             self._jvm.scala.Option.apply(self.where),
