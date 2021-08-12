@@ -491,14 +491,14 @@ class TestAnomalies(unittest.TestCase):
         config = AnomalyCheckConfig(description='test error case', level=CheckLevel.Error)
         # Lower bound is 1 upper bound is 6 (Range: 1-6 rows)
         self.assertEqual(
-            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 4.0), [Row(check_status="Error")]
+            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 4.0, config), [Row(check_status="Error")]
         )
 
     def test_SimpleThresholdStrategy_Warning(self):
         config = AnomalyCheckConfig(description='test error case', level=CheckLevel.Warning)
         # Lower bound is 1 upper bound is 6 (Range: 1-6 rows)
         self.assertEqual(
-            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 4.0), [Row(check_status="Warning")]
+            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 4.0, config), [Row(check_status="Warning")]
         )
 
     #
