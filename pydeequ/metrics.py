@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Metrics file for the various metrics that Deequ handles
 """
@@ -28,11 +29,16 @@ class BucketDistribution:
     """
     Bucket Distribution for KLL
     """
+
     def __init__(self, spark_session: SparkSession, kllResult):
         self._spark_session = spark_session
         self._kllResult = kllResult
-        self._buckets = [BucketValue(self._kllResult.buckets().apply(b)) for b in range(self._kllResult.buckets().size())]
-        self._parameters = [float(self._kllResult.parameters().apply(p)) for p in range(self._kllResult.parameters().size())]
+        self._buckets = [
+            BucketValue(self._kllResult.buckets().apply(b)) for b in range(self._kllResult.buckets().size())
+        ]
+        self._parameters = [
+            float(self._kllResult.parameters().apply(p)) for p in range(self._kllResult.parameters().size())
+        ]
         self._data = [list(d) for d in self._kllResult.data()]
 
     def __str__(self):
