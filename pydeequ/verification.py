@@ -1,13 +1,12 @@
+from pydeequ.analyzers import _AnalyzerObject
 import json
 
 from pyspark import SQLContext
 from pyspark.sql import DataFrame, SparkSession
 
 from pydeequ.analyzers import AnalysisRunBuilder
-from pydeequ.checks import Check
-from pydeequ.checks import CheckLevel
+from pydeequ.checks import Check, CheckLevel
 from pydeequ.pandas_utils import ensure_pyspark_df
-
 
 # TODO integrate Analyzer context
 
@@ -67,7 +66,7 @@ class VerificationResult:
 
     @classmethod
     def successMetricsAsDataFrame(
-            cls, spark_session: SparkSession, verificationResult, forAnalyzers: list = None, pandas: bool = False
+        cls, spark_session: SparkSession, verificationResult, forAnalyzers: list = None, pandas: bool = False
     ):
         """
         The results returned in a Data Frame
@@ -134,7 +133,7 @@ class VerificationResult:
 
     @classmethod
     def checkResultsAsDataFrame(
-            cls, spark_session: SparkSession, verificationResult, forChecks=None, pandas: bool = False
+        cls, spark_session: SparkSession, verificationResult, forChecks=None, pandas: bool = False
     ):
         """
         Returns the verificaton Results as a Data Frame
@@ -194,7 +193,7 @@ class VerificationRunBuilder:
         self._VerificationRunBuilder.addCheck(check._Check)
         return self
 
-    def addAnomalyCheck(self, anomaly, analyzer: AnalysisRunBuilder, anomalyCheckConfig: AnomalyCheckConfig = None):
+    def addAnomalyCheck(self, anomaly, analyzer: _AnalyzerObject, anomalyCheckConfig=None):
         """
         Add a check using anomaly_detection methods. The Anomaly Detection Strategy only checks
         if the new value is an Anomaly.
@@ -204,7 +203,6 @@ class VerificationRunBuilder:
         :param anomalyCheckConfig: Some configuration settings for the Check
         :return: Adds an anomaly strategy to the run
         """
-
         anomalyCheckConfig_jvm = None
         if anomalyCheckConfig:
             anomalyCheckConfig_jvm = anomalyCheckConfig._get_java_object(self._jvm)
@@ -220,38 +218,35 @@ class VerificationRunBuilder:
         self._VerificationRunBuilder.addAnomalyCheck(anomaly_jvm, analyzer_jvm, AnomalyCheckConfig)
         return self
 
+    def run(self):
+        """
+        A method that runs the desired VerificationRunBuilder functions on the data to obtain a Verification Result
+        :return:a verificationResult object
+        """
+        return VerificationResult(self._spark_session, self._VerificationRunBuilder.run())
 
-def run(self):
-    """
-    A method that runs the desired VerificationRunBuilder functions on the data to obtain a Verification Result
-    :return:a verificationResult object
-    """
-    return VerificationResult(self._spark_session, self._VerificationRunBuilder.run())
+    def useRepository(self, repository):
+        """
+        This method reassigns our AnalysisRunBuilder because useRepository returns back a different
+        class: AnalysisRunBuilderWithRepository
 
+        Sets a metrics repository associated with the current data to enable features like reusing previously computed
+        results and storing the results of the current run.
 
-def useRepository(self, repository):
-    """
-    This method reassigns our AnalysisRunBuilder because useRepository returns back a different
-    class: AnalysisRunBuilderWithRepository
+        :param repository: a metrics repository to store and load results associated with the run
+        """
+        self._VerificationRunBuilder = self._VerificationRunBuilder.useRepository(repository.repository)
+        return self
 
-    Sets a metrics repository associated with the current data to enable features like reusing previously computed
-    results and storing the results of the current run.
+    def saveOrAppendResult(self, resultKey):
+        """
+        A shortcut to save the results of the run or append them to the existing results in the metrics repository.
 
-    :param repository: a metrics repository to store and load results associated with the run
-    """
-    self._VerificationRunBuilder = self._VerificationRunBuilder.useRepository(repository.repository)
-    return self
-
-
-def saveOrAppendResult(self, resultKey):
-    """
-    A shortcut to save the results of the run or append them to the existing results in the metrics repository.
-
-    :param resultKey: The result key to identify the current run
-    :return: :A VerificationRunBuilder.scala object that saves or appends a result
-    """
-    self._VerificationRunBuilder.saveOrAppendResult(resultKey.resultKey)
-    return self
+        :param resultKey: The result key to identify the current run
+        :return: :A VerificationRunBuilder.scala object that saves or appends a result
+        """
+        self._VerificationRunBuilder.saveOrAppendResult(resultKey.resultKey)
+        return self
 
 
 class VerificationRunBuilderWithSparkSession(VerificationRunBuilder):
