@@ -27,7 +27,7 @@ class TestChecks(unittest.TestCase):
                     g="a",
                     h=0,
                     creditCard="5130566665286573",
-                    email="foo@example.com",
+                    email="foo@bar.com",
                     ssn="123-45-6789",
                     URL="http://userid@example.com:8080",
                     boolean="true",
@@ -80,6 +80,16 @@ class TestChecks(unittest.TestCase):
 
         result_df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         result_df.show()
+
+    def hasPattern(self, column, pattern, assertion=None, name=None, hint=None):
+         check = Check(self.spark, CheckLevel.Warning, "test hasPattern")
+
+         result = VerificationSuite(self.spark).onData(self.df) \
+             .addCheck((check.hasPattern(column, pattern, assertion, name, hint))) \
+             .run()
+
+         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+         return df.select('constraint_status').collect()
 
     def hasSize(self, assertion, hint=None):
         check = Check(self.spark, CheckLevel.Warning, "test hasSize")
@@ -960,7 +970,7 @@ class TestChecks(unittest.TestCase):
 
     def test_hasMinLength(self):
         self.assertEqual(
-            self.hasMinLength("email", lambda x: float(x) == 15, "Column email has 15 minimum characters"),
+            self.hasMinLength("email", lambda x: float(x) == 11, "Column email has 11 minimum characters"),
             [Row(constraint_status="Success")],
         )
         self.assertEqual(
@@ -1219,6 +1229,39 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_status="Failure")],
         )
         self.assertEqual(self.isGreaterThanOrEqualTo("h", "f", lambda x: x == 1), [Row(constraint_status="Success")])
+
+    def test_hasPattern(self):
+        self.assertEqual(self.hasPattern(column='email',
+                                         pattern=r".*@bar.com",
+                                         assertion=lambda x: x == 1/3),
+                         [Row(constraint_status='Success')])
+
+        self.assertEqual(self.hasPattern(column='creditCard',
+                                         pattern=r"\(|\)|\d{16}",
+                                         assertion=lambda x: x == 0.0),
+                         [Row(constraint_status='Failure')])
+
+        self.assertEqual(self.hasPattern(column='email',
+                                         pattern=r"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])""",
+                                         assertion=lambda x: x == 1.0),
+                         [Row(constraint_status='Success')])
+
+    @unittest.expectedFailure
+    def test_fail_hasPattern(self):
+        self.assertEqual(self.hasPattern(column='email',
+                                         pattern=r".*@bar.com",
+                                         assertion=lambda x: x == 2 / 3),
+                         [Row(constraint_status='Success')])
+
+        self.assertEqual(self.hasPattern(column='creditCard',
+                                         pattern=r"\(|\)|\d{16}",
+                                         assertion=lambda x: x == 1.0),
+                         [Row(constraint_status='Failure')])
+
+        self.assertEqual(self.hasPattern(column='email',
+                                         pattern=r"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])""",
+                                         assertion=lambda x: x == 0.0),
+                         [Row(constraint_status='Success')])
 
     # def test_hasNumberOfDistinctValues(self):
     #     #Todo: test binningUDf
