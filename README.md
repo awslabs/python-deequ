@@ -146,6 +146,15 @@ result_metrep_df = repository.load() \
     .getSuccessMetricsAsDataFrame()
 ```
 
+### Wrapping up
+
+After you've ran your jobs with PyDeequ, be sure to shut down your Spark session to prevent any hanging processes. 
+
+```python
+spark.sparkContext._gateway.shutdown_callback_server()
+spark.stop()
+```
+
 ## [Contributing](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md)
 Please refer to the [contributing doc](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md) for how to contribute to PyDeequ.
 
