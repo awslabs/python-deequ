@@ -5,6 +5,7 @@ import os
 logger = logging.getLogger("logger")
 configs = {
     "deequ_maven_coord": "com.amazon.deequ:deequ:1.2.2-spark-3.0",
+    "deequ_maven_coord_spark3_1": "com.amazon.deequ:deequ:2.0.0-spark-3.1",
     "deequ_maven_coord_spark3": "com.amazon.deequ:deequ:1.2.2-spark-3.0",
     # "deequ_maven_coord_spark2_4": "com.amazon.deequ:deequ:1.2.2-spark-2.4", # 1.2.2 is broken, rolling back to 1.1.0 with scala 11
     "deequ_maven_coord_spark2_4": "com.amazon.deequ:deequ:1.1.0_spark-2.4-scala-2.11",
@@ -26,6 +27,9 @@ def set_deequ_maven_config():
         logger.error("Please set env variable SPARK_VERSION")
         logger.info(f"Using deequ: {configs['deequ_maven_coord']}")
         return configs["deequ_maven_coord"]  # TODO
+    if spark_version[0:3] == "3.1":
+        logger.info("Setting spark-3.1 as default version of deequ")
+        configs["deequ_maven_coord"] = configs["deequ_maven_coord_spark3_1"]
     if spark_version[0:3] == "3.0":
         logger.info("Setting spark-3.0 as default version of deequ")
         configs["deequ_maven_coord"] = configs["deequ_maven_coord_spark3"]
