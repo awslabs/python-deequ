@@ -190,14 +190,6 @@ class TestChecks(unittest.TestCase):
         result = VerificationSuite(self.spark).onData(self.df).addCheck(check.areAnyComplete(columns, hint)).run()
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
-        # df = self.spark._jvm.com.amazon.deequ.VerificationResult.checkResultsAsDataFrame(
-        #     self.spark._jsparkSession,
-        #     result, aslkjdlkasjdlkasjdasaklsjdlkasj
-        #     getattr(self.spark._jvm.com.amazon.deequ.VerificationResult, "checkResultsAsDataFrame$default$3")()
-        # )
-        # print(DataFrame(df, self.spark).collect())
-        # print(result.toString())
-        df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         return df.select("constraint_status").collect()
 
     def hasCompleteness(self, column, assertion, hint=None):

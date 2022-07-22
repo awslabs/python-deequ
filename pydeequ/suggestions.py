@@ -183,7 +183,11 @@ class CategoricalRangeRule(_RulesObject):
 
     @property
     def rule_jvm(self):
-        return self._deequSuggestions.rules.CategoricalRangeRule()
+        default_category_sorter = getattr(
+            self._deequSuggestions.rules.CategoricalRangeRule,
+            "apply$default$2"
+        )()
+        return self._deequSuggestions.rules.CategoricalRangeRule(default_category_sorter)
 
 
 class CompleteIfCompleteRule(_RulesObject):
@@ -211,7 +215,11 @@ class FractionalCategoricalRangeRule(_RulesObject):
 
     @property
     def rule_jvm(self):
-        return self._deequSuggestions.rules.FractionalCategoricalRangeRule(self.targetDataCoverageFraction)
+        default_category_sorter = getattr(
+            self._deequSuggestions.rules.FractionalCategoricalRangeRule,
+            "apply$default$2"
+        )()
+        return self._deequSuggestions.rules.FractionalCategoricalRangeRule(self.targetDataCoverageFraction, default_category_sorter)
 
 
 class NonNegativeNumbersRule(_RulesObject):
