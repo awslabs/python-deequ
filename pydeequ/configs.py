@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 import logging
 
+from functools import lru_cache
+from pyspark import SparkContext
+from concurrent.futures import ProcessPoolExecutor
+
 logger = logging.getLogger("logger")
 configs = {
     "deequ_maven_coord": "com.amazon.deequ:deequ:2.0.1-spark-3.2",
@@ -10,12 +14,18 @@ configs = {
     "f2j_maven_coord": "net.sourceforge.f2j:arpack_combined_all",
 }
 
-
-def _get_spark_version():
-    from pyspark import SparkContext
+def _get_spark_version_from_context() -> str:
     sc = SparkContext.getOrCreate()
     spark_version: str = sc.version[:3]
-    sc.stop()
+    return spark_version
+
+@lru_cache(maxsize=1)
+def _get_spark_version() -> str:
+    # Create the context on a subprocess so we don't
+    # mess up tests and users contexts
+    with ProcessPoolExecutor(max_workers=1) as executor:
+        spark_version = executor.submit(_get_spark_version_from_context).result()
+
     return spark_version
 
 
