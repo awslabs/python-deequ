@@ -1,0 +1,19 @@
+on: ["push", "pull_request"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        PYSPARK_VERSION: ["2.2", "2.4", "3.0", "3.2"]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Running tests with pyspark==${{matrix.PYSPARK_VERSION}}
+        env:
+          PYSPARK_VERSION: ${{matrix.PYSPARK_VERSION}}
+        run: |
+          poetry install
+          poetry add pyspark==$PYSPARK_VERSION
+          poetry run python -m pytest tests
