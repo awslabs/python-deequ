@@ -3,6 +3,7 @@
 """
 from py4j.java_gateway import JavaObject
 
+
 class PythonCallback:
     # https://www.py4j.org/advanced_topics.html#py4j-memory-model
     # https://stackoverflow.com/questions/50878834/py4j-error-while-obtaining-a-new-communication-channel-on-multithreaded-java
@@ -109,6 +110,4 @@ def java_list_to_python_list(java_list: str, datatype):
 
 
 def scala_get_default_argument(java_object, argument_idx: int) -> JavaObject:
-    return getattr(
-        java_object, f"apply$default${argument_idx}"
-    )()
+    return getattr(java_object, f"apply$default${argument_idx}")()

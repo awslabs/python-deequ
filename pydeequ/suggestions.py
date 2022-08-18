@@ -47,8 +47,8 @@ class ConstraintSuggestionRunBuilder:
         self._jvm = spark_session._jvm
         self._jspark_session = spark_session._jsparkSession
         self._df = df
-        self._ConstraintSuggestionRunBuilder = self._jvm.com.amazon.deequ.suggestions.ConstraintSuggestionRunBuilder(
-            df._jdf
+        self._ConstraintSuggestionRunBuilder = (
+            self._jvm.com.amazon.deequ.suggestions.ConstraintSuggestionRunBuilder(df._jdf)
         )
 
     def addConstraintRule(self, constraintRule):
@@ -188,8 +188,7 @@ class CategoricalRangeRule(_RulesObject):
         if "deequ:2.0.1" in deequ_maven_coord:
             # DISCLAIMER: this is a workaround for using the default category sorter
             default_category_sorter = scala_get_default_argument(
-                self._deequSuggestions.rules.CategoricalRangeRule,
-                1
+                self._deequSuggestions.rules.CategoricalRangeRule, 1
             )
             return self._deequSuggestions.rules.CategoricalRangeRule(default_category_sorter)
         return self._deequSuggestions.rules.CategoricalRangeRule()
@@ -223,8 +222,7 @@ class FractionalCategoricalRangeRule(_RulesObject):
         if "deequ:2.0.1" in deequ_maven_coord:
             # DISCLAIMER: this is a workaround for using the default category sorter
             default_category_sorter = scala_get_default_argument(
-                self._deequSuggestions.rules.FractionalCategoricalRangeRule,
-                2
+                self._deequSuggestions.rules.FractionalCategoricalRangeRule, 2
             )
             return self._deequSuggestions.rules.FractionalCategoricalRangeRule(
                 self.targetDataCoverageFraction, default_category_sorter
