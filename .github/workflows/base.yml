@@ -4,11 +4,11 @@ on:
      - "*"
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        PYSPARK_VERSION: ["2.2", "2.4", "3.0", "3.2"]
+        PYSPARK_VERSION: ["2.4", "3.0", "3.2"]
 
     steps:
       - uses: actions/checkout@v3
