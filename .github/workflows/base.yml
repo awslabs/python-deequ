@@ -35,4 +35,4 @@ jobs:
           pip install poetry
           poetry install
           poetry add pyspark==$PYSPARK_VERSION
-          poetry run python -m pytest tests
+          SPARK_VERSION=${{matrix.PYSPARK_VERSION}} poetry run python -m pytest tests
