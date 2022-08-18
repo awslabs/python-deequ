@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import logging
-import os
 
 logger = logging.getLogger("logger")
 configs = {
@@ -13,8 +12,10 @@ configs = {
 
 
 def _get_spark_version():
-    # TODO - Change this later [Use Spark API's instead of env var]
-    spark_version: str = os.getenv("SPARK_VERSION")
+    from pyspark import SparkContext
+    sc = SparkContext.getOrCreate()
+    spark_version: str = sc.version[:3]
+    sc.stop()
     return spark_version
 
 
