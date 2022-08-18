@@ -13,10 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
       - name: Running tests with pyspark==${{matrix.PYSPARK_VERSION}}
         env:
           PYSPARK_VERSION: ${{matrix.PYSPARK_VERSION}}
         run: |
+          pip install --upgrade pip
+          pip install poetry
           poetry install
           poetry add pyspark==$PYSPARK_VERSION
           poetry run python -m pytest tests
