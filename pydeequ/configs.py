@@ -4,6 +4,7 @@ import subprocess
 
 SPARK_TO_DEEQU_COORD_MAPPING = {
     "3.2": "com.amazon.deequ:deequ:2.0.1-spark-3.2",
+    "3.1": "com.amazon.deequ:deequ:2.0.0-spark-3.1",
     "3.0": "com.amazon.deequ:deequ:1.2.2-spark-3.0",
     "2.4": "com.amazon.deequ:deequ:1.1.0_spark-2.4-scala-2.11",
 }
