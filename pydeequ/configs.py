@@ -24,17 +24,14 @@ def _get_spark_version() -> str:
         "from pyspark import SparkContext; print(SparkContext.getOrCreate()._jsc.version())",
     ]
     output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    spark_version = output.stdout.decode().strip()[:3]
+    spark_version = output.stdout.decode().strip()
     return spark_version
 
 
 def set_deequ_maven_config():
     spark_version = _get_spark_version()
-    if spark_version is None:
-        logger.error("Please set env variable SPARK_VERSION")
-        logger.info(f"Using deequ: {configs['deequ_maven_coord']}")
-        return configs["deequ_maven_coord"]  # TODO
-    elif spark_version[0:3] == "3.2":
+    print(f"SPARK VERSION: {spark_version}")
+    if spark_version[0:3] == "3.2":
         logger.info("Setting spark-3.2 as default version of deequ")
         configs["deequ_maven_coord"] = configs["deequ_maven_coord_spark3_2"]
     elif spark_version[0:3] == "3.0":

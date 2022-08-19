@@ -45,4 +45,4 @@ jobs:
           pip install poetry
           poetry install
           poetry add pyspark==$SPARK_VERSION
-          poetry run python -m pytest tests
+          poetry run python -m pytest -s tests
