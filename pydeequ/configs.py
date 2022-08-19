@@ -24,7 +24,7 @@ def _get_spark_version() -> str:
         "from pyspark import SparkContext; print(SparkContext.getOrCreate()._jsc.version())",
     ]
     output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    spark_version = output.stdout.decode().strip()
+    spark_version = output.stdout.decode().split("\n")[-2]
     return spark_version
 
 
