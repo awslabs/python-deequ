@@ -2,8 +2,7 @@
 import logging
 
 from functools import lru_cache
-from pyspark import SparkContext
-from concurrent.futures import ProcessPoolExecutor
+import subprocess
 
 logger = logging.getLogger("logger")
 configs = {
@@ -14,18 +13,18 @@ configs = {
     "f2j_maven_coord": "net.sourceforge.f2j:arpack_combined_all",
 }
 
-def _get_spark_version_from_context() -> str:
-    sc = SparkContext.getOrCreate()
-    spark_version: str = sc.version[:3]
-    return spark_version
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=None)
 def _get_spark_version() -> str:
     # Create the context on a subprocess so we don't
-    # mess up tests and users contexts
-    with ProcessPoolExecutor(max_workers=1) as executor:
-        spark_version = executor.submit(_get_spark_version_from_context).result()
-
+    # mess up tests and users contexts.
+    command = [
+        "python",
+        "-c",
+        "from pyspark import SparkContext; print(SparkContext.getOrCreate()._jsc.version())",
+    ]
+    output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    spark_version = output.stdout.decode().strip()[:3]
     return spark_version
 
 
