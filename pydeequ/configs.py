@@ -33,4 +33,4 @@ def _get_deequ_maven_config():
 
 
 DEEQU_MAVEN_COORD = _get_deequ_maven_config()
-IS_DEEQU_V2 = re.search("com\.amazon\.deequ\:deequ\:2.*") is not None
+IS_DEEQU_V2 = re.search("com\.amazon\.deequ\:deequ\:2.*", DEEQU_MAVEN_COORD) is not None
