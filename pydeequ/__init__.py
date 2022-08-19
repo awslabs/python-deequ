@@ -18,10 +18,10 @@ from pyspark.sql import SparkSession
 
 from pydeequ.analyzers import AnalysisRunner
 from pydeequ.checks import Check, CheckLevel
-from pydeequ.configs import set_deequ_maven_config
+from pydeequ.configs import _get_deequ_maven_config
 from pydeequ.profiles import ColumnProfilerRunner
 
-deequ_maven_coord = set_deequ_maven_config()
+deequ_maven_coord = _get_deequ_maven_config()
 f2j_maven_coord = "net.sourceforge.f2j:arpack_combined_all"
 
 

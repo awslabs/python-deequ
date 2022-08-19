@@ -1,23 +1,17 @@
 # -*- coding: utf-8 -*-
-import logging
-
 from functools import lru_cache
 import subprocess
 
-logger = logging.getLogger("logger")
-configs = {
-    "deequ_maven_coord": "com.amazon.deequ:deequ:2.0.1-spark-3.2",
-    "deequ_maven_coord_spark3_2": "com.amazon.deequ:deequ:2.0.1-spark-3.2",
-    "deequ_maven_coord_spark3": "com.amazon.deequ:deequ:1.2.2-spark-3.0",
-    "deequ_maven_coord_spark2_4": "com.amazon.deequ:deequ:1.1.0_spark-2.4-scala-2.11",
-    "f2j_maven_coord": "net.sourceforge.f2j:arpack_combined_all",
+SPARK_TO_DEEQU_COORD_MAPPING = {
+    "3.2": "com.amazon.deequ:deequ:2.0.1-spark-3.2",
+    "3.0": "com.amazon.deequ:deequ:1.2.2-spark-3.0",
+    "2.4": "com.amazon.deequ:deequ:1.1.0_spark-2.4-scala-2.11",
 }
 
 
 @lru_cache(maxsize=None)
 def _get_spark_version() -> str:
-    # Create the context on a subprocess so we don't
-    # mess up tests and users contexts.
+    # Get version from a subprocess so we don't mess up with existing SparkContexts.
     command = [
         "python",
         "-c",
@@ -28,22 +22,9 @@ def _get_spark_version() -> str:
     return spark_version
 
 
-def set_deequ_maven_config():
+def _get_deequ_maven_config():
     spark_version = _get_spark_version()
-    print(f"SPARK VERSION: {spark_version}")
-    if spark_version[0:3] == "3.2":
-        logger.info("Setting spark-3.2 as default version of deequ")
-        configs["deequ_maven_coord"] = configs["deequ_maven_coord_spark3_2"]
-    elif spark_version[0:3] == "3.0":
-        logger.info("Setting spark-3.0 as default version of deequ")
-        configs["deequ_maven_coord"] = configs["deequ_maven_coord_spark3"]
-    elif spark_version[0:3] == "2.4":
-        logger.info("Setting spark-2.4 as default version of deequ")
-        configs["deequ_maven_coord"] = configs["deequ_maven_coord_spark2_4"]
-    else:
-        logger.error(f"Deequ is still not supported in spark version: {spark_version}")
-        logger.info(f"Using deequ: {configs['deequ_maven_coord']}")
-        return configs["deequ_maven_coord"]  # TODO
-
-    logger.info(f"Using deequ: {configs['deequ_maven_coord']}")
-    return configs["deequ_maven_coord"]
+    try:
+        return SPARK_TO_DEEQU_COORD_MAPPING[spark_version[:3]]
+    except KeyError:
+        raise RuntimeError(f"Deequ is still not supported in spark version {spark_version}")
