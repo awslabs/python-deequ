@@ -9,7 +9,7 @@ import json
 from pyspark.sql import DataFrame, SparkSession
 
 from pydeequ.pandas_utils import ensure_pyspark_df
-from pydeequ import deequ_maven_coord
+from pydeequ.configs import IS_DEEQU_V2
 from pydeequ.scala_utils import scala_get_default_argument
 
 
@@ -185,7 +185,7 @@ class CategoricalRangeRule(_RulesObject):
 
     @property
     def rule_jvm(self):
-        if "deequ:2.0.1" in deequ_maven_coord:
+        if IS_DEEQU_V2:
             # DISCLAIMER: this is a workaround for using the default category sorter
             default_category_sorter = scala_get_default_argument(
                 self._deequSuggestions.rules.CategoricalRangeRule, 1
@@ -219,7 +219,7 @@ class FractionalCategoricalRangeRule(_RulesObject):
 
     @property
     def rule_jvm(self):
-        if "deequ:2.0.1" in deequ_maven_coord:
+        if IS_DEEQU_V2:
             # DISCLAIMER: this is a workaround for using the default category sorter
             default_category_sorter = scala_get_default_argument(
                 self._deequSuggestions.rules.FractionalCategoricalRangeRule, 2

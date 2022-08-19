@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from functools import lru_cache
 import subprocess
+import re
 
 SPARK_TO_DEEQU_COORD_MAPPING = {
     "3.2": "com.amazon.deequ:deequ:2.0.1-spark-3.2",
@@ -29,3 +30,7 @@ def _get_deequ_maven_config():
         return SPARK_TO_DEEQU_COORD_MAPPING[spark_version[:3]]
     except KeyError:
         raise RuntimeError(f"Deequ is still not supported in spark version {spark_version}")
+
+
+DEEQU_MAVEN_COORD = _get_deequ_maven_config()
+IS_DEEQU_V2 = re.search("com\.amazon\.deequ\:deequ\:2.*") is not None
