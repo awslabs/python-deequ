@@ -15,7 +15,8 @@ class TestChecks(unittest.TestCase):
     def setUpClass(cls):
         cls.spark = setup_pyspark().appName("test-checkss-local").getOrCreate()
         cls.sc = cls.spark.sparkContext
-        cls.df = cls.sc.parallelize(
+
+        df = cls.sc.parallelize(
             [
                 Row(
                     a="foo",
@@ -31,6 +32,7 @@ class TestChecks(unittest.TestCase):
                     ssn="123-45-6789",
                     URL="http://userid@example.com:8080",
                     boolean="true",
+                    column_with_dot="sample",
                 ),
                 Row(
                     a="bar",
@@ -46,6 +48,7 @@ class TestChecks(unittest.TestCase):
                     ssn="123456789",
                     URL="http://foo.com/(something)?after=parens",
                     boolean="false",
+                    column_with_dot="sample",
                 ),
                 Row(
                     a="baz",
@@ -61,9 +64,13 @@ class TestChecks(unittest.TestCase):
                     ssn="000-00-0000",
                     URL="http://userid@example.com:8080",
                     boolean="true",
+                    column_with_dot="sample",
                 ),
             ]
         ).toDF()
+        df = df.withColumnRenamed("column_with_dot", "column.with.dot")
+        cls.df = df
+
 
     @classmethod
     def tearDownClass(cls):
@@ -141,6 +148,7 @@ class TestChecks(unittest.TestCase):
         )
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        df.show(truncate=False)
         return df.select("constraint_status").collect()
 
     def isComplete(self, column, hint=None):
@@ -585,9 +593,11 @@ class TestChecks(unittest.TestCase):
     def test_hasDataType(self):
         self.assertEqual(self.hasDataType("a", ConstrainableDataTypes.String), [Row(constraint_status="Success")])
         self.assertEqual(self.hasDataType("b", ConstrainableDataTypes.Numeric), [Row(constraint_status="Success")])
-        self.assertEqual(
-            self.hasDataType("boolean", ConstrainableDataTypes.Boolean), [Row(constraint_status="Success")]
-        )
+        self.assertEqual(self.hasDataType("boolean", ConstrainableDataTypes.Boolean), [Row(constraint_status="Success")])
+
+    def test_invalidColumnException(self):
+        with self.assertRaises(ValueError):
+            self.hasDataType("column.with.dot", ConstrainableDataTypes.String)
 
     @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasDataType(self):
