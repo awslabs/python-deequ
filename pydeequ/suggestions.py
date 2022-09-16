@@ -9,6 +9,8 @@ import json
 from pyspark.sql import DataFrame, SparkSession
 
 from pydeequ.pandas_utils import ensure_pyspark_df
+from pydeequ.configs import IS_DEEQU_V1
+from pydeequ.scala_utils import scala_get_default_argument
 
 
 class ConstraintSuggestionRunner:
@@ -45,8 +47,8 @@ class ConstraintSuggestionRunBuilder:
         self._jvm = spark_session._jvm
         self._jspark_session = spark_session._jsparkSession
         self._df = df
-        self._ConstraintSuggestionRunBuilder = self._jvm.com.amazon.deequ.suggestions.ConstraintSuggestionRunBuilder(
-            df._jdf
+        self._ConstraintSuggestionRunBuilder = (
+            self._jvm.com.amazon.deequ.suggestions.ConstraintSuggestionRunBuilder(df._jdf)
         )
 
     def addConstraintRule(self, constraintRule):
@@ -183,7 +185,14 @@ class CategoricalRangeRule(_RulesObject):
 
     @property
     def rule_jvm(self):
-        return self._deequSuggestions.rules.CategoricalRangeRule()
+        if IS_DEEQU_V1:
+            return self._deequSuggestions.rules.CategoricalRangeRule()
+
+        # DISCLAIMER: this is a workaround for using the default category sorter
+        default_category_sorter = scala_get_default_argument(
+            self._deequSuggestions.rules.CategoricalRangeRule, 1
+        )
+        return self._deequSuggestions.rules.CategoricalRangeRule(default_category_sorter)
 
 
 class CompleteIfCompleteRule(_RulesObject):
@@ -211,7 +220,18 @@ class FractionalCategoricalRangeRule(_RulesObject):
 
     @property
     def rule_jvm(self):
-        return self._deequSuggestions.rules.FractionalCategoricalRangeRule(self.targetDataCoverageFraction)
+        if IS_DEEQU_V1:
+            return self._deequSuggestions.rules.FractionalCategoricalRangeRule(
+                self.targetDataCoverageFraction
+            )
+
+        # DISCLAIMER: this is a workaround for using the default category sorter
+        default_category_sorter = scala_get_default_argument(
+            self._deequSuggestions.rules.FractionalCategoricalRangeRule, 2
+        )
+        return self._deequSuggestions.rules.FractionalCategoricalRangeRule(
+            self.targetDataCoverageFraction, default_category_sorter
+        )
 
 
 class NonNegativeNumbersRule(_RulesObject):

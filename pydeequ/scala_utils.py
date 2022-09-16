@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """A collection of utility functions and classes for manipulating with scala objects anc classes through py4j
 """
+from py4j.java_gateway import JavaObject
 
 
 class PythonCallback:
@@ -108,4 +109,5 @@ def java_list_to_python_list(java_list: str, datatype):
     return [datatype(i) if i != "" else empty_val for i in java_list[start + 1 : end].split(",")]
 
 
-# TODO Tuple => Python Tuple
+def scala_get_default_argument(java_object, argument_idx: int) -> JavaObject:
+    return getattr(java_object, f"apply$default${argument_idx}")()
