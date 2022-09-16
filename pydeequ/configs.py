@@ -29,7 +29,9 @@ def _get_deequ_maven_config():
     try:
         return SPARK_TO_DEEQU_COORD_MAPPING[spark_version[:3]]
     except KeyError:
-        raise RuntimeError(f"Deequ is still not supported in spark version {spark_version}")
+        raise RuntimeError(
+            f"Found Incompatible Spark version {spark_version}; Use one of the Supported Spark versions for Deequ: {SPARK_TO_DEEQU_COORD_MAPPING.keys()}"
+        )
 
 
 DEEQU_MAVEN_COORD = _get_deequ_maven_config()
