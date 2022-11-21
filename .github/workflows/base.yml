@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-     - "*"
+      - "*"
 
 jobs:
   test:
@@ -23,7 +23,7 @@ jobs:
         name: Setup Java 11
         if: startsWith(matrix.PYSPARK_VERSION, '3')
         with:
-          java-version: '11'
+          java-version: "11"
 
       - name: Running tests with pyspark==${{matrix.PYSPARK_VERSION}}
         env:
