@@ -28,8 +28,8 @@ classifiers = [
 
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4"
-numpy = ">=1.22"
+python = ">=3.6.2,<4"
+numpy = ">=1.14.1"
 pandas = ">=0.23.0"
 pyspark = { version = ">=2.4.7, <3.3.0", optional = true }
 
