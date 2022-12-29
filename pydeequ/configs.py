@@ -3,12 +3,20 @@ from functools import lru_cache
 import os
 import re
 
+
 SPARK_TO_DEEQU_COORD_MAPPING = {
     "3.2": "com.amazon.deequ:deequ:2.0.1-spark-3.2",
     "3.1": "com.amazon.deequ:deequ:2.0.0-spark-3.1",
     "3.0": "com.amazon.deequ:deequ:1.2.2-spark-3.0",
     "2.4": "com.amazon.deequ:deequ:1.1.0_spark-2.4-scala-2.11",
 }
+
+
+def _extract_major_minor_versions(full_version: str):
+    major_minor_pattern = re.compile(r"(\d+\.\d+)\.*")
+    match = re.match(major_minor_pattern, full_version)
+    if match:
+        return match.group(1)
 
 
 @lru_cache(maxsize=None)
@@ -18,7 +26,7 @@ def _get_spark_version() -> str:
     except KeyError:
         raise RuntimeError(f"SPARK_VERSION environment variable is required. Supported values are: {SPARK_TO_DEEQU_COORD_MAPPING.keys()}")
 
-    return spark_version
+    return _extract_major_minor_versions(spark_version)
 
 
 def _get_deequ_maven_config():
@@ -27,7 +35,7 @@ def _get_deequ_maven_config():
         return SPARK_TO_DEEQU_COORD_MAPPING[spark_version[:3]]
     except KeyError:
         raise RuntimeError(
-            f"Found Incompatible Spark version {spark_version}; Use one of the Supported Spark versions for Deequ: {SPARK_TO_DEEQU_COORD_MAPPING.keys()}"
+            f"Found incompatible Spark version {spark_version}; Use one of the Supported Spark versions for Deequ: {SPARK_TO_DEEQU_COORD_MAPPING.keys()}"
         )
 
 
