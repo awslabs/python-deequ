@@ -2,7 +2,7 @@ import pytest
 from pydeequ.configs import _extract_major_minor_versions
 
 
-@pytest.parametrize(
+@pytest.mark.parametrize(
     "full_version, major_minor_version",
     [
         ("3.2.1", "3.2"),
