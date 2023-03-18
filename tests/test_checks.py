@@ -403,6 +403,18 @@ class TestChecks(unittest.TestCase):
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         return df.select("constraint_status").collect()
 
+    def hasPattern(self, column, pattern, assertion=None, name=None, hint=None):
+        check = Check(self.spark, CheckLevel.Warning, "test hasPattern")
+        result = (
+            VerificationSuite(self.spark)
+            .onData(self.df)
+            .addCheck(check.hasPattern(column, pattern, assertion, name, hint))
+            .run()
+        )
+
+        df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        return df.select("constraint_status").collect()
+
     def isLessThanOrEqualTo(self, columnA, columnB, assertion=None, hint=None):
         check = Check(self.spark, CheckLevel.Warning, "test isLessThanOrEqualTo")
         result = (
@@ -1128,6 +1140,14 @@ class TestChecks(unittest.TestCase):
         )
         self.assertEqual(self.satisfies('a = "zoo"', "find a", lambda x: x == 1), [Row(constraint_status="Success")])
 
+    def test_hasPattern(self):
+        self.assertEqual(self.hasPattern("ssn", "\d{3}\-\d{2}\-\d{4}", lambda x: x == 2 / 3), [Row(constraint_status="Success")])
+
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
+    def test_fail_hasPattern(self):
+        self.assertEqual(self.hasPattern("ssn", r"\d{3}\-\d{2}\-\d{4}", lambda x: x == 2 / 3), [Row(constraint_status="Failure")])
+        self.assertEqual(self.hasPattern("ssn", r"\d{3}\d{2}\d{4}", lambda x: x == 2 / 3), [Row(constraint_status="Failure")])
+        
     def test_isNonNegative(self):
         self.assertEqual(self.isNonNegative("b"), [Row(constraint_status="Success")])
         self.assertEqual(

@@ -493,8 +493,18 @@ class TestAnalyzers(unittest.TestCase):
     def test_fail_MutualInformation(self):
         self.assertEqual(self.MutualInformation(["b", "d"]), [])
 
-    # TODO: Revisit when PatternMatch class is sorted out
     def test_PatternMatch(self):
+        result = (
+            self.AnalysisRunner.onData(self.df).addAnalyzer(PatternMatch(column="a", pattern_regex="ba(r|z)")).run()
+        )
+        result_df = AnalyzerContext.successMetricsAsDataFrame(self.spark, result)
+        result_json = AnalyzerContext.successMetricsAsJson(self.spark, result)
+        df_from_json = self.spark.read.json(self.sc.parallelize([result_json]))
+        self.assertEqual(df_from_json.select("value").collect(), result_df.select("value").collect())
+        self.assertEqual(result_df.select("value").collect(), [Row(value=0.6666666666666666)])
+
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
+    def test_fail_PatternMatch(self):
         result = (
             self.AnalysisRunner.onData(self.df).addAnalyzer(PatternMatch(column="a", pattern_regex="ba(r|z)")).run()
         )
