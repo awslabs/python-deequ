@@ -161,7 +161,6 @@ class Check:
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.hasCompleteness(column, assertion_func, hint)
-        print(self)
         return self
 
     def areComplete(self, columns, hint=None):
