@@ -564,6 +564,13 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: hasPattern self: A Check object that runs the condition on the column.
         """
+        assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion) if assertion \
+            else getattr(self._Check, "hasPattern$default$2")()
+        name = self._jvm.scala.Option.apply(name)
+        hint = self._jvm.scala.Option.apply(hint)
+        pattern_regex = self._jvm.scala.util.matching.Regex(pattern, None)
+        self._Check = self._Check.hasPattern(column, pattern_regex, assertion_func, name, hint)
+        return self
 
     def containsCreditCardNumber(self, column, assertion=None, hint=None):
         """
