@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from enum import Enum
-
 from pyspark.sql import SparkSession
 
 from pydeequ.scala_utils import ScalaFunction1, to_scala_seq
@@ -100,6 +99,14 @@ class Check:
         for constraint in self.constraints:
             self.addConstraint(constraint)
 
+    @staticmethod
+    def _handle_invalid_column(column):
+        """
+        :param column: column to which constraint is to be applied
+        """
+        if "." in column:
+            raise ValueError("column name cannot contain .")
+
     def addConstraints(self, constraints: list):
         self.constraints.extend(constraints)
         for constraint in constraints:
@@ -144,6 +151,7 @@ class Check:
         :return: isComplete self:A Check.scala object that asserts on a column completion.
         """
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.isComplete(column, hint)
         return self
 
@@ -160,6 +168,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasCompleteness(column, assertion_func, hint)
         return self
 
@@ -171,6 +180,7 @@ class Check:
         :return: areComplete self: A Check.scala object that asserts completion in the columns.
         """
         hint = self._jvm.scala.Option.apply(hint)
+        [self._handle_invalid_column(column) for column in columns]
         columns_seq = to_scala_seq(self._jvm, columns)
         self._Check = self._Check.areComplete(columns_seq, hint)
         return self
@@ -183,6 +193,7 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: haveCompleteness self: A Check.scala object that implements the assertion on the columns.
         """
+        [self._handle_invalid_column(column) for column in columns]
         columns_seq = to_scala_seq(self._jvm, columns)
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
@@ -197,6 +208,7 @@ class Check:
         :return: areAnyComplete self: A Check.scala object that asserts completion in the columns.
         """
         hint = self._jvm.scala.Option.apply(hint)
+        [self._handle_invalid_column(column) for column in columns]
         columns_seq = to_scala_seq(self._jvm, columns)
         self._Check = self._Check.areAnyComplete(columns_seq, hint)
         return self
@@ -209,6 +221,7 @@ class Check:
         :param str hint: A hint that states why a constraint could have failed.
         :return: haveAnyCompleteness self: A Check.scala object that asserts completion in the columns.
         """
+        [self._handle_invalid_column(column) for column in columns]
         columns_seq = to_scala_seq(self._jvm, columns)
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
@@ -224,6 +237,7 @@ class Check:
         :return: isUnique self: A Check.scala object that asserts uniqueness in the column.
         """
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.isUnique(column, hint)
         return self
 
@@ -254,6 +268,7 @@ class Check:
         :return: hasUniqueness self: A Check object that asserts uniqueness in the columns.
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+        [self._handle_invalid_column(column) for column in columns]
         columns_seq = to_scala_seq(self._jvm, columns)
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.hasUniqueness(columns_seq, assertion_func, hint)
@@ -271,6 +286,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        [self._handle_invalid_column(column) for column in columns]
         columns_seq = to_scala_seq(self._jvm, columns)
         self._Check = self._Check.hasDistinctness(columns_seq, assertion_func, hint)
         return self
@@ -286,6 +302,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        [self._handle_invalid_column(column) for column in columns]
         columns_seq = to_scala_seq(self._jvm, columns)
         self._Check = self._Check.hasUniqueValueRatio(columns_seq, assertion_func, hint)
         return self
@@ -302,6 +319,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasNumberOfDistinctValues(column, assertion_func, binningUdf, maxBins, hint)
         return self
 
@@ -317,6 +335,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasHistogramValues(column, assertion_func, binningUdf, maxBins, hint)
         return self
 
@@ -332,6 +351,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         params = self._jvm.scala.Option.apply(kllParameters._param if kllParameters else None)
         self._Check = self._Check.kllSketchSatisfies(column, assertion_func, params, hint)
         return self
@@ -362,6 +382,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasEntropy(column, assertion_func, hint)
         return self
 
@@ -378,6 +399,8 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(columnA)
+        self._handle_invalid_column(columnB)
         self._Check = self._Check.hasMutualInformation(columnA, columnB, assertion_func, hint)
         return self
 
@@ -393,6 +416,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasApproxQuantile(column, float(quantile), assertion_func, hint)
         return self
 
@@ -408,6 +432,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasMinLength(column, assertion_func, hint)
         return self
 
@@ -423,6 +448,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasMaxLength(column, assertion_func, hint)
         return self
 
@@ -439,6 +465,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasMin(column, assertion_func, hint)
         return self
 
@@ -455,6 +482,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasMax(column, assertion_func, hint)
         return self
 
@@ -469,6 +497,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasMean(column, assertion_func, hint)
         return self
 
@@ -483,6 +512,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasSum(column, assertion_func, hint)
         return self
 
@@ -497,6 +527,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasStandardDeviation(column, assertion_func, hint)
         return self
 
@@ -511,6 +542,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasApproxCountDistinct(column, assertion_func, hint)
         return self
 
@@ -526,6 +558,8 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(columnA)
+        self._handle_invalid_column(columnB)
         self._Check = self._Check.hasCorrelation(columnA, columnB, assertion_func, hint)
         return self
 
@@ -587,6 +621,7 @@ class Check:
             else getattr(self._Check, "containsCreditCardNumber$default$2")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.containsCreditCardNumber(column, assertion, hint)
         return self
 
@@ -605,6 +640,7 @@ class Check:
             else getattr(self._Check, "containsEmail$default$2")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.containsEmail(column, assertion, hint)
         return self
 
@@ -623,6 +659,7 @@ class Check:
             else getattr(self._Check, "containsURL$default$2")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.containsURL(column, assertion, hint)
         return self
 
@@ -642,6 +679,7 @@ class Check:
             else getattr(self._Check, "containsSocialSecurityNumber$default$2")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.containsSocialSecurityNumber(column, assertion, hint)
         return self
 
@@ -663,6 +701,7 @@ class Check:
             else getattr(self._Check, "hasDataType$default$3")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.hasDataType(column, datatype_jvm, assertion, hint)
         return self
 
@@ -682,6 +721,7 @@ class Check:
             else getattr(self._Check, "isNonNegative$default$2")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.isNonNegative(column, assertion_func, hint)
         return self
 
@@ -700,6 +740,7 @@ class Check:
             else getattr(self._Check, "isPositive$default$2")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(column)
         self._Check = self._Check.isPositive(column, assertion_func, hint)
         return self
 
@@ -719,6 +760,8 @@ class Check:
             else getattr(self._Check, "isLessThan$default$3")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(columnA)
+        self._handle_invalid_column(columnB)
         self._Check = self._Check.isLessThan(columnA, columnB, assertion_func, hint)
         return self
 
@@ -738,6 +781,8 @@ class Check:
             else getattr(self._Check, "isLessThanOrEqualTo$default$3")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(columnA)
+        self._handle_invalid_column(columnB)
         self._Check = self._Check.isLessThanOrEqualTo(columnA, columnB, assertion_func, hint)
         return self
 
@@ -757,6 +802,8 @@ class Check:
             else getattr(self._Check, "isGreaterThan$default$3")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(columnA)
+        self._handle_invalid_column(columnB)
         self._Check = self._Check.isGreaterThan(columnA, columnB, assertion_func, hint)
         return self
 
@@ -776,6 +823,8 @@ class Check:
             else getattr(self._Check, "isGreaterThanOrEqualTo$default$3")()
         )
         hint = self._jvm.scala.Option.apply(hint)
+        self._handle_invalid_column(columnA)
+        self._handle_invalid_column(columnB)
         self._Check = self._Check.isGreaterThanOrEqualTo(columnA, columnB, assertion_func, hint)
         return self
 
@@ -791,6 +840,7 @@ class Check:
         arr = self._spark_session.sparkContext._gateway.new_array(self._jvm.java.lang.String, len(allowed_values))
         for i in range(len(allowed_values)):
             arr[i] = allowed_values[i]
+        self._handle_invalid_column(column)
         self._Check = self._Check.isContainedIn(column, arr)
         return self
 
