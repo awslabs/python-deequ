@@ -431,10 +431,12 @@ class TestChecks(unittest.TestCase):
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         return df.select("constraint_status").collect()
 
-    def isContainedIn(self, column, allowed_values):
+    def isContainedIn(self, column, allowed_values, assertion=None, hint=None):
         check = Check(self.spark, CheckLevel.Warning, "test isContainedIn")
         result = (
-            VerificationSuite(self.spark).onData(self.df).addCheck(check.isContainedIn(column, allowed_values)).run()
+            VerificationSuite(self.spark).onData(self.df).addCheck(
+                check.isContainedIn(column, allowed_values, assertion=assertion, hint=hint)
+            ).run()
         )
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
@@ -1134,6 +1136,11 @@ class TestChecks(unittest.TestCase):
 
     def test_hasPattern(self):
         self.assertEqual(self.hasPattern("ssn", "\d{3}\-\d{2}\-\d{4}", lambda x: x == 2 / 3), [Row(constraint_status="Success")])
+        # Default assertion is 1, thus failure
+        self.assertEqual(self.hasPattern("ssn", "\d{3}\-\d{2}\-\d{4}"), [Row(constraint_status="Failure")])
+        self.assertEqual(
+            self.hasPattern("ssn", "\d{3}\-\d{2}\-\d{4}", lambda x: x == 2 / 3, hint="it be should be above 0.66"),
+            [Row(constraint_status="Success")])
 
     @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_hasPattern(self):
@@ -1206,6 +1213,12 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isGreaterThan("h", "f", lambda x: x == 1), [Row(constraint_status="Success")])
 
     def test_isContainedIn(self):
+        # test all variants for assertion and hint
+        self.assertEqual(
+            self.isContainedIn("a", ["foo", "bar", "baz"], lambda x: x == 1), [Row(constraint_status="Success")])
+        self.assertEqual(
+            self.isContainedIn("a", ["foo", "bar", "baz"], lambda x: x == 1, hint="it should be 1"),
+            [Row(constraint_status="Success")])
         self.assertEqual(self.isContainedIn("a", ["foo", "bar", "baz"]), [Row(constraint_status="Success")])
         # A none value makes the test still pass
         self.assertEqual(self.isContainedIn("c", ["5", "6"]), [Row(constraint_status="Success")])
