@@ -12,8 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        PYSPARK_VERSION: ["3.1.3", "3.2", "3.3"]
-
+        PYSPARK_VERSION: ["3.1.3", "3.2", "3.3", "3.4"]
     steps:
       - uses: actions/checkout@v3
 
