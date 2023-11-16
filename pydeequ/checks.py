@@ -116,6 +116,14 @@ class Check:
         self.constraints.append(constraint)
         self._Check = constraint._Check
 
+    def where(self, filter: str):
+        test = self._Check.getClass()
+        if self._Check.getClass().toString().endswith("CheckWithLastConstraintFilterable"):
+            self._Check = self._Check.where(filter)
+        else:
+            raise TypeError(f"Expected CheckWithLastConstraintFilterable class, not {self._Check.getClass()}")
+        return self
+
     def addFilterableContstraint(self, creationFunc):
         """Adds a constraint that can subsequently be replaced with a filtered version
         :param creationFunc:
