@@ -117,11 +117,11 @@ class Check:
         self._Check = constraint._Check
 
     def where(self, filter: str):
-        test = self._Check.getClass()
-        if self._Check.getClass().toString().endswith("CheckWithLastConstraintFilterable"):
-            self._Check = self._Check.where(filter)
-        else:
-            raise TypeError(f"Expected CheckWithLastConstraintFilterable class, not {self._Check.getClass()}")
+        is_filterable = self._jvm.py4j.reflection.TypeUtil.isInstanceOf(
+            "com.amazon.deequ.checks.CheckWithLastConstraintFilterable", self._Check)
+        if not is_filterable:
+            raise TypeError(f"Expected class CheckWithLastConstraintFilterable, not {self._Check.getClass()}")
+        self._Check = self._Check.where(filter)
         return self
 
     def addFilterableContstraint(self, creationFunc):
