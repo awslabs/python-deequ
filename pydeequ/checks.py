@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from enum import Enum
 
+from py4j.protocol import Py4JError
 from pyspark.sql import SparkSession
 
 from pydeequ.check_functions import is_one
@@ -117,11 +118,10 @@ class Check:
         self._Check = constraint._Check
 
     def where(self, filter: str):
-        is_filterable = self._jvm.py4j.reflection.TypeUtil.isInstanceOf(
-            "com.amazon.deequ.checks.CheckWithLastConstraintFilterable", self._Check)
-        if not is_filterable:
-            raise TypeError(f"Expected class CheckWithLastConstraintFilterable, not {self._Check.getClass()}")
-        self._Check = self._Check.where(filter)
+        try:
+            self._Check = self._Check.where(filter)
+        except Py4JError:
+            raise TypeError(f"Method doesn't exist in {self._Check.getClass()}, class has to be filterable")
         return self
 
     def addFilterableContstraint(self, creationFunc):
