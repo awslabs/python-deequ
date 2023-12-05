@@ -1262,9 +1262,6 @@ class TestChecks(unittest.TestCase):
             self.where(lambda x: x == 2.0, "ssn='000-00-0000'", "column 'ssn' has one value 000-00-0000"),
             [Row(constraint_status="Failure")],
         )
-        self.assertRaises(Check(self.spark, CheckLevel.Warning, "test where").kllSketchSatisfies(
-            "b", lambda x: x.parameters().apply(0) == 1.0, KLLParameters(self.spark, 2, 0.64, 2)
-        ).where("d=5"), TypeError)
         check = Check(self.spark, CheckLevel.Warning, "test where").hasMin("f", lambda x: x == 2, "The f has min value 2 becasue of the additional filter").where('f>=2')
         result = VerificationSuite(self.spark).onData(self.df).addCheck(check.isGreaterThan("e", "h", lambda x: x == 1, "Column H is not smaller than Column E")).run()
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
@@ -1272,6 +1269,10 @@ class TestChecks(unittest.TestCase):
             df.select("constraint_status").collect(),
             [Row(constraint_status="Success"), Row(constraint_status="Failure")],
         )
+        with self.assertRaises(TypeError):
+            Check(self.spark, CheckLevel.Warning, "test where").kllSketchSatisfies(
+                "b", lambda x: x.parameters().apply(0) == 1.0, KLLParameters(self.spark, 2, 0.64, 2)
+            ).where("d=5")
 
     @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_where(self):
