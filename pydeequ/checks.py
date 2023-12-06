@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from enum import Enum
 
+from py4j.protocol import Py4JError
 from pyspark.sql import SparkSession
 
 from pydeequ.check_functions import is_one
@@ -115,6 +116,13 @@ class Check:
         """
         self.constraints.append(constraint)
         self._Check = constraint._Check
+
+    def where(self, filter: str):
+        try:
+            self._Check = self._Check.where(filter)
+        except Py4JError:
+            raise TypeError(f"Method doesn't exist in {self._Check.getClass()}, class has to be filterable")
+        return self
 
     def addFilterableContstraint(self, creationFunc):
         """Adds a constraint that can subsequently be replaced with a filtered version
