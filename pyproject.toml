@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "pydeequ"
-version = "1.1.1"
+version = "1.2.0"
 description = "PyDeequ - Unit Tests for Data"
-authors = ["Calvin Wang <calviwan@amazon.com>"]
-maintainers = ["Calvin Wang <calviwan@amazon.com>"]
+authors = ["Calvin Wang <calviwan@amazon.com>", "Chenyang Liu <peterl@amazon.com>"]
+maintainers = ["Calvin Wang <calviwan@amazon.com>", "Chenyang Liu <peterl@amazon.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://pydeequ.readthedocs.io"
