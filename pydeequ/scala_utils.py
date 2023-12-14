@@ -80,6 +80,18 @@ def to_scala_seq(jvm, iterable):
     return jvm.scala.collection.JavaConversions.iterableAsScalaIterable(iterable).toSeq()
 
 
+def to_scala_list(jvm, iterable):
+    """
+    Helper method to take an iterable and turn it into a Scala list
+    Args:
+        jvm: Spark session's JVM
+        iterable: your iterable
+    Returns:
+        Scala list
+    """
+    return jvm.scala.collection.JavaConversions.iterableAsScalaIterable(iterable).toList()
+
+
 def to_scala_map(spark_session, d):
     """
     Convert a dict into a JVM Map.

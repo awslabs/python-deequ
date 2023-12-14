@@ -242,6 +242,7 @@ class ColumnProfilesBuilder:
         self.columnProfileClasses = {
             "StandardColumnProfile": StandardColumnProfile,
             "NumericColumnProfile": NumericColumnProfile,
+            "StringColumnProfile": StringColumnProfile,
         }
 
     def _columnProfilesFromColumnRunBuilderRun(self, run):
@@ -400,6 +401,56 @@ class StandardColumnProfile(ColumnProfile):
         :return: A JSON of the standard profiles
         """
         return f"StandardProfiles for column: {self.column}: {json.dumps(self.all, indent=4)}"
+
+
+class StringColumnProfile(ColumnProfile):
+    """
+    String Column Profile class
+
+    :param SparkSession spark_session: sparkSession
+    :param column: the designated column of which the profile is run on
+    :param java_column_profile: The profile mapped as a Java map
+    """
+    def __init__(self, spark_session: SparkSession, column, java_column_profile):
+        super().__init__(spark_session, column, java_column_profile)
+        self._minLength = get_or_else_none(java_column_profile.minLength())
+        self._maxLength = get_or_else_none(java_column_profile.maxLength())
+        self.all = {
+            "completeness": self.completeness,
+            "approximateNumDistinctValues": self.approximateNumDistinctValues,
+            "dataType": self.dataType,
+            "isDataTypeInferred": self.isDataTypeInferred,
+            "typeCounts": self.typeCounts,
+            "histogram": self.histogram,
+            "minLength": self._minLength,
+            "maxLength": self._maxLength,
+        }
+
+    def __str__(self):
+        """
+        A JSON of the standard profiles for each column
+
+        :return: A JSON of the standard profiles
+        """
+        return f"StringProfiles for column: {self.column}: {json.dumps(self.all, indent=4)}"
+
+    @property
+    def maxLength(self):
+        """
+        A getter for the maximum length of the string column
+
+        :return: gets the maximum length of the column
+        """
+        return self._maxLength
+
+    @property
+    def minLength(self):
+        """
+        A getter for the maximum length of the string column
+
+        :return: gets the maximum length of the column
+        """
+        return self._minLength
 
 
 class NumericColumnProfile(ColumnProfile):

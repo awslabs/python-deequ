@@ -90,8 +90,10 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(df_from_json.select("value").collect(), result_df.select("value").collect())
         return result_df.select("value").collect()
 
-    def Compliance(self, instance, predicate, where=None):
-        result = self.AnalysisRunner.onData(self.df).addAnalyzer(Compliance(instance, predicate, where)).run()
+    def Compliance(self, instance, predicate, where=None, columns=[]):
+        result = (
+            self.AnalysisRunner.onData(self.df).addAnalyzer(Compliance(instance, predicate, where, columns)).run()
+        )
         result_df = AnalyzerContext.successMetricsAsDataFrame(self.spark, result)
         result_json = AnalyzerContext.successMetricsAsJson(self.spark, result)
         df_from_json = self.spark.read.json(self.sc.parallelize([result_json]))

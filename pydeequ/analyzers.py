@@ -9,7 +9,7 @@ from pyspark.sql import DataFrame, SparkSession, SQLContext
 from pydeequ.pandas_utils import ensure_pyspark_df
 from pydeequ.repository import MetricsRepository, ResultKey
 from enum import Enum
-from pydeequ.scala_utils import to_scala_seq
+from pydeequ.scala_utils import to_scala_seq, to_scala_list
 
 
 class _AnalyzerObject:
@@ -291,11 +291,12 @@ class Compliance(_AnalyzerObject):
         the analyzer is run.
     """
 
-    def __init__(self, instance, predicate, where=None):
+    def __init__(self, instance, predicate, where=None, columns=[]):
 
         self.instance = instance
         self.predicate = predicate
         self.where = where
+        self.columns = columns
 
     @property
     def _analyzer_jvm(self):
@@ -303,7 +304,9 @@ class Compliance(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Compliance(self.instance, self.predicate, self._jvm.scala.Option.apply(self.where))
+        return self._deequAnalyzers.Compliance(
+            self.instance, self.predicate, self._jvm.scala.Option.apply(self.where), to_scala_list(self._jvm, self.columns)
+        )
 
 
 class Correlation(_AnalyzerObject):
@@ -442,12 +445,20 @@ class Histogram(_AnalyzerObject):
     :param str where: additional filter to apply before the analyzer is run.
     """
 
-    def __init__(self, column, binningUdf=None, maxDetailBins: int = None, where: str = None):
+    def __init__(self,
+                 column,
+                 binningUdf=None,
+                 maxDetailBins:int=None,
+                 where:str=None,
+                 computeFrequenciesAsRatio=True,
+                 aggregateFunction=None):
 
         self.column = column
         self.binningUdf = binningUdf
         self.maxDetailBins = maxDetailBins
         self.where = where
+        self.computeFrequenciesAsRatio = computeFrequenciesAsRatio
+        self.aggregateFunction = aggregateFunction
 
     @property
     def _analyzer_jvm(self):
@@ -457,11 +468,15 @@ class Histogram(_AnalyzerObject):
         """
         if not self.maxDetailBins:
             self.maxDetailBins = getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$3")()
+        if not self.aggregateFunction:
+            self.aggregateFunction = getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "Count$")()
         return self._deequAnalyzers.Histogram(
             self.column,
             self._jvm.scala.Option.apply(self.binningUdf),
             self.maxDetailBins,
             self._jvm.scala.Option.apply(self.where),
+            self.computeFrequenciesAsRatio,
+            self.aggregateFunction
         )
 
 
@@ -542,10 +557,11 @@ class MaxLength(_AnalyzerObject):
     :param str where: additional filter to apply before the analyzer is run.
     """
 
-    def __init__(self, column, where: str = None):
+    def __init__(self, column, where:str=None, analyzerOptions=None):
 
         self.column = column
         self.where = where
+        self.analyzerOptions = analyzerOptions
 
     @property
     def _analyzer_jvm(self):
@@ -553,7 +569,8 @@ class MaxLength(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.MaxLength(self.column, self._jvm.scala.Option.apply(self.where))
+        return self._deequAnalyzers.MaxLength(
+            self.column, self._jvm.scala.Option.apply(self.where), self._jvm.scala.Option.apply(self.analyzerOptions))
 
 
 class Mean(_AnalyzerObject):
@@ -608,9 +625,10 @@ class MinLength(_AnalyzerObject):
     :param str where : additional filter to apply before the analyzer is run.
     """
 
-    def __init__(self, column, where: str = None):
+    def __init__(self, column, where: str = None, analyzerOptions=None):
         self.column = column
         self.where = where
+        self.analyzerOptions = analyzerOptions
 
     @property
     def _analyzer_jvm(self):
@@ -619,7 +637,8 @@ class MinLength(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.MinLength(self.column, self._jvm.scala.Option.apply(self.where))
+        return self._deequAnalyzers.MinLength(
+            self.column, self._jvm.scala.Option.apply(self.where), self._jvm.scala.Option.apply(self.analyzerOptions))
 
 
 class MutualInformation(_AnalyzerObject):

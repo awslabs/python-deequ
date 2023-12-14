@@ -5,7 +5,7 @@ from py4j.protocol import Py4JError
 from pyspark.sql import SparkSession
 
 from pydeequ.check_functions import is_one
-from pydeequ.scala_utils import ScalaFunction1, to_scala_seq
+from pydeequ.scala_utils import ScalaFunction1, to_scala_seq, to_scala_list
 
 
 # TODO implement custom assertions
@@ -406,7 +406,7 @@ class Check:
         self._Check = self._Check.hasApproxQuantile(column, float(quantile), assertion_func, hint)
         return self
 
-    def hasMinLength(self, column, assertion, hint=None):
+    def hasMinLength(self, column, assertion, hint=None, analyzerOptions=None):
         """
         Creates a constraint that asserts on the minimum length of a string datatype column.
 
@@ -418,10 +418,11 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.hasMinLength(column, assertion_func, hint)
+        analyzerOptions = self._jvm.scala.Option.apply(analyzerOptions)
+        self._Check = self._Check.hasMinLength(column, assertion_func, hint, analyzerOptions)
         return self
 
-    def hasMaxLength(self, column, assertion, hint=None):
+    def hasMaxLength(self, column, assertion, hint=None, analyzerOptions=None):
         """
         Creates a constraint that asserts on the maximum length of a string datatype column
 
@@ -433,7 +434,8 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.hasMaxLength(column, assertion_func, hint)
+        analyzerOptions = self._jvm.scala.Option.apply(analyzerOptions)
+        self._Check = self._Check.hasMaxLength(column, assertion_func, hint, analyzerOptions)
         return self
 
     def hasMin(self, column, assertion, hint=None):
@@ -539,7 +541,12 @@ class Check:
         self._Check = self._Check.hasCorrelation(columnA, columnB, assertion_func, hint)
         return self
 
-    def satisfies(self, columnCondition, constraintName, assertion=None, hint=None):
+    def satisfies(self,
+                  columnCondition,
+                  constraintName,
+                  assertion=None,
+                  hint=None,
+                  columns=[]):
         """
         Creates a constraint that runs the given condition on the data frame.
 
@@ -558,7 +565,8 @@ class Check:
             else getattr(self._Check, "satisfies$default$2")()
         )
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.satisfies(columnCondition, constraintName, assertion_func, hint)
+        columns = to_scala_list(self._jvm, columns)
+        self._Check = self._Check.satisfies(columnCondition, constraintName, assertion_func, hint, columns)
         return self
 
     def hasPattern(self, column, pattern, assertion=None, name=None, hint=None):
