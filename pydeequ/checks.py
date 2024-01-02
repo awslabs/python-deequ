@@ -555,7 +555,7 @@ class Check:
         assertion_func = (
             ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
             if assertion
-            else getattr(self._Check, "satisfies$default$2")()
+            else getattr(self._Check, "satisfies$default$3")()
         )
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.satisfies(columnCondition, constraintName, assertion_func, hint)

@@ -1122,9 +1122,8 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasCorrelation("b", "e", lambda x: x == -1), [Row(constraint_status="Failure")])
 
     def test_satisfies(self):
-        # TODO: test without assertion
-        # self.assertEqual(self.satisfies('b >=2', 'b greater than or equal to 2'),
-        #                  [Row(constraint_status='Failure')])
+        self.assertEqual(self.satisfies('b >=2', 'b greater than or equal to 2'),
+                         [Row(constraint_status='Failure')])
         self.assertEqual(self.satisfies("b >=2", "b", lambda x: x == 2 / 3), [Row(constraint_status="Success")])
         self.assertEqual(
             self.satisfies("b >=2 AND d >= 2", "b and d", lambda x: x == 2 / 3), [Row(constraint_status="Success")]
