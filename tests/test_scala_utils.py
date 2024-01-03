@@ -25,12 +25,23 @@ class TestScalaUtils(unittest.TestCase):
         self.assertFalse(notNoneTest.apply(None))
         self.assertTrue(notNoneTest.apply("foo"))
 
+        # Test hashCode()
+        self.assertNotEqual(greaterThan10.hashCode(), notNoneTest.hashCode())
+        self.assertTrue(isinstance(greaterThan10.hashCode(), int))
+
         appendTest = ScalaFunction1(self.sc._gateway, "{}test".format)
         self.assertEqual("xtest", appendTest.apply("x"))
 
     def test_scala_function2(self):
-        concatFunction = ScalaFunction2(self.sc._gateway, lambda x, y: x + y)
+        lambda_func = lambda x, y: x + y
+        concatFunction = ScalaFunction2(self.sc._gateway, lambda_func)
         self.assertEqual("ab", concatFunction.apply("a", "b"))
+
+        anotherConcatFunction = ScalaFunction2(self.sc._gateway, lambda_func)
+
+        # Test hashCode()
+        self.assertEqual(concatFunction.hashCode(), anotherConcatFunction.hashCode())
+        self.assertTrue(isinstance(concatFunction.hashCode(), int))
 
 
 if __name__ == "__main__":
