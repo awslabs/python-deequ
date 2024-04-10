@@ -14,7 +14,7 @@ RUN rm /usr/bin/python3 && ln -s /usr/bin/python3.8 /usr/bin/python3
 RUN python3 --version
 RUN pip3 --version
 RUN java -version
-RUN pip install poetry
+RUN pip install poetry==1.7.1
 
 COPY . /python-deequ
 WORKDIR python-deequ
