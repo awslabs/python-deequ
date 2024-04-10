@@ -245,3 +245,13 @@ Take a look at tests in `tests/dataquality` and `tests/jobs`
 ```bash
 $ poetry run pytest
 ```
+
+## Running Tests Locally (Docker)
+
+If you have issues installing the dependencies listed above, another way to run the tests and verify your changes is through Docker. There is a Dockerfile that will install the required dependencies and run the tests in a container.
+
+```
+docker build . -t spark-3.3-docker-test
+docker run spark-3.3-docker-test
+```
+
