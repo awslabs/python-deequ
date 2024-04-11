@@ -16,12 +16,14 @@ RUN pip3 --version
 RUN java -version
 RUN pip install poetry==1.7.1
 
-COPY . /python-deequ
+RUN mkdir python-deequ
+COPY pyproject.toml /python-deequ
+COPY poetry.lock /python-deequ
 WORKDIR python-deequ
 
-RUN poetry lock --no-update
-RUN poetry install
-RUN poetry add pyspark==3.3
+RUN poetry install -vvv
+RUN poetry add pyspark==3.3 -vvv
 
 ENV SPARK_VERSION=3.3
+COPY . /python-deequ
 CMD poetry run python -m pytest -s tests
