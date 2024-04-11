@@ -10,7 +10,7 @@ from pydeequ.pandas_utils import ensure_pyspark_df
 from pydeequ.repository import MetricsRepository, ResultKey
 from enum import Enum
 from pydeequ.scala_utils import to_scala_seq
-
+from pydeequ.configs import SPARK_VERSION
 
 class _AnalyzerObject:
     """
@@ -303,7 +303,19 @@ class Compliance(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Compliance(self.instance, self.predicate, self._jvm.scala.Option.apply(self.where))
+        if SPARK_VERSION == "3.3":
+            return self._deequAnalyzers.Compliance(
+                self.instance,
+                self.predicate,
+                self._jvm.scala.Option.apply(self.where),
+                self._jvm.scala.collection.Seq.empty()
+            )
+        else:
+            return self._deequAnalyzers.Compliance(
+                self.instance,
+                self.predicate,
+                self._jvm.scala.Option.apply(self.where)
+            )
 
 
 class Correlation(_AnalyzerObject):
@@ -457,12 +469,22 @@ class Histogram(_AnalyzerObject):
         """
         if not self.maxDetailBins:
             self.maxDetailBins = getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$3")()
-        return self._deequAnalyzers.Histogram(
-            self.column,
-            self._jvm.scala.Option.apply(self.binningUdf),
-            self.maxDetailBins,
-            self._jvm.scala.Option.apply(self.where),
-        )
+        if SPARK_VERSION == "3.3":
+            return self._deequAnalyzers.Histogram(
+                self.column,
+                self._jvm.scala.Option.apply(self.binningUdf),
+                self.maxDetailBins,
+                self._jvm.scala.Option.apply(self.where),
+                getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$5")(),
+                getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$6")()
+            )
+        else:
+            return self._deequAnalyzers.Histogram(
+                self.column,
+                self._jvm.scala.Option.apply(self.binningUdf),
+                self.maxDetailBins,
+                self._jvm.scala.Option.apply(self.where)
+            )
 
 
 class KLLParameters:
@@ -553,7 +575,17 @@ class MaxLength(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.MaxLength(self.column, self._jvm.scala.Option.apply(self.where))
+        if SPARK_VERSION == "3.3":
+            return self._deequAnalyzers.MaxLength(
+                self.column,
+                self._jvm.scala.Option.apply(self.where),
+                self._jvm.scala.Option.apply(None)
+            )
+        else:
+            return self._deequAnalyzers.MaxLength(
+                self.column,
+                self._jvm.scala.Option.apply(self.where)
+            )
 
 
 class Mean(_AnalyzerObject):
@@ -619,7 +651,17 @@ class MinLength(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.MinLength(self.column, self._jvm.scala.Option.apply(self.where))
+        if SPARK_VERSION == "3.3":
+            return self._deequAnalyzers.MinLength(
+                self.column,
+                self._jvm.scala.Option.apply(self.where),
+                self._jvm.scala.Option.apply(None)
+            )
+        else:
+            return self._deequAnalyzers.MinLength(
+                self.column,
+                self._jvm.scala.Option.apply(self.where)
+            )
 
 
 class MutualInformation(_AnalyzerObject):
