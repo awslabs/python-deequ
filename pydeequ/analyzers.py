@@ -271,7 +271,11 @@ class Completeness(_AnalyzerObject):
 
         :return self: access the value of the Completeness analyzer.
         """
-        return self._deequAnalyzers.Completeness(self.column, self._jvm.scala.Option.apply(self.where))
+        return self._deequAnalyzers.Completeness(
+            self.column,
+            self._jvm.scala.Option.apply(self.where),
+            self._jvm.scala.Option.apply(None)
+        )
 
 
 class Compliance(_AnalyzerObject):
@@ -303,19 +307,13 @@ class Compliance(_AnalyzerObject):
 
         :return self
         """
-        if SPARK_VERSION == "3.3":
-            return self._deequAnalyzers.Compliance(
-                self.instance,
-                self.predicate,
-                self._jvm.scala.Option.apply(self.where),
-                self._jvm.scala.collection.Seq.empty()
-            )
-        else:
-            return self._deequAnalyzers.Compliance(
-                self.instance,
-                self.predicate,
-                self._jvm.scala.Option.apply(self.where)
-            )
+        return self._deequAnalyzers.Compliance(
+            self.instance,
+            self.predicate,
+            self._jvm.scala.Option.apply(self.where),
+            self._jvm.scala.collection.Seq.empty(),
+            self._jvm.scala.Option.apply(None)
+        )
 
 
 class Correlation(_AnalyzerObject):
@@ -469,22 +467,14 @@ class Histogram(_AnalyzerObject):
         """
         if not self.maxDetailBins:
             self.maxDetailBins = getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$3")()
-        if SPARK_VERSION == "3.3":
-            return self._deequAnalyzers.Histogram(
-                self.column,
-                self._jvm.scala.Option.apply(self.binningUdf),
-                self.maxDetailBins,
-                self._jvm.scala.Option.apply(self.where),
-                getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$5")(),
-                getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$6")()
-            )
-        else:
-            return self._deequAnalyzers.Histogram(
-                self.column,
-                self._jvm.scala.Option.apply(self.binningUdf),
-                self.maxDetailBins,
-                self._jvm.scala.Option.apply(self.where)
-            )
+        return self._deequAnalyzers.Histogram(
+            self.column,
+            self._jvm.scala.Option.apply(self.binningUdf),
+            self.maxDetailBins,
+            self._jvm.scala.Option.apply(self.where),
+            getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$5")(),
+            getattr(self._jvm.com.amazon.deequ.analyzers.Histogram, "apply$default$6")()
+        )
 
 
 class KLLParameters:
@@ -553,7 +543,9 @@ class Maximum(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Maximum(self.column, self._jvm.scala.Option.apply(self.where))
+        return self._deequAnalyzers.Maximum(
+            self.column, self._jvm.scala.Option.apply(self.where), self._jvm.scala.Option.apply(None)
+        )
 
 
 class MaxLength(_AnalyzerObject):
@@ -575,17 +567,11 @@ class MaxLength(_AnalyzerObject):
 
         :return self
         """
-        if SPARK_VERSION == "3.3":
-            return self._deequAnalyzers.MaxLength(
-                self.column,
-                self._jvm.scala.Option.apply(self.where),
-                self._jvm.scala.Option.apply(None)
-            )
-        else:
-            return self._deequAnalyzers.MaxLength(
-                self.column,
-                self._jvm.scala.Option.apply(self.where)
-            )
+        return self._deequAnalyzers.MaxLength(
+            self.column,
+            self._jvm.scala.Option.apply(self.where),
+            self._jvm.scala.Option.apply(None)
+        )
 
 
 class Mean(_AnalyzerObject):
@@ -628,7 +614,9 @@ class Minimum(_AnalyzerObject):
 
         :return self
         """
-        return self._deequAnalyzers.Minimum(self.column, self._jvm.scala.Option.apply(self.where))
+        return self._deequAnalyzers.Minimum(
+            self.column, self._jvm.scala.Option.apply(self.where), self._jvm.scala.Option.apply(None)
+        )
 
 
 class MinLength(_AnalyzerObject):
@@ -651,17 +639,11 @@ class MinLength(_AnalyzerObject):
 
         :return self
         """
-        if SPARK_VERSION == "3.3":
-            return self._deequAnalyzers.MinLength(
-                self.column,
-                self._jvm.scala.Option.apply(self.where),
-                self._jvm.scala.Option.apply(None)
-            )
-        else:
-            return self._deequAnalyzers.MinLength(
-                self.column,
-                self._jvm.scala.Option.apply(self.where)
-            )
+        return self._deequAnalyzers.MinLength(
+            self.column,
+            self._jvm.scala.Option.apply(self.where),
+            self._jvm.scala.Option.apply(None)
+        )
 
 
 class MutualInformation(_AnalyzerObject):
@@ -725,6 +707,7 @@ class PatternMatch(_AnalyzerObject):
             # TODO: revisit bc scala constructor does some weird implicit type casting from python str -> java list
             #  if we don't cast it to str()
             self._jvm.scala.Option.apply(self.where),
+            self._jvm.scala.Option.apply(None)
         )
 
 
@@ -814,7 +797,9 @@ class Uniqueness(_AnalyzerObject):
         :return self
         """
         return self._deequAnalyzers.Uniqueness(
-            to_scala_seq(self._jvm, self.columns), self._jvm.scala.Option.apply(self.where)
+            to_scala_seq(self._jvm, self.columns),
+            self._jvm.scala.Option.apply(self.where),
+            self._jvm.scala.Option.apply(None)
         )
 
 
@@ -839,7 +824,9 @@ class UniqueValueRatio(_AnalyzerObject):
         :return self
         """
         return self._deequAnalyzers.UniqueValueRatio(
-            to_scala_seq(self._jvm, self.columns), self._jvm.scala.Option.apply(self.where)
+            to_scala_seq(self._jvm, self.columns),
+            self._jvm.scala.Option.apply(self.where),
+            self._jvm.scala.Option.apply(None)
         )
 
 class DataTypeInstances(Enum):

@@ -154,7 +154,7 @@ class Check:
         :return: isComplete self:A Check.scala object that asserts on a column completion.
         """
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.isComplete(column, hint)
+        self._Check = self._Check.isComplete(column, hint, self._jvm.scala.Option.apply(None))
         return self
 
     def hasCompleteness(self, column, assertion, hint=None):
@@ -170,7 +170,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.hasCompleteness(column, assertion_func, hint)
+        self._Check = self._Check.hasCompleteness(column, assertion_func, hint, self._jvm.scala.Option.apply(None))
         return self
 
     def areComplete(self, columns, hint=None):
@@ -234,7 +234,7 @@ class Check:
         :return: isUnique self: A Check.scala object that asserts uniqueness in the column.
         """
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.isUnique(column, hint)
+        self._Check = self._Check.isUnique(column, hint, self._jvm.scala.Option.apply(None))
         return self
 
     def isPrimaryKey(self, column, *columns, hint=None):
@@ -297,7 +297,7 @@ class Check:
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
         columns_seq = to_scala_seq(self._jvm, columns)
-        self._Check = self._Check.hasUniqueValueRatio(columns_seq, assertion_func, hint)
+        self._Check = self._Check.hasUniqueValueRatio(columns_seq, assertion_func, hint, self._jvm.scala.Option.apply(None))
         return self
 
     def hasNumberOfDistinctValues(self, column, assertion, binningUdf, maxBins, hint=None):
@@ -418,11 +418,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
-        if SPARK_VERSION == "3.3":
-            self._Check = self._Check.hasMinLength(column, assertion_func, hint, self._jvm.scala.Option.apply(None))
-        else:
-            self._Check = self._Check.hasMinLength(column, assertion_func, hint)
-
+        self._Check = self._Check.hasMinLength(column, assertion_func, hint, self._jvm.scala.Option.apply(None))
         return self
 
     def hasMaxLength(self, column, assertion, hint=None):
@@ -437,10 +433,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
-        if SPARK_VERSION == "3.3":
-            self._Check = self._Check.hasMaxLength(column, assertion_func, hint, self._jvm.scala.Option.apply(None))
-        else:
-            self._Check = self._Check.hasMaxLength(column, assertion_func, hint)
+        self._Check = self._Check.hasMaxLength(column, assertion_func, hint, self._jvm.scala.Option.apply(None))
         return self
 
     def hasMin(self, column, assertion, hint=None):
@@ -456,7 +449,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.hasMin(column, assertion_func, hint)
+        self._Check = self._Check.hasMin(column, assertion_func, hint, self._jvm.scala.Option.apply(None))
         return self
 
     def hasMax(self, column, assertion, hint=None):
@@ -472,7 +465,7 @@ class Check:
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
         hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.hasMax(column, assertion_func, hint)
+        self._Check = self._Check.hasMax(column, assertion_func, hint, self._jvm.scala.Option.apply(None))
         return self
 
     def hasMean(self, column, assertion, hint=None):
@@ -565,21 +558,14 @@ class Check:
             else getattr(self._Check, "satisfies$default$3")()
         )
         hint = self._jvm.scala.Option.apply(hint)
-        if SPARK_VERSION == "3.3":
-            self._Check = self._Check.satisfies(
-                columnCondition,
-                constraintName,
-                assertion_func,
-                hint,
-                self._jvm.scala.collection.Seq.empty()
-            )
-        else:
-            self._Check = self._Check.satisfies(
-                columnCondition,
-                constraintName,
-                assertion_func,
-                hint
-            )
+        self._Check = self._Check.satisfies(
+            columnCondition,
+            constraintName,
+            assertion_func,
+            hint,
+            self._jvm.scala.collection.Seq.empty(),
+            self._jvm.scala.Option.apply(None)
+        )
         return self
 
     def hasPattern(self, column, pattern, assertion=None, name=None, hint=None):
@@ -602,7 +588,9 @@ class Check:
         name = self._jvm.scala.Option.apply(name)
         hint = self._jvm.scala.Option.apply(hint)
         pattern_regex = self._jvm.scala.util.matching.Regex(pattern, None)
-        self._Check = self._Check.hasPattern(column, pattern_regex, assertion_func, name, hint)
+        self._Check = self._Check.hasPattern(
+            column, pattern_regex, assertion_func, name, hint, self._jvm.scala.Option.apply(None)
+        )
         return self
 
     def containsCreditCardNumber(self, column, assertion=None, hint=None):
