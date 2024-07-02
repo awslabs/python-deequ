@@ -22,8 +22,8 @@ COPY poetry.lock /python-deequ
 WORKDIR python-deequ
 
 RUN poetry install -vvv
-RUN poetry add pyspark==3.3 -vvv
+RUN poetry add pyspark==3.5.0 -vvv
 
-ENV SPARK_VERSION=3.3
+ENV SPARK_VERSION=3.5
 COPY . /python-deequ
 CMD poetry run python -m pytest -s tests
