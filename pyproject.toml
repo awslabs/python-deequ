@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pydeequ"
-version = "1.3.0"
+version = "1.4.0"
 description = "PyDeequ - Unit Tests for Data"
 authors = ["Chenyang Liu <peterl@amazon.com>", "Rahul Sharma <rdsharma@amazon.com>"]
 maintainers = ["Chenyang Liu <peterl@amazon.com>","Rahul Sharma <rdsharma@amazon.com>"]
