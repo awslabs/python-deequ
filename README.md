@@ -18,7 +18,9 @@ There are 4 main components of Deequ, and they are:
 ![](imgs/pydeequ_architecture.jpg)
 
 ## 🎉 Announcements 🎉
-- **NEW!!!** 1.1.0 release of Python Deequ has been published to PYPI https://pypi.org/project/pydeequ/. This release brings many recency upgrades including support up to Spark 3.3.0! Any feedbacks are welcome through github issues.
+- **NEW!!!** The 1.4.0 release of Python Deequ has been published to PYPI https://pypi.org/project/pydeequ/. This release adds support for Spark 3.5.0.
+- The latest version of Deequ, 2.0.7, is made available With Python Deequ 1.3.0.
+- 1.1.0 release of Python Deequ has been published to PYPI https://pypi.org/project/pydeequ/. This release brings many recent upgrades including support up to Spark 3.3.0! Any feedbacks are welcome through github issues.
 - With PyDeequ v0.1.8+, we now officially support Spark3 ! Just make sure you have an environment variable `SPARK_VERSION` to specify your Spark version! 
 - We've release a blogpost on integrating PyDeequ onto AWS leveraging services such as AWS Glue, Athena, and SageMaker! Check it out: [Monitor data quality in your data lake using PyDeequ and AWS Glue](https://aws.amazon.com/blogs/big-data/monitor-data-quality-in-your-data-lake-using-pydeequ-and-aws-glue/).
 - Check out the [PyDeequ Release Announcement Blogpost](https://aws.amazon.com/blogs/big-data/testing-data-quality-at-scale-with-pydeequ/) with a tutorial walkthrough the Amazon Reviews dataset!
