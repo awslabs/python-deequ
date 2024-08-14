@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 from functools import lru_cache
 import os
 import re
@@ -25,6 +26,9 @@ def _get_spark_version() -> str:
         spark_version = os.getenv("SPARK_VERSION")
         if not spark_version:
             spark_version = str(pyspark.__version__)
+            logging.info(
+                f"SPARK_VERSION environment variable is not set, using Spark version from PySpark {spark_version} for Deequ Maven jars"
+            )
     except KeyError:
         raise RuntimeError(f"SPARK_VERSION environment variable is required. Supported values are: {SPARK_TO_DEEQU_COORD_MAPPING.keys()}")
 
