@@ -241,7 +241,9 @@ class ColumnProfilesBuilder:
         self._profiles = []
         self.columnProfileClasses = {
             "StandardColumnProfile": StandardColumnProfile,
+            "StringColumnProfile": StandardColumnProfile,
             "NumericColumnProfile": NumericColumnProfile,
+
         }
 
     def _columnProfilesFromColumnRunBuilderRun(self, run):

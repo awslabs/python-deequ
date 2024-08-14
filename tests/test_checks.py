@@ -467,6 +467,12 @@ class TestChecks(unittest.TestCase):
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         return df.select("constraint_status").collect()
 
+    def where(self, assertion, filter, hint=None):
+        check = Check(self.spark, CheckLevel.Warning, "test where")
+        result = VerificationSuite(self.spark).onData(self.df).addCheck(check.hasSize(assertion, hint).where(filter)).run()
+        df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        return df.select("constraint_status").collect()
+
     def test_hasSize(self):
         self.assertEqual(self.hasSize(lambda x: x == 3.0), [Row(constraint_status="Success")])
         self.assertEqual(
@@ -1116,9 +1122,8 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasCorrelation("b", "e", lambda x: x == -1), [Row(constraint_status="Failure")])
 
     def test_satisfies(self):
-        # TODO: test without assertion
-        # self.assertEqual(self.satisfies('b >=2', 'b greater than or equal to 2'),
-        #                  [Row(constraint_status='Failure')])
+        self.assertEqual(self.satisfies('b >=2', 'b greater than or equal to 2'),
+                         [Row(constraint_status='Failure')])
         self.assertEqual(self.satisfies("b >=2", "b", lambda x: x == 2 / 3), [Row(constraint_status="Success")])
         self.assertEqual(
             self.satisfies("b >=2 AND d >= 2", "b and d", lambda x: x == 2 / 3), [Row(constraint_status="Success")]
@@ -1245,6 +1250,41 @@ class TestChecks(unittest.TestCase):
         )
         self.assertEqual(self.isGreaterThanOrEqualTo("h", "f", lambda x: x == 1), [Row(constraint_status="Success")])
 
+    def test_where(self):
+        self.assertEqual(self.where(lambda x: x == 2.0, "boolean='true'", "column 'boolean' has two values true"),
+                         [Row(constraint_status="Success")])
+        self.assertEqual(
+            self.where(lambda x: x == 3.0, "d=5", "column 'd' has three values 3"),
+            [Row(constraint_status="Success")],
+        )
+        self.assertEqual(
+            self.where(lambda x: x == 2.0, "ssn='000-00-0000'", "column 'ssn' has one value 000-00-0000"),
+            [Row(constraint_status="Failure")],
+        )
+        check = Check(self.spark, CheckLevel.Warning, "test where").hasMin("f", lambda x: x == 2, "The f has min value 2 becasue of the additional filter").where('f>=2')
+        result = VerificationSuite(self.spark).onData(self.df).addCheck(check.isGreaterThan("e", "h", lambda x: x == 1, "Column H is not smaller than Column E")).run()
+        df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        self.assertEqual(
+            df.select("constraint_status").collect(),
+            [Row(constraint_status="Success"), Row(constraint_status="Failure")],
+        )
+        with self.assertRaises(TypeError):
+            Check(self.spark, CheckLevel.Warning, "test where").kllSketchSatisfies(
+                "b", lambda x: x.parameters().apply(0) == 1.0, KLLParameters(self.spark, 2, 0.64, 2)
+            ).where("d=5")
+
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
+    def test_fail_where(self):
+        self.assertEqual(self.where(lambda x: x == 2.0, "boolean='false'", "column 'boolean' has one value false"),
+                         [Row(constraint_status="Success")])
+        self.assertEqual(
+            self.where(lambda x: x == 3.0, "a='bar'", "column 'a' has one value 'bar'"),
+            [Row(constraint_status="Success")],
+        )
+        self.assertEqual(
+            self.where(lambda x: x == 1.0, "f=1", "column 'f' has one value 1"),
+            [Row(constraint_status="Failure")],
+        )
     # def test_hasNumberOfDistinctValues(self):
     #     #Todo: test binningUDf
     #     self.assertEqual(self.hasNumberOfDistinctValues('b', lambda x: x == 3, None, 3, "Column B has 3 distinct values"),

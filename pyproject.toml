@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "pydeequ"
-version = "1.1.1"
+version = "1.4.0"
 description = "PyDeequ - Unit Tests for Data"
-authors = ["Calvin Wang <calviwan@amazon.com>"]
-maintainers = ["Calvin Wang <calviwan@amazon.com>"]
+authors = ["Chenyang Liu <peterl@amazon.com>", "Rahul Sharma <rdsharma@amazon.com>"]
+maintainers = ["Chenyang Liu <peterl@amazon.com>","Rahul Sharma <rdsharma@amazon.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://pydeequ.readthedocs.io"
@@ -28,7 +28,7 @@ classifiers = [
 
 
 [tool.poetry.dependencies]
-python = ">=3.7,<4"
+python = ">=3.8,<4"
 numpy = ">=1.14.1"
 pandas = ">=0.23.0"
 pyspark = { version = ">=2.4.7, <3.3.0", optional = true }
