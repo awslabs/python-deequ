@@ -30,10 +30,14 @@ def test_extract_major_minor_versions(full_version, major_minor_version):
 @pytest.mark.parametrize(
     "spark_version, expected", [("3.2.1", "3.2"), ("3.1", "3.1"), ("3.10.3", "3.10"), ("3.10", "3.10")]
 )
-def test__get_spark_version_without_cache(spark_version, expected, mock_env):
-    with mock.patch.object(pyspark, "__version__", spark_version):
-        assert _get_spark_version() == expected
+def test__get_spark_versione(spark_version, expected, mock_env):
+    try:
         _get_spark_version.cache_clear()
+        with mock.patch.object(pyspark, "__version__", spark_version):
+            assert _get_spark_version() == expected
+    finally:
+        _get_spark_version.cache_clear()
+
 
 
 @pytest.mark.parametrize(
