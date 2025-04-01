@@ -229,8 +229,11 @@ class FractionalCategoricalRangeRule(_RulesObject):
         default_category_sorter = scala_get_default_argument(
             self._deequSuggestions.rules.FractionalCategoricalRangeRule, 2
         )
+        default_interval_strategy = scala_get_default_argument(
+            self._deequSuggestions.rules.FractionalCategoricalRangeRule, 3
+        )
         return self._deequSuggestions.rules.FractionalCategoricalRangeRule(
-            self.targetDataCoverageFraction, default_category_sorter
+            self.targetDataCoverageFraction, default_category_sorter, default_interval_strategy
         )
 
 
@@ -252,7 +255,19 @@ class RetainCompletenessRule(_RulesObject):
 
     @property
     def rule_jvm(self):
-        return self._deequSuggestions.rules.RetainCompletenessRule()
+        default_min_completeness = scala_get_default_argument(
+            self._deequSuggestions.rules.RetainCompletenessRule, 1
+        )
+        default_max_completeness = scala_get_default_argument(
+            self._deequSuggestions.rules.RetainCompletenessRule, 2
+        )
+        default_interval_strategy = scala_get_default_argument(
+            self._deequSuggestions.rules.RetainCompletenessRule, 3
+        )
+
+        return self._deequSuggestions.rules.RetainCompletenessRule(
+            default_min_completeness, default_max_completeness, default_interval_strategy
+        )
 
 
 class RetainTypeRule(_RulesObject):
