@@ -41,4 +41,4 @@ def _get_deequ_maven_config():
 
 SPARK_VERSION = _get_spark_version()
 DEEQU_MAVEN_COORD = _get_deequ_maven_config()
-IS_DEEQU_V1 = re.search("com\.amazon\.deequ\:deequ\:1.*", DEEQU_MAVEN_COORD) is not None
+IS_DEEQU_V1 = "com.amazon.deequ:deequ:1" in DEEQU_MAVEN_COORD
