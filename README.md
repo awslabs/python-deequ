@@ -48,7 +48,13 @@ spark = (SparkSession
     .config("spark.jars.packages", pydeequ.deequ_maven_coord)
     .config("spark.jars.excludes", pydeequ.f2j_maven_coord)
     .getOrCreate())
+```
 
+In case you can't programmatically configure the Spark session
+this way (e.g. in Databricks), check your vendor's documentation
+about installing JARs from Maven Central.
+
+```
 df = spark.sparkContext.parallelize([
             Row(a="foo", b=1, c=5),
             Row(a="bar", b=2, c=6),
