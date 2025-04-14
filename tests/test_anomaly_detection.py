@@ -181,7 +181,8 @@ class TestAnomalies(unittest.TestCase):
         print(df.collect())
         return df.select("check_status").collect()
 
-    def SimpleThresholdStrategy(self, df_prev, df_curr, analyzer_func, lowerBound, upperBound):
+    def SimpleThresholdStrategy(self, df_prev, df_curr, analyzer_func, lowerBound, upperBound,
+                                anomalyCheckConfig: AnomalyCheckConfig = None):
         metricsRepository = InMemoryMetricsRepository(self.spark)
         previousKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 1000 * 60)
 
@@ -196,7 +197,7 @@ class TestAnomalies(unittest.TestCase):
             .onData(df_curr)
             .useRepository(metricsRepository)
             .saveOrAppendResult(currKey)
-            .addAnomalyCheck(SimpleThresholdStrategy(lowerBound, upperBound), analyzer_func)
+            .addAnomalyCheck(SimpleThresholdStrategy(lowerBound, upperBound), analyzer_func, anomalyCheckConfig)
             .run()
         )
 
@@ -485,6 +486,20 @@ class TestAnomalies(unittest.TestCase):
     @pytest.mark.skip("Not implemented yet!")
     def test_anomalyDetector(self):
         self.get_anomalyDetector(SimpleThresholdStrategy(1.0, 3.0))
+
+    def test_SimpleThresholdStrategy_Error(self):
+        config = AnomalyCheckConfig(description='test error case', level=CheckLevel.Error)
+        # Lower bound is 1 upper bound is 6 (Range: 1-6 rows)
+        self.assertEqual(
+            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 4.0, config), [Row(check_status="Error")]
+        )
+
+    def test_SimpleThresholdStrategy_Warning(self):
+        config = AnomalyCheckConfig(description='test error case', level=CheckLevel.Warning)
+        # Lower bound is 1 upper bound is 6 (Range: 1-6 rows)
+        self.assertEqual(
+            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 4.0, config), [Row(check_status="Warning")]
+        )
 
     #
     # def test_RelativeRateOfChangeStrategy(self):
