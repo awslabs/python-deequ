@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+import logging
 from functools import lru_cache
 import os
 import re
-
+import pyspark
 
 SPARK_TO_DEEQU_COORD_MAPPING = {
     "3.5": "com.amazon.deequ:deequ:2.0.8-spark-3.5",
@@ -22,7 +23,12 @@ def _extract_major_minor_versions(full_version: str):
 @lru_cache(maxsize=None)
 def _get_spark_version() -> str:
     try:
-        spark_version = os.environ["SPARK_VERSION"]
+        spark_version = os.getenv("SPARK_VERSION")
+        if not spark_version:
+            spark_version = str(pyspark.__version__)
+            logging.info(
+                f"SPARK_VERSION environment variable is not set, using Spark version from PySpark {spark_version} for Deequ Maven jars"
+            )
     except KeyError:
         raise RuntimeError(f"SPARK_VERSION environment variable is required. Supported values are: {SPARK_TO_DEEQU_COORD_MAPPING.keys()}")
 
