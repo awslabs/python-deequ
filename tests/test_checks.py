@@ -1366,3 +1366,24 @@ class TestChecks(unittest.TestCase):
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         self.assertEqual(df.select("constraint_status").collect(), [Row(constraint_status="Success"), Row(constraint_status="Success")])
+
+    def test_hash_code(self):
+        """
+        Lack of Exception is passing.  Previously this test would fail with:
+        AttributeError: 'ScalaFunction1' object has no attribute 'hashCode'
+        """
+        vrb = VerificationSuite(self.spark) \
+            .onData(self.df)
+        check = Check(self.spark, CheckLevel.Error, "Enough checks to trigger a hashCode not an attribute of ScalaFunction1")
+        check.isComplete('b')
+        vrb.addCheck(check)
+        check.containsEmail('email')
+        vrb.addCheck(check)
+        check.isGreaterThanOrEqualTo("d", "b")
+        vrb.addCheck(check)
+        check.isLessThanOrEqualTo("b", "d")
+        vrb.addCheck(check)
+        check.hasDataType("d", ConstrainableDataTypes.String, lambda x: x >= 1)
+        vrb.addCheck(check)
+
+        result = vrb.run()

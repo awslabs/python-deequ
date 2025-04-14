@@ -37,6 +37,9 @@ class ScalaFunction1(PythonCallback):
         """Implements the apply function"""
         return self.lambda_function(arg)
 
+    def hashCode(self):
+        return self.gateway.jvm.java.lang.Integer.hashCode(hash(self.lambda_function))
+
     class Java:
         """scala.Function1: a function that takes one argument"""
 
@@ -54,6 +57,9 @@ class ScalaFunction2(PythonCallback):
     def apply(self, t1, t2):
         """Implements the apply function"""
         return self.lambda_function(t1, t2)
+
+    def hashCode(self):
+        return self.gateway.jvm.java.lang.Integer.hashCode(hash(self.lambda_function))
 
     class Java:
         """scala.Function2: a function that takes two arguments"""
