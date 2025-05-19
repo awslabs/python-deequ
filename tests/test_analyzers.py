@@ -14,6 +14,7 @@ from pydeequ.analyzers import (
     Compliance,
     Correlation,
     CountDistinct,
+    CustomSql,
     DataType,
     Distinctness,
     Entropy,
@@ -106,6 +107,14 @@ class TestAnalyzers(unittest.TestCase):
 
     def CountDistinct(self, columns):
         result = self.AnalysisRunner.onData(self.df).addAnalyzer(CountDistinct(columns)).run()
+        result_df = AnalyzerContext.successMetricsAsDataFrame(self.spark, result)
+        result_json = AnalyzerContext.successMetricsAsJson(self.spark, result)
+        df_from_json = self.spark.read.json(self.sc.parallelize([result_json]))
+        self.assertEqual(df_from_json.select("value").collect(), result_df.select("value").collect())
+        return result_df.select("value").collect()
+    
+    def CustomSql(self, expression, disambiguator="*"):
+        result = self.AnalysisRunner.onData(self.df).addAnalyzer(CustomSql(expression, disambiguator)).run()
         result_df = AnalyzerContext.successMetricsAsDataFrame(self.spark, result)
         result_json = AnalyzerContext.successMetricsAsJson(self.spark, result)
         df_from_json = self.spark.read.json(self.sc.parallelize([result_json]))
@@ -297,6 +306,16 @@ class TestAnalyzers(unittest.TestCase):
     @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_CountDistinct(self):
         self.assertEqual(self.CountDistinct("b"), [Row(value=1.0)])
+
+    def test_CustomSql(self):
+        self.df.createOrReplaceTempView("input_table")
+        self.assertEqual(self.CustomSql("SELECT SUM(b) FROM input_table"), [Row(value=6.0)])
+        self.assertEqual(self.CustomSql("SELECT AVG(LENGTH(a)) FROM input_table"), [Row(value=3.0)])
+        self.assertEqual(self.CustomSql("SELECT MAX(c) FROM input_table"), [Row(value=6.0)])
+
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
+    def test_fail_CustomSql(self):
+        self.assertEqual(self.CustomSql("SELECT SUM(b) FROM input_table"), [Row(value=1.0)])
 
     def test_DataType(self):
         self.assertEqual(
