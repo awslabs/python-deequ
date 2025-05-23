@@ -72,6 +72,10 @@ class TestProfiles(unittest.TestCase):
         except TypeError:
             pass
 
+    def test_profile_numRecords(self):
+        result = ColumnProfilerRunner(self.spark).onData(self.df).run()
+        self.assertEqual(result.numRecords, 3)
+
 
 if __name__ == "__main__":
     unittest.main()
