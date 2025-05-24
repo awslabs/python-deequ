@@ -22,4 +22,5 @@ Here are the current supported functionalities of Profiles.
 |  | property: profiles | Done |
 |  | property: numRecords | Done |
 | StandardColumnProfile | StandardColumnProfile(spark_session, column, java_column_profile) | Done |
+| StringColumnProfile | StringColumnProfile(spark_session, column, java_column_profile) | Done |
 | NumericColumnProfile | NumericColumnProfile(spark_session, column, java_column_profile) | Done |
