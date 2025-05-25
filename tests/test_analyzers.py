@@ -3,6 +3,7 @@ import unittest
 
 import pytest
 from pyspark.sql import Row
+from pyspark.errors import AnalysisException
 
 from pydeequ import PyDeequSession
 from pydeequ.analyzers import (
@@ -119,7 +120,7 @@ class TestAnalyzers(unittest.TestCase):
         result_json = AnalyzerContext.successMetricsAsJson(self.spark, result)
         df_from_json = self.spark.read.json(self.sc.parallelize([result_json]))
         self.assertEqual(df_from_json.select("value").collect(), result_df.select("value").collect())
-        return result_df.select("value").collect()
+        return result_df.select("value", "instance").collect()
 
     def Datatype(self, column, where=None):
         result = self.AnalysisRunner.onData(self.df).addAnalyzer(DataType(column, where)).run()
@@ -309,13 +310,24 @@ class TestAnalyzers(unittest.TestCase):
 
     def test_CustomSql(self):
         self.df.createOrReplaceTempView("input_table")
-        self.assertEqual(self.CustomSql("SELECT SUM(b) FROM input_table"), [Row(value=6.0)])
-        self.assertEqual(self.CustomSql("SELECT AVG(LENGTH(a)) FROM input_table"), [Row(value=3.0)])
-        self.assertEqual(self.CustomSql("SELECT MAX(c) FROM input_table"), [Row(value=6.0)])
+        self.assertEqual(self.CustomSql("SELECT SUM(b) FROM input_table"), [Row(value=6.0, instance="*")])
+        self.assertEqual(
+            self.CustomSql("SELECT AVG(LENGTH(a)) FROM input_table", disambiguator="foo"), 
+            [Row(value=3.0, instance="foo")]
+        )
+        self.assertEqual(
+            self.CustomSql("SELECT MAX(c) FROM input_table", disambiguator="bar"), 
+            [Row(value=6.0, instance="bar")]
+        )
 
     @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_CustomSql(self):
         self.assertEqual(self.CustomSql("SELECT SUM(b) FROM input_table"), [Row(value=1.0)])
+
+    @pytest.mark.xfail(reason="@unittest.expectedFailure")
+    def test_fail_CustomSql_incorrect_query(self):
+        with self.assertRaises(AnalysisException):
+            self.CustomSql("SELECT SUM(b)")
 
     def test_DataType(self):
         self.assertEqual(

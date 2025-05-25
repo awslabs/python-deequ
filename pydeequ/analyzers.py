@@ -366,7 +366,7 @@ class CustomSql(_AnalyzerObject):
     The expression must return a single value.
 
     :param str expression: A SQL expression to execute.
-    :param str where: A label used to distinguish this metric 
+    :param str disambiguator: A label used to distinguish this metric 
         when running multiple custom SQL analyzers. Defaults to "*".
     """
 
