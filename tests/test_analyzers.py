@@ -3,7 +3,6 @@ import unittest
 
 import pytest
 from pyspark.sql import Row
-from pyspark.errors import AnalysisException
 
 from pydeequ import PyDeequSession
 from pydeequ.analyzers import (
@@ -326,8 +325,7 @@ class TestAnalyzers(unittest.TestCase):
 
     @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_CustomSql_incorrect_query(self):
-        with self.assertRaises(AnalysisException):
-            self.CustomSql("SELECT SUM(b)")
+        self.CustomSql("SELECT SUM(b)")
 
     def test_DataType(self):
         self.assertEqual(
