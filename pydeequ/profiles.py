@@ -2,12 +2,12 @@
 """ Profiles file for all the Profiles classes in Deequ"""
 import json
 from collections import namedtuple
+from typing import Optional
 
 from pyspark.sql import DataFrame, SparkSession
 from pydeequ.analyzers import KLLParameters
 from pydeequ.metrics import BucketDistribution
 from pydeequ.pandas_utils import ensure_pyspark_df
-from enum import Enum
 from pydeequ.scala_utils import (
     get_or_else_none,
     java_list_to_python_list,
@@ -239,6 +239,7 @@ class ColumnProfilesBuilder:
         self._sc = spark_session.sparkContext
         self._jvm = spark_session._jvm
         self._profiles = []
+        self._numRecords = None
         self.columnProfileClasses = {
             "StandardColumnProfile": StandardColumnProfile,
             "StringColumnProfile": StandardColumnProfile,
@@ -251,11 +252,12 @@ class ColumnProfilesBuilder:
         Produces a Java profile based on the designated column
 
         :param run: columnProfilerRunner result
-        :return: a setter for columnProfilerRunner result
+        :return self: a setter for columnProfilerRunner result
         """
         self._run_result = run
         profile_map = self._jvm.scala.collection.JavaConversions.mapAsJavaMap(run.profiles())  # TODO from ScalaUtils
         self._profiles = {column: self._columnProfileBuilder(column, profile_map[column]) for column in profile_map}
+        self._numRecords = run.numRecords()
         return self
 
     @property
@@ -266,6 +268,15 @@ class ColumnProfilesBuilder:
         :return: a getter for profiles
         """
         return self._profiles
+
+    @property
+    def numRecords(self) -> Optional[int]:
+        """
+        A getter for the number of records
+
+        :return Optional[int]: number of records
+        """
+        return self._numRecords
 
     def _columnProfileBuilder(self, column, java_column_profile):
         """Factory function for ColumnProfile
