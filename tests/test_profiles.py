@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import unittest
 from pyspark.sql import Row
-from pydeequ.analyzers import KLLParameters
-from pydeequ.profiles import ColumnProfilerRunBuilder, ColumnProfilerRunner
+from pydeequ.profiles import ColumnProfilerRunBuilder, ColumnProfilerRunner, DistributionValue, StringColumnProfile
 from pydeequ.analyzers import KLLParameters, DataTypeInstances
 from tests.conftest import setup_pyspark
 
@@ -11,7 +10,7 @@ class TestProfiles(unittest.TestCase):
     def setUpClass(cls):
         cls.spark = setup_pyspark().appName("test-profiles-local").getOrCreate()
         cls.sc = cls.spark.sparkContext
-        cls.df = cls.sc.parallelize([Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="baz", b=3, c=None)]).toDF()
+        cls.df = cls.sc.parallelize([Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="bazz", b=3, c=None)]).toDF()
 
     @classmethod
     def tearDownClass(cls):
@@ -71,6 +70,26 @@ class TestProfiles(unittest.TestCase):
             raise Exception("Did not raise TypeError")
         except TypeError:
             pass
+
+    def test_StringColumnProfile(self):
+        result = ColumnProfilerRunner(self.spark).onData(self.df).run()
+        column_profile = result.profiles["a"]
+        self.assertIsInstance(column_profile, StringColumnProfile)
+        self.assertEqual(column_profile.minLength, 3)
+        self.assertEqual(column_profile.maxLength, 4)
+
+        self.assertEqual(column_profile.completeness, 1.0)
+        self.assertEqual(column_profile.approximateNumDistinctValues, 3)
+        self.assertEqual(column_profile.typeCounts["String"], 3)
+        self.assertEqual(column_profile.isDataTypeInferred, False)
+        self.assertListEqual(
+            sorted(column_profile.histogram),
+            [
+                DistributionValue("bar", 1, 1/3),
+                DistributionValue("bazz", 1, 1/3),
+                DistributionValue("foo", 1, 1/3),
+            ]
+        )
 
 
 if __name__ == "__main__":
