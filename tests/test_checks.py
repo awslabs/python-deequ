@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import unittest
+from typing import Union
 
 import pytest
 from pyspark.sql import DataFrame, Row
@@ -80,6 +81,12 @@ class TestChecks(unittest.TestCase):
 
         result_df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         result_df.show()
+
+    def run_check(self, check: Check, columns: Union[str, list[str]] = "constraint_status") -> list[Row]:
+        columns = [columns] if isinstance(columns, str) else columns
+        result = VerificationSuite(self.spark).onData(self.df).addCheck(check).run()
+        df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        return df.select(*columns).collect()
 
     def hasSize(self, assertion, hint=None):
         check = Check(self.spark, CheckLevel.Warning, "test hasSize")
@@ -1291,22 +1298,18 @@ class TestChecks(unittest.TestCase):
     #         [Row(constraint_status='Success')])
     #
 
-    # def test_isPrimaryKey(self):
-    #     # TODO: figure out String*
-    #     # Python tuple => varArgs
-    #     check = Check(self.spark, CheckLevel.Warning, "test isPrimaryKey")
-    #     result = VerificationSuite(self.spark).onData(self.df) \
-    #         .addCheck(check.isPrimaryKey('b', ('a', 'b'))) \
-    #         .run()
-    #
-    #     df = self.spark._jvm.com.amazon.deequ.VerificationResult.checkResultsAsDataFrame(
-    #         self.spark._jsparkSession,
-    #         result,
-    #         getattr(self.spark._jvm.com.amazon.deequ.VerificationResult, "checkResultsAsDataFrame$default$3")()
-    #     )
-    #     print(DataFrame(df, self.spark).collect())
-    #     print(result.toString())
-    #
+    def test_isPrimaryKey(self):
+        check = Check(self.spark, CheckLevel.Warning, "test isPrimaryKey")
+        check = check.isPrimaryKey("b")  # this column is unique
+        check = check.isPrimaryKey("d", "f", "b")  # this column combination is unique
+        result = self.run_check(check)
+        self.assertEqual(result, [Row(constraint_status="Success"), Row(constraint_status="Success")])
+
+    def test_fail_isPrimaryKey(self):
+        check = Check(self.spark, CheckLevel.Warning, "test isPrimaryKey")
+        result = self.run_check(check.isPrimaryKey("d", "f"))  # these columns are not unique
+        self.assertEqual(result, [Row(constraint_status="Failure")])
+
     # def test_hasHistogramValues(self):
     #     # Not sure what to put as an assertion
     #     check = Check(self.spark, CheckLevel.Warning, "test hasHistogramValues")
