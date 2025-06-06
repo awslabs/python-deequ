@@ -28,81 +28,41 @@ class TestAnomalies(unittest.TestCase):
 
         cls.df_1 = cls.sc.parallelize(
             [
-                Row(
-                    a=3,
-                    b=0,
-                    c="colder",
-                ),
-                Row(
-                    a=3,
-                    b=5,
-                    c="bolder",
-                ),
+                Row(a=3, b=0, c="colder"),
+                Row(a=3, b=5, c="bolder"),
             ]
         ).toDF()
 
         cls.df_2 = cls.sc.parallelize(
             [
-                Row(
-                    a=3,
-                    b=0,
-                    c="foo",
-                ),
-                Row(
-                    a=3,
-                    b=5,
-                    c="zoo",
-                ),
-                Row(
-                    a=100,
-                    b=5,
-                    c="who",
-                ),
-                Row(
-                    a=2,
-                    b=30,
-                    c="email",
-                ),
-                Row(
-                    a=10,
-                    b=5,
-                    c="cards",
-                ),
+                Row(a=3, b=0, c="foo"),
+                Row(a=3, b=5, c="zoo"),
+                Row(a=100, b=5, c="who"),
+                Row(a=2, b=30, c="email"),
+                Row(a=10, b=5, c="cards"),
             ]
         ).toDF()
 
-        cls.df_3 = cls.sc.parallelize(
-            [
-                Row(
-                    a=1,
-                    b=23,
-                    c="pool",
-                )
-            ]
-        ).toDF()
+        cls.df_3 = cls.sc.parallelize([Row(a=1, b=23, c="pool")]).toDF()
 
-        cls.df_4 = cls.sc.parallelize(
-            [
-                Row(
-                    a=1,
-                    b=23,
-                    c="pool",
-                )
-            ]
-        ).toDF()
+        cls.df_4 = cls.sc.parallelize([Row(a=1, b=23, c="pool")]).toDF()
 
     @classmethod
     def tearDownClass(cls):
         cls.spark.sparkContext._gateway.shutdown_callback_server()
         cls.spark.stop()
 
-    def RelativeRateOfChangeStrategy(self, df_prev, df_curr, analyzer_func, maxRateDecrease=None, maxRateIncrease=None):
+    def RelativeRateOfChangeStrategy(
+        self, df_prev, df_curr, analyzer_func, maxRateDecrease=None, maxRateIncrease=None
+    ):
         metricsRepository = InMemoryMetricsRepository(self.spark)
         previousKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 1000 * 60)
 
         VerificationSuite(self.spark).onData(df_prev).useRepository(metricsRepository).saveOrAppendResult(
             previousKey
-        ).addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateDecrease, maxRateIncrease, order=1), analyzer_func).run()
+        ).addAnomalyCheck(
+            RelativeRateOfChangeStrategy(maxRateDecrease, maxRateIncrease, order=1), analyzer_func
+        ).run()
 
         currKey = ResultKey(self.spark, ResultKey.current_milli_time())
 
@@ -111,7 +71,9 @@ class TestAnomalies(unittest.TestCase):
             .onData(df_curr)
             .useRepository(metricsRepository)
             .saveOrAppendResult(currKey)
-            .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateDecrease, maxRateIncrease, order=1), analyzer_func)
+            .addAnomalyCheck(
+                RelativeRateOfChangeStrategy(maxRateDecrease, maxRateIncrease, order=1), analyzer_func
+            )
             .run()
         )
 
@@ -121,13 +83,17 @@ class TestAnomalies(unittest.TestCase):
         print(df.collect())
         return df.select("check_status").collect()
 
-    def AbsoluteChangeStrategy(self, df_prev, df_curr, analyzer_func, maxRateDecrease=None, maxRateIncrease=None):
+    def AbsoluteChangeStrategy(
+        self, df_prev, df_curr, analyzer_func, maxRateDecrease=None, maxRateIncrease=None
+    ):
         metricsRepository = InMemoryMetricsRepository(self.spark)
         previousKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 1000 * 60)
 
         VerificationSuite(self.spark).onData(df_prev).useRepository(metricsRepository).saveOrAppendResult(
             previousKey
-        ).addAnomalyCheck(AbsoluteChangeStrategy(maxRateDecrease, maxRateIncrease, order=1), analyzer_func).run()
+        ).addAnomalyCheck(
+            AbsoluteChangeStrategy(maxRateDecrease, maxRateIncrease, order=1), analyzer_func
+        ).run()
 
         currKey = ResultKey(self.spark, ResultKey.current_milli_time())
 
@@ -163,7 +129,9 @@ class TestAnomalies(unittest.TestCase):
         VerificationSuite(self.spark).onData(df_prev).useRepository(metricsRepository).saveOrAppendResult(
             previousKey
         ).addAnomalyCheck(
-            OnlineNormalStrategy(lowerDeviationFactor, upperDeviationFactor, ignoreStartPercentage, ignoreAnomalies),
+            OnlineNormalStrategy(
+                lowerDeviationFactor, upperDeviationFactor, ignoreStartPercentage, ignoreAnomalies
+            ),
             analyzer_func,
         ).run()
 
@@ -250,7 +218,8 @@ class TestAnomalies(unittest.TestCase):
             .useRepository(metricsRepository)
             .saveOrAppendResult(currKey)
             .addAnomalyCheck(
-                BatchNormalStrategy(lowerDeviationFactor, upperDeviationFactor, includeInterval), analyzer_func
+                BatchNormalStrategy(lowerDeviationFactor, upperDeviationFactor, includeInterval),
+                analyzer_func,
             )
             .run()
         )
@@ -273,7 +242,9 @@ class TestAnomalies(unittest.TestCase):
                     .onData(df_prev)
                     .useRepository(metricsRepository)
                     .saveOrAppendResult(previousKey)
-                    .addAnomalyCheck(HoltWinters(MetricInterval.Monthly, SeriesSeasonality.Yearly), analyzer_func)
+                    .addAnomalyCheck(
+                        HoltWinters(MetricInterval.Monthly, SeriesSeasonality.Yearly), analyzer_func
+                    )
                     .run()
                 )
 
@@ -288,9 +259,11 @@ class TestAnomalies(unittest.TestCase):
 
             for x in range(14):
                 previousKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 1000 * 60 * x)
-                VerificationSuite(self.spark).onData(df_prev).useRepository(metricsRepository).saveOrAppendResult(
-                    previousKey
-                ).addAnomalyCheck(HoltWinters(MetricInterval.Daily, SeriesSeasonality.Weekly), analyzer_func).run()
+                VerificationSuite(self.spark).onData(df_prev).useRepository(
+                    metricsRepository
+                ).saveOrAppendResult(previousKey).addAnomalyCheck(
+                    HoltWinters(MetricInterval.Daily, SeriesSeasonality.Weekly), analyzer_func
+                ).run()
 
             currKey = ResultKey(self.spark, ResultKey.current_milli_time())
             currResult = (
@@ -330,24 +303,35 @@ class TestAnomalies(unittest.TestCase):
     def test_OnlineNormalStrategy(self):
 
         # Sees if table 1 and 2 are within range
-        self.assertEqual(self.OnlineNormalStrategy(self.df_1, self.df_2, Size()), [Row(check_status="Success")])
+        self.assertEqual(
+            self.OnlineNormalStrategy(self.df_1, self.df_2, Size()), [Row(check_status="Success")]
+        )
 
         # df 2 does not meet the requirement
         self.assertEqual(
-            self.OnlineNormalStrategy(self.df_3, self.df_2, Size(), lowerDeviationFactor=1.0, upperDeviationFactor=0.5),
-            [Row(check_status="Warning")],
-        )
-
-        # df 3 does not meet the requirement
-        self.assertEqual(
-            self.OnlineNormalStrategy(self.df_2, self.df_3, Size(), lowerDeviationFactor=0.5, upperDeviationFactor=1.0),
+            self.OnlineNormalStrategy(
+                self.df_3, self.df_2, Size(), lowerDeviationFactor=1.0, upperDeviationFactor=0.5
+            ),
             [Row(check_status="Warning")],
         )
 
         # df 3 does not meet the requirement
         self.assertEqual(
             self.OnlineNormalStrategy(
-                self.df_2, self.df_3, Size(), lowerDeviationFactor=0.5, upperDeviationFactor=1.0, ignoreAnomalies=False
+                self.df_2, self.df_3, Size(), lowerDeviationFactor=0.5, upperDeviationFactor=1.0
+            ),
+            [Row(check_status="Warning")],
+        )
+
+        # df 3 does not meet the requirement
+        self.assertEqual(
+            self.OnlineNormalStrategy(
+                self.df_2,
+                self.df_3,
+                Size(),
+                lowerDeviationFactor=0.5,
+                upperDeviationFactor=1.0,
+                ignoreAnomalies=False,
             ),
             [Row(check_status="Warning")],
         )
@@ -376,22 +360,26 @@ class TestAnomalies(unittest.TestCase):
     def test_SimpleThresholdStrategy(self):
         # Lower bound is 1 upper bound is 6 (Range: 1-6 rows)
         self.assertEqual(
-            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 6.0), [Row(check_status="Success")]
+            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 6.0),
+            [Row(check_status="Success")],
         )
 
         # Lower bound is 1.0 upper bound is 4.0 (df_2, does not meet requirement)
         self.assertEqual(
-            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 4.0), [Row(check_status="Warning")]
+            self.SimpleThresholdStrategy(self.df_1, self.df_2, Size(), 1.0, 4.0),
+            [Row(check_status="Warning")],
         )
 
         # Lower bound is 3.0 upper bound is 6.0 (df_1 does not meet requirement)
         self.assertEqual(
-            self.SimpleThresholdStrategy(self.df_2, self.df_1, Size(), 3.0, 6.0), [Row(check_status="Warning")]
+            self.SimpleThresholdStrategy(self.df_2, self.df_1, Size(), 3.0, 6.0),
+            [Row(check_status="Warning")],
         )
 
         # Test with another analyzer
         self.assertEqual(
-            self.SimpleThresholdStrategy(self.df_2, self.df_1, MinLength("c"), 2.0, 6.0), [Row(check_status="Success")]
+            self.SimpleThresholdStrategy(self.df_2, self.df_1, MinLength("c"), 2.0, 6.0),
+            [Row(check_status="Success")],
         )
 
     def test_AbsoluteChangeStrategy(self):
@@ -422,13 +410,17 @@ class TestAnomalies(unittest.TestCase):
         # MaxRateDecrease = -3.0, data should not decrease by more than .2x
         # MaxRateIncrease = 1.0, data should not increase by more than 1x
         self.assertEqual(
-            self.AbsoluteChangeStrategy(self.df_2, self.df_1, Size(), maxRateDecrease=-3.0, maxRateIncrease=1.0),
+            self.AbsoluteChangeStrategy(
+                self.df_2, self.df_1, Size(), maxRateDecrease=-3.0, maxRateIncrease=1.0
+            ),
             [Row(check_status="Success")],
         )
 
         # Test with another analyzer
         self.assertEqual(
-            self.AbsoluteChangeStrategy(self.df_2, self.df_1, MinLength("c"), maxRateDecrease=0.0, maxRateIncrease=4.0),
+            self.AbsoluteChangeStrategy(
+                self.df_2, self.df_1, MinLength("c"), maxRateDecrease=0.0, maxRateIncrease=4.0
+            ),
             [Row(check_status="Success")],
         )
 
@@ -462,7 +454,9 @@ class TestAnomalies(unittest.TestCase):
         # MaxRateDecrease = .2, data should not decrease by more than .2x
         # MaxRateIncrease = 1.0, data should not increase by more than 1x
         self.assertEqual(
-            self.RelativeRateOfChangeStrategy(self.df_2, self.df_1, Size(), maxRateDecrease=0.2, maxRateIncrease=1.0),
+            self.RelativeRateOfChangeStrategy(
+                self.df_2, self.df_1, Size(), maxRateDecrease=0.2, maxRateIncrease=1.0
+            ),
             [Row(check_status="Success")],
         )
 
@@ -488,42 +482,50 @@ class TestAnomalies(unittest.TestCase):
 
     def test_RelativeRateOfChangeStrategy(self):
         metricsRepository = InMemoryMetricsRepository(self.spark)
-        yesterdaysKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 60* 1000)
+        yesterdaysKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 60 * 1000)
 
-        self.df_yesterday = self.sc.parallelize([
-            Row(a=3, b=0, ),
-            Row(a=3, b=5, )]).toDF()
+        self.df_yesterday = self.sc.parallelize(
+            [
+                Row(a=3, b=0),
+                Row(a=3, b=5),
+            ]
+        ).toDF()
 
         # MaxRateIncrease = 2, data should not increase by more than 2x
-        _ = VerificationSuite(self.spark).onData(self.df_yesterday) \
-            .useRepository(metricsRepository) \
-            .saveOrAppendResult(yesterdaysKey) \
-            .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateIncrease=2.0), Size()) \
+        _ = (
+            VerificationSuite(self.spark)
+            .onData(self.df_yesterday)
+            .useRepository(metricsRepository)
+            .saveOrAppendResult(yesterdaysKey)
+            .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateIncrease=2.0), Size())
             .run()
+        )
 
         todaysKey = ResultKey(self.spark, ResultKey.current_milli_time())
 
         self.df_today = self.sc.parallelize(
             [
-                Row(a=3, b=0,),
-                Row(a=3, b=5,),
-                Row(a=100, b=5,),
-                Row(a=2, b=30,),
-                Row(a=10, b=5,),
+                Row(a=3, b=0),
+                Row(a=3, b=5),
+                Row(a=100, b=5),
+                Row(a=2, b=30),
+                Row(a=10, b=5),
             ]
         ).toDF()
 
-        currResult = VerificationSuite(self.spark).onData(self.df_today) \
-            .useRepository(metricsRepository) \
-            .saveOrAppendResult(todaysKey) \
-            .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateIncrease=2.0), Size()) \
+        currResult = (
+            VerificationSuite(self.spark)
+            .onData(self.df_today)
+            .useRepository(metricsRepository)
+            .saveOrAppendResult(todaysKey)
+            .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateIncrease=2.0), Size())
             .run()
+        )
 
         success_metrics_json = VerificationResult.successMetricsAsJson(self.spark, currResult)
         print(success_metrics_json)
         self.assertEqual(
-            success_metrics_json,
-            [{"entity": "Dataset", "instance": "*", "name": "Size", "value": 5.0}]
+            success_metrics_json, [{"entity": "Dataset", "instance": "*", "name": "Size", "value": 5.0}]
         )
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, currResult)
@@ -535,15 +537,17 @@ class TestAnomalies(unittest.TestCase):
                 Row(
                     check_status="Warning",
                     constraint_status="Failure",
-                    constraint_message="Value: 5.0 does not meet the constraint requirement!"
+                    constraint_message="Value: 5.0 does not meet the constraint requirement!",
                 )
-            ]
+            ],
         )
 
         self.assertEqual(currResult.status, "Warning")
         print("Anomaly detected in the Size() metric!")
         metrics_df = (
-            metricsRepository.load().forAnalyzers([Size()]).getSuccessMetricsAsDataFrame()
+            metricsRepository.load()
+            .forAnalyzers([Size()])
+            .getSuccessMetricsAsDataFrame()
             .sort("dataset_date")
         )
         metrics_df.show()
@@ -553,5 +557,5 @@ class TestAnomalies(unittest.TestCase):
             [
                 Row(entity="Dataset", name="Size", value=2.0),
                 Row(entity="Dataset", name="Size", value=5.0),
-            ]
+            ],
         )
