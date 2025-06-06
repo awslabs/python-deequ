@@ -4,10 +4,19 @@ import unittest
 import pytest
 from pyspark.sql import Row
 
-from pydeequ.analyzers import *
-from pydeequ.anomaly_detection import *
-from pydeequ.repository import *
-from pydeequ.verification import *
+from pydeequ.analyzers import MinLength, Size
+from pydeequ.anomaly_detection import (
+    AbsoluteChangeStrategy,
+    BatchNormalStrategy,
+    HoltWinters,
+    MetricInterval,
+    OnlineNormalStrategy,
+    RelativeRateOfChangeStrategy,
+    SeriesSeasonality,
+    SimpleThresholdStrategy,
+)
+from pydeequ.repository import InMemoryMetricsRepository, ResultKey
+from pydeequ.verification import VerificationResult, VerificationSuite
 from tests.conftest import setup_pyspark
 
 
@@ -299,10 +308,6 @@ class TestAnomalies(unittest.TestCase):
             print(df.collect())
             return df.select("check_status").collect()
 
-    # TODO - Failing bcoz of
-    # can not implement breeze.stats.DescriptiveStats, because it is not an interface
-    # (breeze.stats.DescriptiveStats is in unnamed module of loader 'app')
-    @pytest.mark.xfail(reason="TODO: breeze.stats.DescriptiveStats is in unnamed module of loader 'app'")
     def test_BatchNormalStrategy(self):
 
         # Interval is inclusive, so meet the requirements upper value is up to 9
@@ -360,12 +365,7 @@ class TestAnomalies(unittest.TestCase):
             [Row(check_status="Success")],
         )
 
-    # TODO - Fix in deequ - Failing bcoz of
-    # can not implement breeze.stats.DescriptiveStats, because it is not an interface
-    # (breeze.stats.DescriptiveStats is in unnamed module of loader 'app')
-    @pytest.mark.xfail(reason="TODO: breeze.stats.DescriptiveStats is in unnamed module of loader 'app'")
     def test_holtWinters(self):
-
         # must have 15 points of data
         self.assertEqual(self.HoltWinters(Size(), 1, self.df_1), [Row(check_status="Success")])
 
@@ -420,7 +420,7 @@ class TestAnomalies(unittest.TestCase):
         )
 
         # MaxRateDecrease = -3.0, data should not decrease by more than .2x
-        # MaxRateIncrease = 1.0, data should not decrease by more than 1x
+        # MaxRateIncrease = 1.0, data should not increase by more than 1x
         self.assertEqual(
             self.AbsoluteChangeStrategy(self.df_2, self.df_1, Size(), maxRateDecrease=-3.0, maxRateIncrease=1.0),
             [Row(check_status="Success")],
@@ -460,7 +460,7 @@ class TestAnomalies(unittest.TestCase):
         )
 
         # MaxRateDecrease = .2, data should not decrease by more than .2x
-        # MaxRateIncrease = 1.0, data should not decrease by more than 1x
+        # MaxRateIncrease = 1.0, data should not increase by more than 1x
         self.assertEqual(
             self.RelativeRateOfChangeStrategy(self.df_2, self.df_1, Size(), maxRateDecrease=0.2, maxRateIncrease=1.0),
             [Row(check_status="Success")],
@@ -473,57 +473,85 @@ class TestAnomalies(unittest.TestCase):
             [Row(check_status="Success")],
         )
 
-    # Todo: test anomaly detector
-    # Doesn't work in verification suite
+    # TODO: test anomaly detector
+    # Doesn"t work in verification suite
     def get_anomalyDetector(self, anomaly):
         anomaly._set_jvm(self._jvm)
         strategy_jvm = anomaly._anomaly_jvm
-
-        AnomalyDetector._set_jvm(self._jvm, strategy_jvm)
-        return AnomalyDetector._anomaly_jvm
+        raise NotImplementedError
+        # AnomalyDetector._set_jvm(self._jvm, strategy_jvm)
+        # return AnomalyDetector._anomaly_jvm
 
     @pytest.mark.skip("Not implemented yet!")
     def test_anomalyDetector(self):
         self.get_anomalyDetector(SimpleThresholdStrategy(1.0, 3.0))
 
-    #
-    # def test_RelativeRateOfChangeStrategy(self):
-    #     metricsRepository = InMemoryMetricsRepository(self.spark)
-    #     yesterdaysKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 60* 1000)
-    #
-    #     self.df_yesterday = self.sc.parallelize([
-    #         Row(a=3, b=0, ),
-    #         Row(a=3, b=5, )]).toDF()
-    #
-    #     # MaxRateIncrease = 2, data should not increase by more than 2x
-    #     prevResult = VerificationSuite(self.spark).onData(self.df_yesterday) \
-    #         .useRepository(metricsRepository) \
-    #         .saveOrAppendResult(yesterdaysKey) \
-    #         .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateIncrease=2.0), Size()) \
-    #         .run()
-    #
-    #     todaysKey = ResultKey(self.spark, ResultKey.current_milli_time())
-    #
-    #     self.df_today = self.sc.parallelize([
-    #         Row(a=3, b=0, ),
-    #         Row(a=3, b=5, ),
-    #         Row(a=100, b=5,),
-    #         Row(a=2, b=30, ),
-    #         Row(a=10, b=5)]).toDF()
-    #
-    #     currResult = VerificationSuite(self.spark).onData(self.df_today) \
-    #         .useRepository(metricsRepository) \
-    #         .saveOrAppendResult(todaysKey) \
-    #         .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateIncrease=2.0), Size()) \
-    #         .run()
-    #
-    #      print(VerificationResult.successMetricsAsJson(self.spark, currResult))
-    #
-    #     df = VerificationResult.checkResultsAsDataFrame(self.spark, currResult)
-    #
-    #     print(df.collect())
-    #     print(df.select('check_status').collect())
-    #
-    # if (currResult.status != "Success"):
-    #     print("Anomaly detected in the Size() metric!")
-    #     metricsRepository.load().forAnalyzers([Size()]).getSuccessMetricsAsDataFrame().show()
+    def test_RelativeRateOfChangeStrategy(self):
+        metricsRepository = InMemoryMetricsRepository(self.spark)
+        yesterdaysKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 60* 1000)
+
+        self.df_yesterday = self.sc.parallelize([
+            Row(a=3, b=0, ),
+            Row(a=3, b=5, )]).toDF()
+
+        # MaxRateIncrease = 2, data should not increase by more than 2x
+        _ = VerificationSuite(self.spark).onData(self.df_yesterday) \
+            .useRepository(metricsRepository) \
+            .saveOrAppendResult(yesterdaysKey) \
+            .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateIncrease=2.0), Size()) \
+            .run()
+
+        todaysKey = ResultKey(self.spark, ResultKey.current_milli_time())
+
+        self.df_today = self.sc.parallelize(
+            [
+                Row(a=3, b=0,),
+                Row(a=3, b=5,),
+                Row(a=100, b=5,),
+                Row(a=2, b=30,),
+                Row(a=10, b=5,),
+            ]
+        ).toDF()
+
+        currResult = VerificationSuite(self.spark).onData(self.df_today) \
+            .useRepository(metricsRepository) \
+            .saveOrAppendResult(todaysKey) \
+            .addAnomalyCheck(RelativeRateOfChangeStrategy(maxRateIncrease=2.0), Size()) \
+            .run()
+
+        success_metrics_json = VerificationResult.successMetricsAsJson(self.spark, currResult)
+        print(success_metrics_json)
+        self.assertEqual(
+            success_metrics_json,
+            [{"entity": "Dataset", "instance": "*", "name": "Size", "value": 5.0}]
+        )
+
+        df = VerificationResult.checkResultsAsDataFrame(self.spark, currResult)
+        df.show(truncate=False)
+        results = df.select("check_status", "constraint_status", "constraint_message").collect()
+        self.assertEqual(
+            results,
+            [
+                Row(
+                    check_status="Warning",
+                    constraint_status="Failure",
+                    constraint_message="Value: 5.0 does not meet the constraint requirement!"
+                )
+            ]
+        )
+
+        self.assertEqual(currResult.status, "Warning")
+        print("Anomaly detected in the Size() metric!")
+        metrics_df = (
+            metricsRepository.load().forAnalyzers([Size()]).getSuccessMetricsAsDataFrame()
+            .sort("dataset_date")
+        )
+        metrics_df.show()
+        metrics = metrics_df.select("entity", "name", "value").collect()
+        self.assertEqual(
+            metrics,
+            [
+                Row(entity="Dataset", name="Size", value=2.0),
+                Row(entity="Dataset", name="Size", value=5.0),
+            ]
+        )
