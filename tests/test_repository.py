@@ -18,7 +18,9 @@ class TestRepository(unittest.TestCase):
         cls.AnalysisRunner = AnalysisRunner(cls.spark)
         cls.VerificationSuite = VerificationSuite(cls.spark)
         cls.sc = cls.spark.sparkContext
-        cls.df = cls.sc.parallelize([Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="baz", b=3, c=None)]).toDF()
+        cls.df = cls.sc.parallelize(
+            [Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="baz", b=3, c=None)]
+        ).toDF()
 
     @classmethod
     def tearDownClass(cls):
@@ -121,12 +123,16 @@ class TestRepository(unittest.TestCase):
         )
 
         # TEST: Check JSON for tags
-        result_metrep_json = repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsJson()
+        result_metrep_json = (
+            repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsJson()
+        )
 
         print(result_metrep_json[0]["tag"], key_tags["tag"])
         self.assertEqual(result_metrep_json[0]["tag"], key_tags["tag"])
 
-        result_metrep = repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsDataFrame()
+        result_metrep = (
+            repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsDataFrame()
+        )
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         print(df.collect())
@@ -146,7 +152,9 @@ class TestRepository(unittest.TestCase):
         )
 
         # TEST: Check DF parity
-        result_metrep = repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsDataFrame()
+        result_metrep = (
+            repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsDataFrame()
+        )
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         print(df.collect())
@@ -243,12 +251,16 @@ class TestRepository(unittest.TestCase):
         )
 
         # TEST: Check JSON for tags
-        result_metrep_json = repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsJson()
+        result_metrep_json = (
+            repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsJson()
+        )
 
         print(result_metrep_json[0]["tag"], key_tags["tag"])
         self.assertEqual(result_metrep_json[0]["tag"], key_tags["tag"])
 
-        result_metrep = repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsDataFrame()
+        result_metrep = (
+            repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsDataFrame()
+        )
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         print(df.collect())
@@ -267,7 +279,9 @@ class TestRepository(unittest.TestCase):
         )
 
         # TEST: Check DF parity
-        result_metrep = repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsDataFrame()
+        result_metrep = (
+            repository.load().before(ResultKey.current_milli_time()).getSuccessMetricsAsDataFrame()
+        )
 
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
         print(df.collect())
@@ -291,7 +305,7 @@ class TestRepository(unittest.TestCase):
 
         self.assertIn(
             "Method saveOrAppendResult([class com.amazon.deequ.repository.ResultKey]) does not exist",
-            str(err.exception)
+            str(err.exception),
         )
 
     def test_fail_no_load(self):
@@ -318,6 +332,5 @@ class TestRepository(unittest.TestCase):
             )
 
         self.assertEqual(
-            "'FileSystemMetricsRepository' object has no attribute 'RepositoryLoader'",
-            str(err.exception)
+            "'FileSystemMetricsRepository' object has no attribute 'RepositoryLoader'", str(err.exception)
         )
