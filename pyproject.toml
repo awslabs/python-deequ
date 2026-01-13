@@ -28,27 +28,22 @@ classifiers = [
 
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4"
-numpy = ">=1.14.1"
-pandas = ">=0.23.0"
-pyspark = { version = ">=2.4.7, <3.3.0", optional = true }
+python = ">=3.9,<4"
+numpy = ">=1.23.0"
+pandas = ">=1.5.0"
+protobuf = ">=4.21.0"
+setuptools = ">=69.0.0"  # Required for Python 3.12+ (distutils removed)
+pyspark = {version = "3.5.0", extras = ["connect"]}
 
-[tool.poetry.dev-dependencies]
-pytest = "^6.2.4"
-pytest-cov = "^2.11.1"
-coverage = "^5.5"
-pytest-runner = "^5.3.0"
-black = "^21.5b1"
-flake8 = "^3.9.2"
-flake8-docstrings = "^1.6.0"
-pytest-flake8 = "^1.0.7"
-pre-commit = "^2.12.1"
-pytest-rerunfailures = "^9.1.1"
-twine = "^3.4.1"
-safety = "^1.10.3"
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^4.1.0"
+coverage = "^7.4.0"
+black = "^24.0.0"
+pre-commit = "^3.6.0"
+pytest-rerunfailures = "^14.0"
 
 [tool.poetry.extras]
-pyspark = ["pyspark"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

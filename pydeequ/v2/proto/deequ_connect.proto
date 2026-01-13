@@ -96,13 +96,14 @@ message ConstraintMessage {
 // Predicate for numeric assertions
 message PredicateMessage {
   enum Operator {
-    EQ = 0;       // ==
-    NE = 1;       // !=
-    GT = 2;       // >
-    GE = 3;       // >=
-    LT = 4;       // <
-    LE = 5;       // <=
-    BETWEEN = 6;  // lower <= x <= upper
+    UNSPECIFIED = 0;  // Default/unset - used to detect "no predicate" vs "EQ 0.0"
+    EQ = 1;           // ==
+    NE = 2;           // !=
+    GT = 3;           // >
+    GE = 4;           // >=
+    LT = 5;           // <
+    LE = 6;           // <=
+    BETWEEN = 7;      // lower <= x <= upper
   }
 
   Operator operator = 1;

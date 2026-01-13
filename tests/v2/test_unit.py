@@ -23,34 +23,39 @@ from pydeequ.v2 import (
     gte,
     is_one,
 )
-
-
 class TestPredicates(unittest.TestCase):
-    """Test predicate serialization."""
+    """Test predicate serialization.
+
+    These tests use hardcoded numeric values for operator enums to detect
+    proto sync issues between deequ (source of truth) and python-deequ.
+
+    Expected values from deequ_connect.proto:
+        UNSPECIFIED = 0, EQ = 1, NE = 2, GT = 3, GE = 4, LT = 5, LE = 6, BETWEEN = 7
+    """
 
     def test_eq_predicate(self):
         p = eq(100)
         proto = p.to_proto()
-        self.assertEqual(proto.operator, 0)  # EQ
+        self.assertEqual(proto.operator, 1)  # EQ
         self.assertEqual(proto.value, 100.0)
 
     def test_gte_predicate(self):
         p = gte(0.95)
         proto = p.to_proto()
-        self.assertEqual(proto.operator, 3)  # GE
+        self.assertEqual(proto.operator, 4)  # GE
         self.assertEqual(proto.value, 0.95)
 
     def test_between_predicate(self):
         p = between(10, 20)
         proto = p.to_proto()
-        self.assertEqual(proto.operator, 6)  # BETWEEN
+        self.assertEqual(proto.operator, 7)  # BETWEEN
         self.assertEqual(proto.lower_bound, 10.0)
         self.assertEqual(proto.upper_bound, 20.0)
 
     def test_is_one_predicate(self):
         p = is_one()
         proto = p.to_proto()
-        self.assertEqual(proto.operator, 0)  # EQ
+        self.assertEqual(proto.operator, 1)  # EQ
         self.assertEqual(proto.value, 1.0)
 
 
