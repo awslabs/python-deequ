@@ -106,8 +106,10 @@ ps aux | grep SparkConnectServer
 
 ### Step 4: Install PyDeequ 2.0
 
+Install the beta wheel directly from the GitHub release:
+
 ```bash
-pip install pydeequ==2.0.0b1
+pip install https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/pydeequ-2.0.0b1-py3-none-any.whl
 pip install pyspark[connect]==3.5.0
 ```
 
