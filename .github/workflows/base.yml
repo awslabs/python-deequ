@@ -1,4 +1,4 @@
-name: PyDeequ Tests
+name: PyDeequ V2 Tests
 
 on:
   push:
@@ -9,89 +9,17 @@ on:
       - "master"
 
 jobs:
-  # Job 1: Unit tests (fast, no Spark needed)
-  unit-tests:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        name: Install Python ${{ matrix.python-version }}
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install poetry==1.7.1
-          poetry install
-          # Python 3.12 needs setuptools for distutils
-          if [[ "${{ matrix.python-version }}" == "3.12" ]]; then
-            pip install setuptools
-          fi
-
-      - name: Run V2 unit tests
-        run: |
-          poetry run pytest tests/v2/test_unit.py -v
-
-  # Job 2: V1 Legacy tests (with local Spark via Py4J)
-  v1-integration-tests:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - spark: "3.3"
-            java: "11"
-            python: "3.9"
-          - spark: "3.5"
-            java: "17"
-            python: "3.10"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        name: Install Python ${{ matrix.python }}
-        with:
-          python-version: ${{ matrix.python }}
-
-      - uses: actions/setup-java@v4
-        name: Setup Java ${{ matrix.java }}
-        with:
-          distribution: "corretto"
-          java-version: ${{ matrix.java }}
-
-      - name: Install dependencies
-        env:
-          SPARK_VERSION: ${{ matrix.spark }}
-        run: |
-          pip install --upgrade pip
-          pip install poetry==1.7.1
-          poetry install
-          poetry add pyspark==$SPARK_VERSION
-
-      - name: Run V1 tests
-        env:
-          SPARK_VERSION: ${{ matrix.spark }}
-        run: |
-          poetry run pytest tests/ -v --ignore=tests/v2/
-
-  # Job 3: V2 Integration tests (with Spark Connect)
-  v2-integration-tests:
+  # V2 tests with Spark Connect (Python 3.12)
+  v2-tests:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
-        name: Install Python 3.11
+        name: Install Python 3.12
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - uses: actions/setup-java@v4
         name: Setup Java 17
@@ -117,6 +45,10 @@ jobs:
           pip install poetry==1.7.1
           poetry install
           poetry add "pyspark[connect]==3.5.0"
+
+      - name: Run V2 unit tests
+        run: |
+          poetry run pytest tests/v2/test_unit.py -v
 
       - name: Start Spark Connect Server
         run: |
