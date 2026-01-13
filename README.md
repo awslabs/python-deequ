@@ -52,7 +52,7 @@ flowchart LR
 
 - Python 3.9+
 - Apache Spark 3.5.0+
-- Java 17+
+- Java 17 (Java 21+ has known compatibility issues with Spark 3.5)
 
 ### Step 1: Download Deequ Pre-release JAR
 
@@ -111,6 +111,9 @@ Install the beta wheel directly from the GitHub release:
 ```bash
 pip install https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/pydeequ-2.0.0b1-py3-none-any.whl
 pip install pyspark[connect]==3.5.0
+
+# Python 3.12+ users: install setuptools (provides distutils removed in 3.12)
+pip install setuptools
 ```
 
 ### Step 5: Run Your First Check
@@ -255,7 +258,7 @@ check.hasCompleteness("col", gte(0.9))
 ## PyDeequ 2.0 Troubleshooting
 
 ### Server won't start
-1. Check Java version: `java -version` (should be Java 17+)
+1. Check Java version: `java -version` (must be Java 17, not 21+)
 2. Check port availability: `lsof -i :15002`
 3. Check logs: `tail -f $SPARK_HOME/logs/spark-*-SparkConnectServer-*.out`
 
@@ -267,6 +270,18 @@ ps aux | grep SparkConnectServer
 
 ### ClassNotFoundException: DeequRelationPlugin
 Ensure the Deequ JAR is correctly specified in `--jars` when starting the server.
+
+### UnsupportedOperationException: sun.misc.Unsafe not available
+This error occurs when using Java 21+ with Spark 3.5. Use Java 17 instead:
+```bash
+export JAVA_HOME=/path/to/java17
+```
+
+### ModuleNotFoundError: No module named 'distutils'
+This occurs on Python 3.12+ because `distutils` was removed. Install setuptools:
+```bash
+pip install setuptools
+```
 
 ---
 
