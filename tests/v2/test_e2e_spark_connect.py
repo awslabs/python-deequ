@@ -22,7 +22,7 @@ protocol with the DeequRelationPlugin on the server side.
 import os
 
 import pytest
-from pyspark.sql import Row, SparkSession
+from pyspark.sql import Row
 
 from pydeequ.v2.analyzers import (
     Completeness,
@@ -49,29 +49,20 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.fixture(scope="module")
-def spark():
-    """Create a Spark Connect session."""
-    remote_url = os.environ.get("SPARK_REMOTE", "sc://localhost:15002")
-
-    session = SparkSession.builder.remote(remote_url).getOrCreate()
-
-    yield session
-
-    session.stop()
+# Note: spark fixture is defined in conftest.py (session-scoped)
 
 
 @pytest.fixture(scope="module")
-def sample_df(spark):
-    """Create a sample DataFrame for testing."""
-    data = [
-        Row(id=1, name="Alice", email="alice@example.com", age=30, score=85.5),
-        Row(id=2, name="Bob", email="bob@example.com", age=25, score=92.0),
-        Row(id=3, name="Charlie", email=None, age=35, score=78.5),
-        Row(id=4, name="Diana", email="diana@example.com", age=28, score=95.0),
-        Row(id=5, name="Eve", email="eve@example.com", age=None, score=88.0),
-    ]
-    return spark.createDataFrame(data)
+def sample_df(e2e_df):
+    """
+    Alias for e2e_df from conftest.py.
+
+    Schema: id (int), name (string), email (string), age (int), score (double)
+    - 5 rows total
+    - email has 1 null (80% complete)
+    - age has 1 null (80% complete)
+    """
+    return e2e_df
 
 
 class TestVerificationSuiteE2E:

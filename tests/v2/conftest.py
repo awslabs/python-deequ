@@ -10,7 +10,12 @@ Start server with:
     $SPARK_HOME/sbin/start-connect-server.sh \
         --jars /path/to/deequ-2.0.9-spark-3.5.jar \
         --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
+
+Run tests with:
+    SPARK_REMOTE=sc://localhost:15002 pytest tests/v2/ -v
 """
+
+import os
 
 import pytest
 from pyspark.sql import Row, SparkSession
@@ -21,7 +26,8 @@ def spark():
     Session-scoped Spark Connect session.
     Shared across all tests for efficiency.
     """
-    session = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
+    remote_url = os.environ.get("SPARK_REMOTE", "sc://localhost:15002")
+    session = SparkSession.builder.remote(remote_url).getOrCreate()
     yield session
     session.stop()
 

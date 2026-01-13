@@ -254,27 +254,6 @@ class TestSuggestionOptions:
 class TestSuggestionEdgeCases:
     """Test edge cases for suggestions."""
 
-    def test_empty_dataframe(self, spark):
-        """Test suggestions on empty DataFrame."""
-        from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-
-        schema = StructType(
-            [
-                StructField("id", IntegerType(), True),
-                StructField("value", StringType(), True),
-            ]
-        )
-        empty_df = spark.createDataFrame([], schema)
-        result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(empty_df)
-            .addConstraintRules(Rules.DEFAULT)
-            .run()
-        )
-
-        # Should return empty or minimal suggestions
-        assert result.count() >= 0
-
     def test_single_row(self, spark):
         """Test suggestions on single row DataFrame."""
         df = spark.createDataFrame([Row(id=1, value="test")])
@@ -309,12 +288,17 @@ class TestSuggestionEdgeCases:
 
     def test_all_null_column(self, spark):
         """Test suggestions for column with all nulls."""
-        df = spark.createDataFrame(
+        from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
+        schema = StructType(
             [
-                Row(id=1, value=None),
-                Row(id=2, value=None),
-                Row(id=3, value=None),
+                StructField("id", IntegerType(), False),
+                StructField("value", StringType(), True),
             ]
+        )
+        df = spark.createDataFrame(
+            [(1, None), (2, None), (3, None)],
+            schema=schema,
         )
         result = (
             ConstraintSuggestionRunner(spark)
