@@ -1,44 +1,287 @@
 # PyDeequ
 
-PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets. PyDeequ is written to support usage of Deequ in Python.
+PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![Coverage](https://img.shields.io/badge/coverage-90%25-green)
 
-There are 4 main components of Deequ, and they are:
-- Metrics Computation:
-    - `Profiles` leverages Analyzers to analyze each column of a dataset.
-    - `Analyzers` serve here as a foundational module that computes metrics for data profiling and validation at scale.
-- Constraint Suggestion:
-    - Specify rules for various groups of Analyzers to be run over a dataset to return back a collection of constraints suggested to run in a Verification Suite.
-- Constraint Verification:
-    - Perform data validation on a dataset with respect to various constraints set by you.   
-- Metrics Repository
-    - Allows for persistence and tracking of Deequ runs over time.
+## What's New in PyDeequ 2.0
 
-![](imgs/pydeequ_architecture.jpg)
+PyDeequ 2.0 introduces a new architecture using **Spark Connect**, bringing significant improvements:
 
-## 🎉 Announcements 🎉
-- **NEW!!!** The 1.4.0 release of Python Deequ has been published to PYPI https://pypi.org/project/pydeequ/. This release adds support for Spark 3.5.0.
-- The latest version of Deequ, 2.0.7, is made available With Python Deequ 1.3.0.
-- 1.1.0 release of Python Deequ has been published to PYPI https://pypi.org/project/pydeequ/. This release brings many recent upgrades including support up to Spark 3.3.0! Any feedbacks are welcome through github issues.
-- With PyDeequ v0.1.8+, we now officially support Spark3 ! Just make sure you have an environment variable `SPARK_VERSION` to specify your Spark version! 
-- We've release a blogpost on integrating PyDeequ onto AWS leveraging services such as AWS Glue, Athena, and SageMaker! Check it out: [Monitor data quality in your data lake using PyDeequ and AWS Glue](https://aws.amazon.com/blogs/big-data/monitor-data-quality-in-your-data-lake-using-pydeequ-and-aws-glue/).
-- Check out the [PyDeequ Release Announcement Blogpost](https://aws.amazon.com/blogs/big-data/testing-data-quality-at-scale-with-pydeequ/) with a tutorial walkthrough the Amazon Reviews dataset!
-- Join the PyDeequ community on [PyDeequ Slack](https://join.slack.com/t/pydeequ/shared_invite/zt-te6bntpu-yaqPy7bhiN8Lu0NxpZs47Q) to chat with the devs!
+| Feature | PyDeequ 1.x | PyDeequ 2.0 |
+|---------|-------------|-------------|
+| Communication | Py4J (JVM bridge) | Spark Connect (gRPC) |
+| Assertions | Python lambdas | Serializable predicates |
+| Spark Session | Local only | Local or Remote |
+| Architecture | Tight JVM coupling | Clean client-server |
 
-## Quickstart
+**Key Benefits:**
+- **No Py4J dependency** - Uses Spark Connect protocol for communication
+- **Serializable predicates** - Replace Python lambdas with predicate objects (`eq`, `gte`, `between`, etc.)
+- **Remote execution** - Connect to remote Spark clusters via Spark Connect
+- **Cleaner API** - Simplified imports and more Pythonic interface
 
-The following will quickstart you with some basic usage. For more in-depth examples, take a look in the [`tutorials/`](tutorials/) directory for executable Jupyter notebooks of each module. For documentation on supported interfaces, view the [`documentation`](https://pydeequ.readthedocs.io/).
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph CLIENT["Python Client"]
+        A["Python Code"] --> B["Protobuf<br/>Serialization"]
+    end
+    B -- gRPC --> C["Spark Connect (gRPC)"]
+    subgraph SERVER["Spark Connect Server"]
+        D["DeequRelationPlugin"] --> E["Deequ Core"] --> F["Spark DataFrame API"] --> G["(Data)"]
+    end
+    G --> H["Results"] -- gRPC --> I["Python DataFrame"]
+    %% Styling for compactness and distinction
+    classDef code fill:#C8F2FB,stroke:#35a7c2,color:#13505B,font-weight:bold;
+    class A code;
+```
+
+**How it works:**
+1. **Client Side**: PyDeequ 2.0 builds checks and analyzers as Protobuf messages
+2. **Transport**: Messages are sent via gRPC to the Spark Connect server
+3. **Server Side**: The `DeequRelationPlugin` deserializes messages and executes Deequ operations
+4. **Results**: Verification results are returned as a Spark DataFrame
+
+---
+
+## PyDeequ 2.0 Beta - Quick Start
+
+### Requirements
+
+- Python 3.9+
+- Apache Spark 3.5.0+
+- Java 17+
+
+### Step 1: Download Deequ Pre-release JAR
+
+Download the pre-compiled Deequ JAR with Spark Connect support from the [GitHub pre-releases](https://github.com/awslabs/python-deequ/releases):
+
+```bash
+mkdir -p ~/deequ-beta && cd ~/deequ-beta
+
+curl -L -o deequ-2.1.0b-spark-3.5.jar \
+  https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ-2.1.0b-spark-3.5.jar
+```
+
+### Step 2: Set Up Spark (if needed)
+
+Optional, should only be needed for quick local testing. 
+```bash
+# Download Spark 3.5
+curl -L -o spark-3.5.0-bin-hadoop3.tgz \
+  https://archive.apache.org/dist/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz
+
+tar -xzf spark-3.5.0-bin-hadoop3.tgz
+
+export SPARK_HOME=~/deequ-beta/spark-3.5.0-bin-hadoop3
+export PATH=$SPARK_HOME/bin:$PATH
+```
+
+### Step 3: Start Spark Connect Server
+
+Spark Connect is a client-server architecture introduced in Spark 3.4 that allows remote connectivity to Spark clusters. For more details, see the [Spark Connect Overview](https://spark.apache.org/docs/latest/spark-connect-overview.html).
+
+```bash
+export JAVA_HOME=/path/to/java17
+
+$SPARK_HOME/sbin/start-connect-server.sh \
+  --packages org.apache.spark:spark-connect_2.12:3.5.0 \
+  --jars ~/deequ-beta/deequ-2.1.0b-spark-3.5.jar \
+  --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
+```
+
+**Command explanation:**
+| Option | Description |
+|--------|-------------|
+| `--packages` | Downloads the Spark Connect package from Maven |
+| `--jars` | Loads the Deequ JAR with Spark Connect support |
+| `--conf spark.connect.extensions.relation.classes` | Registers the Deequ plugin to handle custom operations |
+
+The server starts on `localhost:15002` by default. You can verify it's running:
+```bash
+ps aux | grep SparkConnectServer
+```
+
+### Step 4: Install PyDeequ 2.0
+
+```bash
+pip install pydeequ==2.0.0b1
+pip install pyspark[connect]==3.5.0
+```
+
+### Step 5: Run Your First Check
+
+```python
+from pyspark.sql import SparkSession, Row
+from pydeequ.v2.checks import Check, CheckLevel
+from pydeequ.v2.verification import VerificationSuite
+from pydeequ.v2.predicates import eq, gte
+
+# Connect to Spark Connect server
+spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
+
+# Create sample data
+df = spark.createDataFrame([
+    Row(id=1, name="Alice", age=25),
+    Row(id=2, name="Bob", age=30),
+    Row(id=3, name="Charlie", age=None),
+])
+
+# Define checks using the new predicate API
+check = (Check(CheckLevel.Error, "Data quality checks")
+    .hasSize(eq(3))
+    .isComplete("id")
+    .isComplete("name")
+    .hasCompleteness("age", gte(0.5))
+    .isUnique("id"))
+
+# Run verification
+result = (VerificationSuite(spark)
+    .onData(df)
+    .addCheck(check)
+    .run())
+
+result.show(truncate=False)
+spark.stop()
+```
+
+### Stop the Server
+
+```bash
+$SPARK_HOME/sbin/stop-connect-server.sh
+```
+
+---
+
+## PyDeequ 2.0 API Reference
+
+### Predicates (replace lambdas)
+
+```python
+from pydeequ.v2.predicates import eq, gt, gte, lt, lte, between
+
+check.hasSize(eq(3))              # size == 3
+check.hasCompleteness("col", gte(0.9))  # completeness >= 0.9
+check.hasMean("value", between(10, 20)) # 10 <= mean <= 20
+```
+
+| Predicate | Description | Example |
+|-----------|-------------|---------|
+| `eq(v)` | Equal to v | `eq(1.0)` |
+| `gt(v)` | Greater than v | `gt(0)` |
+| `gte(v)` | Greater than or equal | `gte(0.9)` |
+| `lt(v)` | Less than v | `lt(100)` |
+| `lte(v)` | Less than or equal | `lte(1.0)` |
+| `between(a, b)` | Between a and b (inclusive) | `between(0, 1)` |
+
+### Analyzers
+
+```python
+from pydeequ.v2.verification import AnalysisRunner
+from pydeequ.v2.analyzers import (
+    Size, Completeness, Mean, Sum, Minimum, Maximum,
+    StandardDeviation, ApproxCountDistinct, Distinctness,
+    Uniqueness, Entropy, Correlation
+)
+
+result = (AnalysisRunner(spark)
+    .onData(df)
+    .addAnalyzer(Size())
+    .addAnalyzer(Completeness("name"))
+    .addAnalyzer(Mean("age"))
+    .run())
+
+result.show()
+```
+
+### Constraint Methods
+
+| Method | Description |
+|--------|-------------|
+| `hasSize(predicate)` | Check total row count |
+| `isComplete(column)` | Check column has no nulls |
+| `hasCompleteness(column, predicate)` | Check completeness ratio |
+| `areComplete(columns)` | Check multiple columns have no nulls |
+| `isUnique(column)` | Check column values are unique |
+| `hasUniqueness(columns, predicate)` | Check uniqueness ratio |
+| `hasDistinctness(columns, predicate)` | Check distinctness ratio |
+| `hasMin(column, predicate)` | Check minimum value |
+| `hasMax(column, predicate)` | Check maximum value |
+| `hasMean(column, predicate)` | Check mean value |
+| `hasSum(column, predicate)` | Check sum |
+| `hasStandardDeviation(column, predicate)` | Check standard deviation |
+| `hasApproxCountDistinct(column, predicate)` | Check approximate distinct count |
+| `hasCorrelation(col1, col2, predicate)` | Check correlation between columns |
+| `hasEntropy(column, predicate)` | Check entropy |
+| `hasApproxQuantile(column, quantile, predicate)` | Check approximate quantile |
+| `satisfies(expression, name, predicate)` | Custom SQL expression |
+| `hasPattern(column, pattern, predicate)` | Check regex pattern match ratio |
+| `containsEmail(column, predicate)` | Check email format ratio |
+| `containsCreditCardNumber(column, predicate)` | Check credit card format ratio |
+| `isNonNegative(column)` | Check all values >= 0 |
+| `isPositive(column)` | Check all values > 0 |
+
+### Migration from 1.x to 2.0
+
+**Import changes:**
+```python
+# Before (1.x)
+from pydeequ.checks import Check, CheckLevel
+from pydeequ.verification import VerificationSuite
+
+# After (2.0)
+from pydeequ.v2.checks import Check, CheckLevel
+from pydeequ.v2.verification import VerificationSuite
+from pydeequ.v2.predicates import eq, gte, between
+```
+
+**Lambda to predicate:**
+```python
+# Before (1.x)
+check.hasSize(lambda x: x == 3)
+check.hasCompleteness("col", lambda x: x >= 0.9)
+
+# After (2.0)
+check.hasSize(eq(3))
+check.hasCompleteness("col", gte(0.9))
+```
+
+---
+
+## PyDeequ 2.0 Troubleshooting
+
+### Server won't start
+1. Check Java version: `java -version` (should be Java 17+)
+2. Check port availability: `lsof -i :15002`
+3. Check logs: `tail -f $SPARK_HOME/logs/spark-*-SparkConnectServer-*.out`
+
+### Connection refused
+Ensure the Spark Connect server is running:
+```bash
+ps aux | grep SparkConnectServer
+```
+
+### ClassNotFoundException: DeequRelationPlugin
+Ensure the Deequ JAR is correctly specified in `--jars` when starting the server.
+
+---
+
+## PyDeequ 1.x (Legacy)
+
+The legacy PyDeequ API uses Py4J for JVM communication. It is still available for backward compatibility.
 
 ### Installation
 
-You can install [PyDeequ via pip](https://pypi.org/project/pydeequ/).
-
-```
+```bash
 pip install pydeequ
 ```
 
-### Set up a PySpark session
+**Note:** Set the `SPARK_VERSION` environment variable to match your Spark version.
+
+### Quick Start (1.x)
+
 ```python
 from pyspark.sql import SparkSession, Row
 import pydeequ
@@ -50,54 +293,28 @@ spark = (SparkSession
     .getOrCreate())
 
 df = spark.sparkContext.parallelize([
-            Row(a="foo", b=1, c=5),
-            Row(a="bar", b=2, c=6),
-            Row(a="baz", b=3, c=None)]).toDF()
+    Row(a="foo", b=1, c=5),
+    Row(a="bar", b=2, c=6),
+    Row(a="baz", b=3, c=None)
+]).toDF()
 ```
 
-### Analyzers
+### Analyzers (1.x)
 
 ```python
 from pydeequ.analyzers import *
 
 analysisResult = AnalysisRunner(spark) \
-                    .onData(df) \
-                    .addAnalyzer(Size()) \
-                    .addAnalyzer(Completeness("b")) \
-                    .run()
+    .onData(df) \
+    .addAnalyzer(Size()) \
+    .addAnalyzer(Completeness("b")) \
+    .run()
 
 analysisResult_df = AnalyzerContext.successMetricsAsDataFrame(spark, analysisResult)
 analysisResult_df.show()
 ```
 
-### Profile
-
-```python
-from pydeequ.profiles import *
-
-result = ColumnProfilerRunner(spark) \
-    .onData(df) \
-    .run()
-
-for col, profile in result.profiles.items():
-    print(profile)
-```
-
-### Constraint Suggestions
-
-```python
-from pydeequ.suggestions import *
-
-suggestionResult = ConstraintSuggestionRunner(spark) \
-             .onData(df) \
-             .addConstraintRule(DEFAULT()) \
-             .run()
-
-# Constraint Suggestions in JSON format
-print(suggestionResult)
-```
-
-### Constraint Verification
+### Constraint Verification (1.x)
 
 ```python
 from pydeequ.checks import *
@@ -110,8 +327,8 @@ checkResult = VerificationSuite(spark) \
     .addCheck(
         check.hasSize(lambda x: x >= 3) \
         .hasMin("b", lambda x: x == 0) \
-        .isComplete("c")  \
-        .isUnique("a")  \
+        .isComplete("c") \
+        .isUnique("a") \
         .isContainedIn("a", ["foo", "bar", "baz"]) \
         .isNonNegative("b")) \
     .run()
@@ -120,9 +337,34 @@ checkResult_df = VerificationResult.checkResultsAsDataFrame(spark, checkResult)
 checkResult_df.show()
 ```
 
-### Repository
+### Profile (1.x)
 
-Save to a Metrics Repository by adding the `useRepository()` and `saveOrAppendResult()` calls to your Analysis Runner.
+```python
+from pydeequ.profiles import *
+
+result = ColumnProfilerRunner(spark) \
+    .onData(df) \
+    .run()
+
+for col, profile in result.profiles.items():
+    print(profile)
+```
+
+### Constraint Suggestions (1.x)
+
+```python
+from pydeequ.suggestions import *
+
+suggestionResult = ConstraintSuggestionRunner(spark) \
+    .onData(df) \
+    .addConstraintRule(DEFAULT()) \
+    .run()
+
+print(suggestionResult)
+```
+
+### Repository (1.x)
+
 ```python
 from pydeequ.repository import *
 from pydeequ.analyzers import *
@@ -140,120 +382,107 @@ analysisResult = AnalysisRunner(spark) \
     .run()
 ```
 
-To load previous runs, use the `repository` object to load previous results back in.
-
-```python
-result_metrep_df = repository.load() \
-    .before(ResultKey.current_milli_time()) \
-    .forAnalyzers([ApproxCountDistinct('b')]) \
-    .getSuccessMetricsAsDataFrame()
-```
-
-### Wrapping up
-
-After you've ran your jobs with PyDeequ, be sure to shut down your Spark session to prevent any hanging processes. 
+### Wrapping Up (1.x)
 
 ```python
 spark.sparkContext._gateway.shutdown_callback_server()
 spark.stop()
 ```
 
-## [Contributing](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md)
+---
+
+## Deequ Components
+
+There are 4 main components of Deequ:
+
+- **Metrics Computation**
+    - `Profiles` leverages Analyzers to analyze each column of a dataset.
+    - `Analyzers` compute metrics for data profiling and validation at scale.
+- **Constraint Suggestion**
+    - Specify rules for Analyzers to return suggested constraints.
+- **Constraint Verification**
+    - Validate data against constraints you define.
+- **Metrics Repository**
+    - Persist and track Deequ runs over time.
+
+![](imgs/pydeequ_architecture.jpg)
+
+---
+
+## Feedback and Issues
+
+Please report any issues or feedback to:
+- GitHub Issues: https://github.com/awslabs/deequ/issues
+- Tag PyDeequ 2.0 issues with `pydeequ-2.0`
+
+When reporting issues, include:
+1. Python version
+2. Spark version
+3. Java version
+4. Operating system
+5. Full error message and stack trace
+6. Minimal code to reproduce
+
+---
+
+## Contributing
+
 Please refer to the [contributing doc](https://github.com/awslabs/python-deequ/blob/master/CONTRIBUTING.md) for how to contribute to PyDeequ.
 
-## [License](https://github.com/awslabs/python-deequ/blob/master/LICENSE)
+## License
 
 This library is licensed under the Apache 2.0 License.
 
-******
+---
 
-## Contributing Developer Setup
+## Developer Setup
 
 1. Setup [SDKMAN](#setup-sdkman)
-1. Setup [Java](#setup-java)
-1. Setup [Apache Spark](#setup-apache-spark)
-1. Install [Poetry](#poetry)
-1. Run [tests locally](#running-tests-locally)
+2. Setup [Java](#setup-java)
+3. Setup [Apache Spark](#setup-apache-spark)
+4. Install [Poetry](#poetry)
+5. Run [tests locally](#running-tests-locally)
 
 ### Setup SDKMAN
 
-SDKMAN is a tool for managing parallel Versions of multiple Software Development Kits on any Unix based
-system. It provides a convenient command line interface for installing, switching, removing and listing
-Candidates. SDKMAN! installs smoothly on Mac OSX, Linux, WSL, Cygwin, etc... Support Bash and ZSH shells. See
-documentation on the [SDKMAN! website](https://sdkman.io).
-
-Open your favourite terminal and enter the following:
-
 ```bash
-$ curl -s https://get.sdkman.io | bash
-If the environment needs tweaking for SDKMAN to be installed,
-the installer will prompt you accordingly and ask you to restart.
-
-Next, open a new terminal or enter:
-
-$ source "$HOME/.sdkman/bin/sdkman-init.sh"
-
-Lastly, run the following code snippet to ensure that installation succeeded:
-
-$ sdk version
+curl -s https://get.sdkman.io | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+sdk version
 ```
 
 ### Setup Java
 
-Install Java Now open favourite terminal and enter the following:
-
 ```bash
-List the AdoptOpenJDK OpenJDK versions
-$ sdk list java
-
-To install For Java 11
-$ sdk install java 11.0.10.hs-adpt
-
-To install For Java 11
-$ sdk install java 8.0.292.hs-adpt
+sdk list java
+sdk install java 17.0.9-amzn  # For PyDeequ 2.0
+sdk install java 11.0.10.hs-adpt  # For PyDeequ 1.x
 ```
 
 ### Setup Apache Spark
 
-Install Java Now open favourite terminal and enter the following:
-
 ```bash
-List the Apache Spark versions:
-$ sdk list spark
-
-To install For Spark 3
-$ sdk install spark 3.0.2
+sdk list spark
+sdk install spark 3.5.0
 ```
 
 ### Poetry
 
-Poetry [Commands](https://python-poetry.org/docs/cli/#search)
-
 ```bash
 poetry install
-
 poetry update
-
-# --tree: List the dependencies as a tree.
-# --latest (-l): Show the latest version.
-# --outdated (-o): Show the latest version but only for packages that are outdated.
 poetry show -o
 ```
 
-## Running Tests Locally
-
-Take a look at tests in `tests/dataquality` and `tests/jobs`
+### Running Tests Locally
 
 ```bash
-$ poetry run pytest
+poetry run pytest
 ```
 
-## Running Tests Locally (Docker)
+### Running Tests (Docker)
 
-If you have issues installing the dependencies listed above, another way to run the tests and verify your changes is through Docker. There is a Dockerfile that will install the required dependencies and run the tests in a container.
-
+```bash
+docker build . -t spark-3.5-docker-test
+docker run spark-3.5-docker-test
 ```
-docker build . -t spark-3.3-docker-test
-docker run spark-3.3-docker-test
-```
-
