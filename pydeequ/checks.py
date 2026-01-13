@@ -6,7 +6,6 @@ from pyspark.sql import SparkSession
 
 from pydeequ.check_functions import is_one
 from pydeequ.scala_utils import ScalaFunction1, to_scala_seq
-from pydeequ.configs import SPARK_VERSION
 
 # TODO implement custom assertions
 # TODO implement all methods without outside class dependencies
