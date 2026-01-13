@@ -35,35 +35,10 @@ from typing import TYPE_CHECKING, Dict, Optional, Sequence
 from google.protobuf import any_pb2
 
 from pydeequ.v2.proto import deequ_connect_pb2 as proto
+from pydeequ.v2.spark_helpers import create_deequ_plan, dataframe_from_plan
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
-
-
-def _create_deequ_plan(extension: any_pb2.Any):
-    """
-    Create a LogicalPlan subclass for Deequ that properly integrates with PySpark.
-    """
-    import pyspark.sql.connect.proto as spark_proto
-    from pyspark.sql.connect.plan import LogicalPlan
-
-    class _DeequExtensionPlan(LogicalPlan):
-        """Custom LogicalPlan for Deequ profiler operations."""
-
-        def __init__(self, ext: any_pb2.Any):
-            super().__init__(child=None)
-            self._extension = ext
-
-        def plan(self, session) -> spark_proto.Relation:
-            """Return the Relation proto for this plan."""
-            rel = self._create_proto_relation()
-            rel.extension.CopyFrom(self._extension)
-            return rel
-
-        def __repr__(self) -> str:
-            return "DeequProfilerPlan"
-
-    return _DeequExtensionPlan(extension)
 
 
 @dataclass
@@ -284,8 +259,6 @@ class ColumnProfilerRunBuilder:
         self, msg: proto.DeequColumnProfilerRelation
     ) -> "DataFrame":
         """Execute profiling via Spark Connect plugin."""
-        from pyspark.sql.connect.dataframe import DataFrame as ConnectDataFrame
-
         # Get the input DataFrame's plan as serialized bytes
         input_plan = self._df._plan.to_proto(self._spark._client)
         msg.input_relation = input_plan.root.SerializeToString()
@@ -295,10 +268,10 @@ class ColumnProfilerRunBuilder:
         extension.Pack(msg, type_url_prefix="type.googleapis.com")
 
         # Create a proper LogicalPlan subclass with the extension
-        plan = _create_deequ_plan(extension)
+        plan = create_deequ_plan(extension)
 
-        # Use DataFrame.withPlan to properly create the DataFrame
-        return ConnectDataFrame.withPlan(plan, session=self._spark)
+        # Create DataFrame from the plan (handles Spark 3.x vs 4.x)
+        return dataframe_from_plan(plan, self._spark)
 
 
 # Export all public symbols

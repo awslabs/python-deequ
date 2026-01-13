@@ -102,7 +102,6 @@ from pydeequ.v2.suggestions import (
 from pydeequ.v2.verification import (
     AnalysisRunBuilder,
     AnalysisRunner,
-    AnalyzerContext,
     VerificationRunBuilder,
     VerificationSuite,
 )
@@ -160,5 +159,4 @@ __all__ = [
     "VerificationRunBuilder",
     "AnalysisRunner",
     "AnalysisRunBuilder",
-    "AnalyzerContext",
 ]
