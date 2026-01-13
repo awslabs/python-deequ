@@ -36,7 +36,6 @@ Example usage:
     result.show()
 """
 
-# Import predicates
 # Import analyzers
 from pydeequ.v2.analyzers import (
     ApproxCountDistinct,
@@ -68,6 +67,8 @@ from pydeequ.v2.checks import (
     Check,
     CheckLevel,
 )
+
+# Import predicates
 from pydeequ.v2.predicates import (
     Predicate,
     between,
@@ -81,6 +82,20 @@ from pydeequ.v2.predicates import (
     lt,
     lte,
     neq,
+)
+
+# Import profiles
+from pydeequ.v2.profiles import (
+    ColumnProfilerRunner,
+    ColumnProfilerRunBuilder,
+    KLLParameters,
+)
+
+# Import suggestions
+from pydeequ.v2.suggestions import (
+    ConstraintSuggestionRunner,
+    ConstraintSuggestionRunBuilder,
+    Rules,
 )
 
 # Import verification
@@ -132,6 +147,14 @@ __all__ = [
     "Entropy",
     "Histogram",
     "DataType",
+    # Profiles
+    "ColumnProfilerRunner",
+    "ColumnProfilerRunBuilder",
+    "KLLParameters",
+    # Suggestions
+    "ConstraintSuggestionRunner",
+    "ConstraintSuggestionRunBuilder",
+    "Rules",
     # Verification
     "VerificationSuite",
     "VerificationRunBuilder",

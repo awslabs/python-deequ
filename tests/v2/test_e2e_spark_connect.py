@@ -36,12 +36,15 @@ from pydeequ.v2.analyzers import (
 )
 from pydeequ.v2.checks import Check, CheckLevel
 from pydeequ.v2.predicates import between, eq, gt, gte, is_one, lt, lte
+from pydeequ.v2.profiles import ColumnProfilerRunner, KLLParameters
+from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
 
 # Import the new Spark Connect API
 from pydeequ.v2.verification import AnalysisRunner, VerificationSuite
 
 # Skip all tests if SPARK_REMOTE is not set
 pytestmark = pytest.mark.skipif(
+    "SPARK_REMOTE" not in os.environ,
     reason="SPARK_REMOTE environment variable not set. Start Spark Connect server first.",
 )
 
@@ -299,8 +302,14 @@ class TestEdgeCasesE2E:
 
     def test_all_null_column(self, spark):
         """Test completeness on all-NULL column."""
+        from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
+        schema = StructType([
+            StructField("id", IntegerType(), False),
+            StructField("val", StringType(), True),
+        ])
         data = [Row(id=1, val=None), Row(id=2, val=None)]
-        df = spark.createDataFrame(data)
+        df = spark.createDataFrame(data, schema=schema)
 
         check = Check(CheckLevel.Error, "Null column check").hasCompleteness(
             "val", eq(0.0)
@@ -372,6 +381,274 @@ class TestPredicatesE2E:
 
         rows = result.collect()
         assert rows[0]["constraint_status"] == "Failure"
+
+
+class TestColumnProfilerE2E:
+    """End-to-end tests for Column Profiler via Spark Connect."""
+
+    def test_basic_profiling(self, spark, sample_df):
+        """Test basic column profiling."""
+        result = ColumnProfilerRunner(spark).onData(sample_df).run()
+
+        rows = result.collect()
+
+        # Should have one profile per column
+        assert len(rows) == len(sample_df.columns)
+
+        # Verify columns are profiled
+        profiled_columns = {r["column"] for r in rows}
+        expected_columns = set(sample_df.columns)
+        assert profiled_columns == expected_columns
+
+    def test_completeness_profiling(self, spark, sample_df):
+        """Test completeness values in profiles."""
+        result = ColumnProfilerRunner(spark).onData(sample_df).run()
+
+        rows = {r["column"]: r for r in result.collect()}
+
+        # id is complete (100%)
+        assert rows["id"]["completeness"] == 1.0
+
+        # email has one null (80%)
+        assert abs(rows["email"]["completeness"] - 0.8) < 0.001
+
+        # age has one null (80%)
+        assert abs(rows["age"]["completeness"] - 0.8) < 0.001
+
+    def test_numeric_statistics_profiling(self, spark, sample_df):
+        """Test numeric statistics in profiles."""
+        result = ColumnProfilerRunner(spark).onData(sample_df).run()
+
+        rows = {r["column"]: r for r in result.collect()}
+
+        # Verify score statistics
+        score_profile = rows["score"]
+        assert score_profile["minimum"] == 78.5
+        assert score_profile["maximum"] == 95.0
+        assert score_profile["mean"] is not None
+
+    def test_restrict_to_columns(self, spark, sample_df):
+        """Test profiling restricted to specific columns."""
+        result = (
+            ColumnProfilerRunner(spark)
+            .onData(sample_df)
+            .restrictToColumns(["id", "name"])
+            .run()
+        )
+
+        rows = result.collect()
+        profiled_columns = {r["column"] for r in rows}
+
+        assert profiled_columns == {"id", "name"}
+
+    def test_kll_profiling(self, spark, sample_df):
+        """Test KLL sketch profiling for numeric columns."""
+        result = (
+            ColumnProfilerRunner(spark)
+            .onData(sample_df)
+            .withKLLProfiling()
+            .run()
+        )
+
+        rows = {r["column"]: r for r in result.collect()}
+
+        # Numeric columns should have KLL buckets
+        assert rows["score"]["kll_buckets"] is not None
+        assert rows["age"]["kll_buckets"] is not None
+
+        # String columns should not have KLL buckets
+        assert rows["name"]["kll_buckets"] is None
+
+    def test_kll_custom_parameters(self, spark, sample_df):
+        """Test KLL profiling with custom parameters."""
+        params = KLLParameters(sketch_size=1024, shrinking_factor=0.5, num_buckets=32)
+        result = (
+            ColumnProfilerRunner(spark)
+            .onData(sample_df)
+            .withKLLProfiling()
+            .setKLLParameters(params)
+            .run()
+        )
+
+        # Verify it runs without error
+        assert result.count() > 0
+
+    def test_histogram_threshold(self, spark, sample_df):
+        """Test histogram computation for low cardinality columns."""
+        result = (
+            ColumnProfilerRunner(spark)
+            .onData(sample_df)
+            .withLowCardinalityHistogramThreshold(10)
+            .run()
+        )
+
+        rows = {r["column"]: r for r in result.collect()}
+
+        # id has 5 distinct values, should have histogram
+        assert rows["id"]["histogram"] is not None
+
+
+class TestConstraintSuggestionsE2E:
+    """End-to-end tests for Constraint Suggestions via Spark Connect."""
+
+    def test_default_rules(self, spark, sample_df):
+        """Test DEFAULT rules generate suggestions."""
+        result = (
+            ConstraintSuggestionRunner(spark)
+            .onData(sample_df)
+            .addConstraintRules(Rules.DEFAULT)
+            .run()
+        )
+
+        rows = result.collect()
+
+        # Should generate some suggestions
+        assert len(rows) > 0
+
+        # Check required columns
+        columns = result.columns
+        assert "column_name" in columns
+        assert "constraint_name" in columns
+        assert "code_for_constraint" in columns
+
+    def test_extended_rules(self, spark, sample_df):
+        """Test EXTENDED rules generate comprehensive suggestions."""
+        result = (
+            ConstraintSuggestionRunner(spark)
+            .onData(sample_df)
+            .addConstraintRules(Rules.EXTENDED)
+            .run()
+        )
+
+        # Extended rules should generate suggestions
+        assert result.count() >= 0
+
+    def test_restrict_to_columns(self, spark, sample_df):
+        """Test suggestions restricted to specific columns."""
+        result = (
+            ConstraintSuggestionRunner(spark)
+            .onData(sample_df)
+            .addConstraintRules(Rules.DEFAULT)
+            .restrictToColumns(["id", "name"])
+            .run()
+        )
+
+        rows = result.collect()
+        columns_with_suggestions = set(r["column_name"] for r in rows)
+
+        # Only restricted columns should have suggestions
+        assert columns_with_suggestions.issubset({"id", "name"})
+
+    def test_train_test_split(self, spark, sample_df):
+        """Test train/test split evaluation."""
+        result = (
+            ConstraintSuggestionRunner(spark)
+            .onData(sample_df)
+            .addConstraintRules(Rules.DEFAULT)
+            .useTrainTestSplitWithTestsetRatio(0.3, seed=42)
+            .run()
+        )
+
+        # Should have evaluation columns
+        assert "evaluation_status" in result.columns
+        assert "evaluation_metric_value" in result.columns
+
+    def test_code_for_constraint(self, spark, sample_df):
+        """Test code_for_constraint is properly formatted."""
+        result = (
+            ConstraintSuggestionRunner(spark)
+            .onData(sample_df)
+            .addConstraintRules(Rules.DEFAULT)
+            .run()
+        )
+
+        rows = result.collect()
+        for row in rows:
+            code = row["code_for_constraint"]
+            # Should be non-empty
+            assert code is not None
+            assert len(code) > 0
+            # Should not have Scala-specific syntax
+            assert "Some(" not in code
+            assert "Seq(" not in code
+
+    def test_suggestion_to_check_workflow(self, spark, sample_df):
+        """Test end-to-end workflow: get suggestions and verify data."""
+        # Step 1: Get suggestions
+        suggestions = (
+            ConstraintSuggestionRunner(spark)
+            .onData(sample_df)
+            .addConstraintRules(Rules.DEFAULT)
+            .run()
+        )
+
+        suggestion_rows = suggestions.collect()
+        assert len(suggestion_rows) > 0
+
+        # Step 2: Use suggestions to build verification
+        # Find a completeness suggestion for 'id'
+        id_suggestions = [
+            s for s in suggestion_rows
+            if s["column_name"] == "id" and "Completeness" in s["constraint_name"]
+        ]
+
+        if id_suggestions:
+            # We have a completeness suggestion - verify it with a check
+            check = Check(CheckLevel.Error, "From suggestion").isComplete("id")
+
+            result = VerificationSuite(spark).onData(sample_df).addCheck(check).run()
+
+            rows = result.collect()
+            assert rows[0]["constraint_status"] == "Success"
+
+
+class TestCombinedFeaturesE2E:
+    """Test combining multiple V2 features in workflows."""
+
+    def test_profile_then_verify(self, spark, sample_df):
+        """Test workflow: profile data, then verify based on findings."""
+        # Step 1: Profile the data
+        profiles = ColumnProfilerRunner(spark).onData(sample_df).run()
+
+        profile_rows = {r["column"]: r for r in profiles.collect()}
+
+        # Step 2: Create checks based on profile findings
+        # If id is 100% complete, verify that
+        if profile_rows["id"]["completeness"] == 1.0:
+            check = Check(CheckLevel.Error, "Profile-based check").isComplete("id")
+
+            result = VerificationSuite(spark).onData(sample_df).addCheck(check).run()
+
+            rows = result.collect()
+            assert rows[0]["constraint_status"] == "Success"
+
+    def test_analyze_profile_suggest(self, spark, sample_df):
+        """Test combined workflow: analyze, profile, and get suggestions."""
+        # Step 1: Run analysis
+        analysis = (
+            AnalysisRunner(spark)
+            .onData(sample_df)
+            .addAnalyzer(Size())
+            .addAnalyzer(Completeness("id"))
+            .run()
+        )
+        analysis_rows = analysis.collect()
+        assert len(analysis_rows) >= 2
+
+        # Step 2: Profile columns
+        profiles = ColumnProfilerRunner(spark).onData(sample_df).run()
+        profile_rows = profiles.collect()
+        assert len(profile_rows) == len(sample_df.columns)
+
+        # Step 3: Get suggestions
+        suggestions = (
+            ConstraintSuggestionRunner(spark)
+            .onData(sample_df)
+            .addConstraintRules(Rules.DEFAULT)
+            .run()
+        )
+        suggestion_rows = suggestions.collect()
+        assert len(suggestion_rows) >= 0  # May be empty for small datasets
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+name: PyDeequ Tests
+
 on:
   push:
     branches:
@@ -7,33 +9,133 @@ on:
       - "master"
 
 jobs:
-  test:
+  # Job 1: Unit tests (fast, no Spark needed)
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        name: Install Python ${{ matrix.python-version }}
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install poetry==1.7.1
+          poetry install
+          # Python 3.12 needs setuptools for distutils
+          if [[ "${{ matrix.python-version }}" == "3.12" ]]; then
+            pip install setuptools
+          fi
+
+      - name: Run V2 unit tests
+        run: |
+          poetry run pytest tests/v2/test_unit.py -v
+
+  # Job 2: V1 Legacy tests (with local Spark via Py4J)
+  v1-integration-tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        PYSPARK_VERSION: ["3.1.3", "3.2", "3.3", "3.5"]
+        include:
+          - spark: "3.3"
+            java: "11"
+            python: "3.9"
+          - spark: "3.5"
+            java: "17"
+            python: "3.10"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v2
-        name: Install Python 3.8
+      - uses: actions/setup-python@v5
+        name: Install Python ${{ matrix.python }}
         with:
-          python-version: 3.8
+          python-version: ${{ matrix.python }}
 
-      - uses: actions/setup-java@v1
-        name: Setup Java 11
-        if: startsWith(matrix.PYSPARK_VERSION, '3')
+      - uses: actions/setup-java@v4
+        name: Setup Java ${{ matrix.java }}
         with:
-          java-version: "11"
+          distribution: "corretto"
+          java-version: ${{ matrix.java }}
 
-      - name: Running tests with pyspark==${{matrix.PYSPARK_VERSION}}
+      - name: Install dependencies
         env:
-          SPARK_VERSION: ${{matrix.PYSPARK_VERSION}}
+          SPARK_VERSION: ${{ matrix.spark }}
         run: |
           pip install --upgrade pip
           pip install poetry==1.7.1
           poetry install
           poetry add pyspark==$SPARK_VERSION
-          poetry run python -m pytest -s tests
+
+      - name: Run V1 tests
+        env:
+          SPARK_VERSION: ${{ matrix.spark }}
+        run: |
+          poetry run pytest tests/ -v --ignore=tests/v2/
+
+  # Job 3: V2 Integration tests (with Spark Connect)
+  v2-integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        name: Install Python 3.11
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-java@v4
+        name: Setup Java 17
+        with:
+          distribution: "corretto"
+          java-version: "17"
+
+      - name: Download Spark 3.5
+        run: |
+          curl -L -o spark-3.5.0-bin-hadoop3.tgz \
+            https://archive.apache.org/dist/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz
+          tar -xzf spark-3.5.0-bin-hadoop3.tgz
+          echo "SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3" >> $GITHUB_ENV
+
+      - name: Download Deequ JAR
+        run: |
+          curl -L -o deequ-spark-3.5.jar \
+            https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ-2.1.0b-spark-3.5.jar
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip setuptools
+          pip install poetry==1.7.1
+          poetry install
+          poetry add "pyspark[connect]==3.5.0"
+
+      - name: Start Spark Connect Server
+        run: |
+          $SPARK_HOME/sbin/start-connect-server.sh \
+            --packages org.apache.spark:spark-connect_2.12:3.5.0 \
+            --jars $PWD/deequ-spark-3.5.jar \
+            --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
+          # Wait for server to start
+          sleep 20
+          # Verify server is running
+          ps aux | grep SparkConnectServer | grep -v grep
+
+      - name: Run V2 integration tests
+        env:
+          SPARK_REMOTE: "sc://localhost:15002"
+        run: |
+          poetry run pytest tests/v2/ -v --ignore=tests/v2/test_unit.py
+
+      - name: Stop Spark Connect Server
+        if: always()
+        run: |
+          $SPARK_HOME/sbin/stop-connect-server.sh || true

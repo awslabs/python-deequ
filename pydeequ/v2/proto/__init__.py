@@ -10,6 +10,8 @@ from pydeequ.v2.proto.deequ_connect_pb2 import (
     ConstraintMessage,
     ConstraintStatus,
     DeequAnalysisRelation,
+    DeequColumnProfilerRelation,
+    DeequConstraintSuggestionRelation,
     DeequVerificationRelation,
     KLLParameters,
     MetricEntity,
@@ -20,6 +22,8 @@ from pydeequ.v2.proto.deequ_connect_pb2 import (
 __all__ = [
     "DeequVerificationRelation",
     "DeequAnalysisRelation",
+    "DeequColumnProfilerRelation",
+    "DeequConstraintSuggestionRelation",
     "CheckMessage",
     "ConstraintMessage",
     "PredicateMessage",

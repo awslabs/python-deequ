@@ -44,6 +44,32 @@ flowchart LR
 3. **Server Side**: The `DeequRelationPlugin` deserializes messages and executes Deequ operations
 4. **Results**: Verification results are returned as a Spark DataFrame
 
+### Feature Support Matrix
+
+| Feature | PyDeequ 1.x | PyDeequ 2.0 |
+|---------|:-----------:|:-----------:|
+| **Constraint Verification** | | |
+| VerificationSuite | Yes | Yes |
+| Check constraints | Yes | Yes |
+| Custom SQL expressions | Yes | Yes |
+| **Metrics & Analysis** | | |
+| AnalysisRunner | Yes | Yes |
+| All standard analyzers | Yes | Yes |
+| **Column Profiling** | | |
+| ColumnProfilerRunner | Yes | Yes |
+| Numeric statistics | Yes | Yes |
+| KLL sketch profiling | Yes | Yes |
+| Low-cardinality histograms | Yes | Yes |
+| **Constraint Suggestions** | | |
+| ConstraintSuggestionRunner | Yes | Yes |
+| Rule sets (DEFAULT, EXTENDED, etc.) | Yes | Yes |
+| Train/test split evaluation | Yes | Yes |
+| **Metrics Repository** | | |
+| FileSystemMetricsRepository | Yes | Planned |
+| **Execution Mode** | | |
+| Local Spark | Yes | No |
+| Spark Connect (remote) | No | Yes |
+
 ---
 
 ## PyDeequ 2.0 Beta - Quick Start
@@ -228,6 +254,101 @@ result.show()
 | `isNonNegative(column)` | Check all values >= 0 |
 | `isPositive(column)` | Check all values > 0 |
 
+### Column Profiler
+
+Profile column distributions and statistics across your dataset:
+
+```python
+from pydeequ.v2.profiles import ColumnProfilerRunner, KLLParameters
+
+# Basic profiling
+profiles = (ColumnProfilerRunner(spark)
+    .onData(df)
+    .run())
+
+profiles.show()
+
+# Advanced profiling with options
+profiles = (ColumnProfilerRunner(spark)
+    .onData(df)
+    .restrictToColumns(["id", "name", "age"])      # Profile specific columns
+    .withLowCardinalityHistogramThreshold(100)     # Generate histograms for low-cardinality columns
+    .withKLLProfiling()                            # Enable KLL sketch for approximate quantiles
+    .setKLLParameters(KLLParameters(
+        sketch_size=2048,
+        shrinking_factor=0.64,
+        num_buckets=64
+    ))
+    .run())
+```
+
+**Profile Result Schema:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `column` | STRING | Column name |
+| `completeness` | DOUBLE | Non-null ratio (0.0-1.0) |
+| `approx_distinct_values` | LONG | Approximate cardinality |
+| `data_type` | STRING | Detected data type |
+| `is_data_type_inferred` | BOOLEAN | Whether type was inferred |
+| `type_counts` | STRING | JSON of type distribution |
+| `histogram` | STRING | JSON histogram (low cardinality only) |
+| `mean` | DOUBLE | Mean (numeric columns only) |
+| `minimum` | DOUBLE | Minimum value (numeric only) |
+| `maximum` | DOUBLE | Maximum value (numeric only) |
+| `sum` | DOUBLE | Sum (numeric only) |
+| `std_dev` | DOUBLE | Standard deviation (numeric only) |
+| `approx_percentiles` | STRING | JSON percentiles (numeric only) |
+| `kll_buckets` | STRING | JSON KLL buckets (if enabled) |
+
+### Constraint Suggestions
+
+Auto-generate data quality constraints based on your data:
+
+```python
+from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
+
+# Basic suggestion generation
+suggestions = (ConstraintSuggestionRunner(spark)
+    .onData(df)
+    .addConstraintRules(Rules.DEFAULT)
+    .run())
+
+suggestions.show(truncate=False)
+
+# Advanced usage with train/test evaluation
+suggestions = (ConstraintSuggestionRunner(spark)
+    .onData(df)
+    .addConstraintRules(Rules.DEFAULT)
+    .addConstraintRules(Rules.EXTENDED)
+    .restrictToColumns(["id", "status", "score"])
+    .useTrainTestSplitWithTestsetRatio(0.2, seed=42)  # Evaluate suggestions on test set
+    .run())
+```
+
+**Available Rule Sets:**
+
+| Rule Set | Description |
+|----------|-------------|
+| `Rules.DEFAULT` | Completeness, type, categorical range, non-negative |
+| `Rules.STRING` | String length constraints (min/max length) |
+| `Rules.NUMERICAL` | Numeric constraints (min, max, mean, stddev) |
+| `Rules.COMMON` | Uniqueness for approximately unique columns |
+| `Rules.EXTENDED` | All rules combined |
+
+**Suggestion Result Schema:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `column_name` | STRING | Column the constraint applies to |
+| `constraint_name` | STRING | Type of constraint |
+| `current_value` | STRING | Current metric value |
+| `description` | STRING | Human-readable description |
+| `suggesting_rule` | STRING | Rule that generated this |
+| `code_for_constraint` | STRING | Python code snippet |
+| `evaluation_status` | STRING | "Success" or "Failure" (if train/test enabled) |
+| `evaluation_metric_value` | DOUBLE | Metric value on test set |
+
 ### Migration from 1.x to 2.0
 
 **Import changes:**
@@ -251,6 +372,33 @@ check.hasCompleteness("col", lambda x: x >= 0.9)
 # After (2.0)
 check.hasSize(eq(3))
 check.hasCompleteness("col", gte(0.9))
+```
+
+**Profiler changes:**
+```python
+# Before (1.x) - returns Python object
+from pydeequ.profiles import ColumnProfilerRunner
+result = ColumnProfilerRunner(spark).onData(df).run()
+for col, profile in result.profiles.items():
+    print(profile)
+
+# After (2.0) - returns DataFrame
+from pydeequ.v2.profiles import ColumnProfilerRunner
+result = ColumnProfilerRunner(spark).onData(df).run()
+result.show()
+```
+
+**Suggestions changes:**
+```python
+# Before (1.x) - returns Python object
+from pydeequ.suggestions import ConstraintSuggestionRunner, DEFAULT
+result = ConstraintSuggestionRunner(spark).onData(df).addConstraintRule(DEFAULT()).run()
+print(result)
+
+# After (2.0) - returns DataFrame
+from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
+result = ConstraintSuggestionRunner(spark).onData(df).addConstraintRules(Rules.DEFAULT).run()
+result.show()
 ```
 
 ---
