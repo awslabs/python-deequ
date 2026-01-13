@@ -87,8 +87,8 @@ Download the pre-compiled Deequ JAR with Spark Connect support from the [GitHub 
 ```bash
 mkdir -p ~/deequ-beta && cd ~/deequ-beta
 
-curl -L -o deequ-2.1.0b-spark-3.5.jar \
-  https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ-2.1.0b-spark-3.5.jar
+curl -L -o deequ_2.12-2.1.0b-spark-3.5.jar \
+  https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ_2.12-2.1.0b-spark-3.5.jar
 ```
 
 ### Step 2: Set Up Spark (if needed)
@@ -114,7 +114,7 @@ export JAVA_HOME=/path/to/java17
 
 $SPARK_HOME/sbin/start-connect-server.sh \
   --packages org.apache.spark:spark-connect_2.12:3.5.0 \
-  --jars ~/deequ-beta/deequ-2.1.0b-spark-3.5.jar \
+  --jars ~/deequ-beta/deequ_2.12-2.1.0b-spark-3.5.jar \
   --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
 ```
 
