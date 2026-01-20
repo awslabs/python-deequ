@@ -18,12 +18,10 @@ os.environ.setdefault("SPARK_VERSION", "3.5")
 def spark_connect_server():
     """Session-scoped fixture to start Spark Connect server.
 
-    Automatically starts the Spark Connect server if not already running,
-    using the benchmark configuration. The server is NOT stopped after
-    tests complete (to allow reuse across test runs).
+    Automatically starts the Spark Connect server if not already running.
+    The server is NOT stopped after tests complete (to allow reuse across test runs).
     """
-    from benchmark.spark_server import SparkConnectServer
-    from benchmark.config import SparkServerConfig
+    from tests.helpers.spark_server import SparkConnectServer, SparkServerConfig
 
     config = SparkServerConfig()
     server = SparkConnectServer(config)

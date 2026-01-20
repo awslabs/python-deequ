@@ -58,36 +58,36 @@ Benchmark run on Apple M3 Max (14 cores), macOS Darwin 25.2.0.
 
 | Rows | DuckDB (s) | Spark (s) | Speedup |
 |------|------------|-----------|---------|
-| 100K | 0.080 | 1.159 | **14.6x** |
-| 1M | 0.114 | 1.824 | **16.0x** |
-| 5M | 0.243 | 2.491 | **10.3x** |
-| 10M | 0.354 | 3.276 | **9.2x** |
-| 50M | 1.153 | 10.959 | **9.5x** |
-| 130M | 2.792 | 27.385 | **9.8x** |
+| 100K | 0.052 | 0.667 | **12.8x** |
+| 1M | 0.090 | 1.718 | **19.1x** |
+| 5M | 0.221 | 2.591 | **11.7x** |
+| 10M | 0.335 | 3.504 | **10.5x** |
+| 50M | 1.177 | 12.808 | **10.9x** |
+| 130M | 2.897 | 29.570 | **10.2x** |
 
 ### Experiment 2: Varying Columns
 
 | Cols | Checks | DuckDB (s) | Spark (s) | Speedup |
 |------|--------|------------|-----------|---------|
-| 10 | 16 | 0.108 | 1.572 | **14.5x** |
-| 20 | 46 | 0.280 | 2.049 | **7.3x** |
-| 40 | 106 | 0.824 | 2.760 | **3.3x** |
-| 80 | 226 | 2.320 | 4.425 | **1.9x** |
+| 10 | 16 | 0.118 | 1.656 | **14.1x** |
+| 20 | 46 | 0.286 | 2.129 | **7.5x** |
+| 40 | 106 | 0.713 | 2.869 | **4.0x** |
+| 80 | 226 | 2.214 | 4.434 | **2.0x** |
 
 ### Experiment 3: Column Profiling
 
 | Rows | DuckDB (s) | Spark (s) | Speedup |
 |------|------------|-----------|---------|
-| 100K | 0.097 | 0.651 | **6.7x** |
-| 1M | 0.372 | 0.778 | **2.1x** |
-| 5M | 1.446 | 1.898 | **1.3x** |
-| 10M | 2.614 | 3.450 | **1.3x** |
+| 100K | 0.086 | 0.599 | **7.0x** |
+| 1M | 0.388 | 0.814 | **2.1x** |
+| 5M | 1.470 | 2.399 | **1.6x** |
+| 10M | 2.659 | 4.109 | **1.5x** |
 
 ### Key Takeaways
 
-1. **DuckDB is 9-16x faster** for row-scaling validation workloads
-2. **Speedup decreases with complexity** - more columns/checks narrow the gap
-3. **Profiling converges** - at 10M rows, both engines perform similarly
+1. **DuckDB is 10-19x faster** for row-scaling validation workloads
+2. **Speedup decreases with complexity** - more columns/checks narrow the gap (14x → 2x)
+3. **Profiling converges** - at 10M rows, DuckDB is still 1.5x faster
 4. **No JVM overhead** - DuckDB runs natively in Python, no startup cost
 
 ## Quick Start
