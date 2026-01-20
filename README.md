@@ -24,25 +24,40 @@ PyDeequ 2.0 introduces a new multi-engine architecture with **DuckDB** and **Spa
 ### Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph CLIENT["Python Client"]
-        A["Python Code"] --> B["Protobuf<br/>Serialization"]
+        A["pydeequ.connect()"] --> B["Engine Auto-Detection"]
     end
-    B -- gRPC --> C["Spark Connect (gRPC)"]
-    subgraph SERVER["Spark Connect Server"]
-        D["DeequRelationPlugin"] --> E["Deequ Core"] --> F["Spark DataFrame API"] --> G["(Data)"]
+
+    B --> C{Connection Type}
+
+    C -->|DuckDB| D["DuckDBEngine"]
+    C -->|SparkSession| E["SparkEngine"]
+
+    subgraph DUCKDB["DuckDB Backend (Local)"]
+        D --> F["SQL Operators"] --> G["DuckDB"] --> H["Local Files<br/>Parquet/CSV"]
     end
-    G --> H["Results"] -- gRPC --> I["Python DataFrame"]
-    %% Styling for compactness and distinction
-    classDef code fill:#C8F2FB,stroke:#35a7c2,color:#13505B,font-weight:bold;
-    class A code;
+
+    subgraph SPARK["Spark Connect Backend (Distributed)"]
+        E --> I["Protobuf"] -- gRPC --> J["Spark Connect Server"]
+        J --> K["DeequRelationPlugin"] --> L["Deequ Core"] --> M["Data Lake"]
+    end
+
+    H --> N["Results"]
+    M --> N
+    N --> O["MetricResult / ConstraintResult / ColumnProfile"]
+
+    classDef duckdb fill:#FFF4CC,stroke:#E6B800,color:#806600;
+    classDef spark fill:#CCE5FF,stroke:#0066CC,color:#003366;
+    class D,F,G,H duckdb;
+    class E,I,J,K,L,M spark;
 ```
 
 **How it works:**
-1. **Client Side**: PyDeequ 2.0 builds checks and analyzers as Protobuf messages
-2. **Transport**: Messages are sent via gRPC to the Spark Connect server
-3. **Server Side**: The `DeequRelationPlugin` deserializes messages and executes Deequ operations
-4. **Results**: Verification results are returned as a Spark DataFrame
+- **Auto-detection**: `pydeequ.connect()` inspects the connection type and creates the appropriate engine
+- **DuckDB path**: Direct SQL execution in-process, no JVM required
+- **Spark path**: Protobuf serialization over gRPC to Spark Connect server with Deequ plugin
+- **Unified results**: Both engines return the same `MetricResult`, `ConstraintResult`, and `ColumnProfile` types
 
 ### Feature Support Matrix
 
