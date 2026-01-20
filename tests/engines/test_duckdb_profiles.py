@@ -153,7 +153,8 @@ class TestNumericProfileStatistics:
         profiles = engine_numeric.profile_columns(columns=["att1"])
         profile = get_profile_by_column(profiles, "att1")
         if profile.std_dev is not None:
-            assert is_close(profile.std_dev, 1.8708286933869707, FLOAT_TOLERANCE)
+            # Population stddev (matches Spark)
+            assert is_close(profile.std_dev, 1.7078251276599330, FLOAT_TOLERANCE)
 
     def test_numeric_with_nulls(self, engine_numeric):
         """Numeric statistics handle NULLs correctly."""

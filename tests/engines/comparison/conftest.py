@@ -15,8 +15,8 @@
 """Dual-engine test fixtures for cross-engine comparison.
 
 Provides fixtures for creating both Spark and DuckDB engines with
-identical data for parity testing. These tests require Spark Connect
-to be running and SPARK_REMOTE environment variable to be set.
+identical data for parity testing. The Spark Connect server is
+automatically started if not already running.
 """
 
 import os
@@ -31,17 +31,9 @@ from pydeequ.engines.duckdb import DuckDBEngine
 from tests.engines.fixtures.datasets import DATASET_FACTORIES
 
 
-# Check if Spark Connect is available
-def spark_available() -> bool:
-    """Check if Spark Connect is available via SPARK_REMOTE."""
-    return os.environ.get("SPARK_REMOTE") is not None
-
-
-# Skip marker for tests requiring Spark
-requires_spark = pytest.mark.skipif(
-    not spark_available(),
-    reason="Spark Connect not available (set SPARK_REMOTE)"
-)
+# Marker for tests requiring Spark - uses the spark_connect_server fixture
+# from the top-level conftest.py which automatically starts the server
+requires_spark = pytest.mark.usefixtures("spark_connect_server")
 
 
 @dataclass
@@ -53,16 +45,13 @@ class DualEngines:
 
 
 @pytest.fixture(scope="module")
-def spark_session():
+def spark_session(spark_connect_server):
     """Create a module-scoped Spark Connect session.
 
-    Only creates session if SPARK_REMOTE is set.
+    Depends on spark_connect_server fixture to ensure server is running.
     """
-    if not spark_available():
-        pytest.skip("Spark Connect not available")
-
     from pyspark.sql import SparkSession
-    spark_remote = os.environ.get("SPARK_REMOTE")
+    spark_remote = os.environ.get("SPARK_REMOTE", "sc://localhost:15002")
     spark = SparkSession.builder.remote(spark_remote).getOrCreate()
     yield spark
     spark.stop()

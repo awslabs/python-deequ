@@ -232,11 +232,11 @@ class TestStandardDeviationAnalyzer:
     """Tests for the StandardDeviation analyzer."""
 
     def test_stddev_basic(self, engine_numeric):
-        """StandardDeviation calculates sample stddev correctly."""
+        """StandardDeviation calculates population stddev correctly."""
         metrics = engine_numeric.compute_metrics([StandardDeviation("att1")])
         value = get_metric_value(metrics, "StandardDeviation", "att1")
-        # Sample stddev of [1,2,3,4,5,6] = sqrt(17.5/5) ≈ 1.8708
-        assert is_close(value, 1.8708286933869707, FLOAT_TOLERANCE)
+        # Population stddev of [1,2,3,4,5,6] = sqrt(17.5/6) ≈ 1.7078 (matches Spark)
+        assert is_close(value, 1.7078251276599330, FLOAT_TOLERANCE)
 
     def test_stddev_single_row(self, engine_single):
         """StandardDeviation for single row is NaN or 0."""
@@ -492,11 +492,11 @@ class TestEntropyAnalyzer:
     """Tests for the Entropy analyzer."""
 
     def test_entropy_uniform(self, engine_entropy):
-        """Entropy is log2(n) for uniform distribution."""
+        """Entropy is ln(n) for uniform distribution."""
         metrics = engine_entropy.compute_metrics([Entropy("uniform")])
         value = get_metric_value(metrics, "Entropy", "uniform")
-        # 4 equally distributed values: entropy = log2(4) = 2.0
-        assert is_close(value, 2.0, FLOAT_TOLERANCE)
+        # 4 equally distributed values: entropy = ln(4) ≈ 1.386 (matches Spark)
+        assert is_close(value, 1.3862943611198906, FLOAT_TOLERANCE)
 
     def test_entropy_constant(self, engine_entropy):
         """Entropy is 0 for constant column."""
@@ -508,8 +508,8 @@ class TestEntropyAnalyzer:
         """Entropy is between 0 and max for skewed distribution."""
         metrics = engine_entropy.compute_metrics([Entropy("skewed")])
         value = get_metric_value(metrics, "Entropy", "skewed")
-        # Skewed distribution: 0 < entropy < log2(4)
-        assert value > 0.0 and value < 2.0
+        # Skewed distribution: 0 < entropy < ln(4) ≈ 1.386
+        assert value > 0.0 and value < 1.3862943611198906
 
 
 class TestHistogramAnalyzer:

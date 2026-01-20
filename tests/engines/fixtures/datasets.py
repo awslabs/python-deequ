@@ -57,7 +57,7 @@ def create_df_numeric() -> pd.DataFrame:
     Purpose: Statistical analyzer tests (Mean, Sum, Min, Max, StdDev)
     Edge cases: Mean=3.5, includes NULL column
     Values: 1, 2, 3, 4, 5, 6 -> Mean=3.5, Sum=21, Min=1, Max=6
-    StdDev (sample) = sqrt(17.5/5) = sqrt(3.5) ≈ 1.8708
+    StdDev (population) = sqrt(17.5/6) ≈ 1.7078
     """
     return pd.DataFrame({
         "att1": [1, 2, 3, 4, 5, 6],
@@ -194,12 +194,12 @@ def create_df_entropy() -> pd.DataFrame:
 
     Purpose: Entropy analyzer tests
     Edge cases: Uniform vs skewed distribution
-    - uniform: 4 distinct values each appearing once -> entropy = log2(4) = 2.0
-    - skewed: 1 value appearing 3 times, 1 appearing once -> entropy < 2.0
+    - uniform: 4 distinct values each appearing once -> entropy = ln(4) ≈ 1.386
+    - skewed: 1 value appearing 3 times, 1 appearing once -> entropy < 1.386
     """
     return pd.DataFrame({
-        "uniform": ["a", "b", "c", "d"],  # Entropy = log2(4) = 2.0
-        "skewed": ["a", "a", "a", "b"],   # Entropy = -(3/4)log2(3/4) - (1/4)log2(1/4) ≈ 0.811
+        "uniform": ["a", "b", "c", "d"],  # Entropy = ln(4) ≈ 1.386
+        "skewed": ["a", "a", "a", "b"],   # Entropy = -(3/4)ln(3/4) - (1/4)ln(1/4) ≈ 0.562
         "constant": ["x", "x", "x", "x"], # Entropy = 0 (single value)
         "item": [1, 2, 3, 4],
     })
@@ -379,8 +379,8 @@ EXPECTED_VALUES: Dict[Tuple[str, str, Any], float] = {
     ("df_single", "Maximum", "item"): 1.0,
     ("df_single", "Maximum", "price"): 10.0,
 
-    # StandardDeviation analyzer (sample stddev)
-    ("df_numeric", "StandardDeviation", "att1"): 1.8708286933869707,  # sqrt(17.5/5)
+    # StandardDeviation analyzer (population stddev)
+    ("df_numeric", "StandardDeviation", "att1"): 1.7078251276599330,  # sqrt(17.5/6)
 
     # String length analyzers
     ("df_string_lengths", "MinLength", "att1"): 0.0,  # Empty string
@@ -408,7 +408,7 @@ EXPECTED_VALUES: Dict[Tuple[str, str, Any], float] = {
     ("df_correlation", "Correlation", ("x", "z")): -1.0,  # Perfect negative
 
     # Entropy analyzer
-    ("df_entropy", "Entropy", "uniform"): 2.0,  # log2(4) for 4 uniform values
+    ("df_entropy", "Entropy", "uniform"): 1.3862943611198906,  # ln(4) for 4 uniform values
     ("df_entropy", "Entropy", "constant"): 0.0,  # Single value = 0 entropy
 
     # ApproxCountDistinct analyzer

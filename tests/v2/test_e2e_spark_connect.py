@@ -42,14 +42,8 @@ from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
 # Import the new Spark Connect API
 from pydeequ.v2.verification import AnalysisRunner, VerificationSuite
 
-# Skip all tests if SPARK_REMOTE is not set
-pytestmark = pytest.mark.skipif(
-    "SPARK_REMOTE" not in os.environ,
-    reason="SPARK_REMOTE environment variable not set. Start Spark Connect server first.",
-)
-
-
-# Note: spark fixture is defined in conftest.py (session-scoped)
+# Note: spark fixture is defined in conftest.py and depends on spark_connect_server
+# which automatically starts the server if needed
 
 
 @pytest.fixture(scope="module")

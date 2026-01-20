@@ -291,7 +291,8 @@ class TestEntropyConstraints:
 
     def test_has_entropy_uniform(self, engine_entropy):
         """hasEntropy for uniform distribution."""
-        check = Check(CheckLevel.Error, "entropy").hasEntropy("uniform", eq(2.0))
+        # ln(4) ≈ 1.386 (matches Spark's natural log convention)
+        check = Check(CheckLevel.Error, "entropy").hasEntropy("uniform", between(1.38, 1.39))
         results = engine_entropy.run_checks([check])
         result = results[0]
         assert result.constraint_status == ConstraintStatus.Success

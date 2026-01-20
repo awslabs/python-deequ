@@ -20,11 +20,13 @@ import os
 import pytest
 from pyspark.sql import Row, SparkSession
 
-@pytest.fixture(scope="session")
-def spark():
+@pytest.fixture(scope="module")
+def spark(spark_connect_server):
     """
-    Session-scoped Spark Connect session.
-    Shared across all tests for efficiency.
+    Module-scoped Spark Connect session.
+
+    Depends on spark_connect_server fixture from tests/conftest.py
+    to ensure the server is running before creating the session.
     """
     remote_url = os.environ.get("SPARK_REMOTE", "sc://localhost:15002")
     session = SparkSession.builder.remote(remote_url).getOrCreate()

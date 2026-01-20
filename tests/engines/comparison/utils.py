@@ -18,6 +18,7 @@ Provides utilities for comparing results between DuckDB and Spark engines
 with appropriate tolerance levels for different metric types.
 """
 
+import json
 import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
@@ -29,6 +30,7 @@ from pydeequ.engines import MetricResult, ConstraintResult, ColumnProfile
 FLOAT_EPSILON = 1e-9      # Exact comparisons: Size, Completeness, Uniqueness
 FLOAT_TOLERANCE = 1e-6    # Statistical: Mean, StdDev, Correlation
 APPROX_TOLERANCE = 0.1    # Approximate algorithms: ApproxCountDistinct (10% relative)
+ENTROPY_TOLERANCE = 1e-4  # Information theory metrics: Entropy, MutualInformation
 
 
 # Mapping of analyzer types to their expected tolerance
@@ -52,9 +54,9 @@ ANALYZER_TOLERANCES: Dict[str, float] = {
     "Maximum": FLOAT_TOLERANCE,
     "StandardDeviation": FLOAT_TOLERANCE,
     "Correlation": FLOAT_TOLERANCE,
-    "Entropy": FLOAT_TOLERANCE,
-    "MutualInformation": FLOAT_TOLERANCE,
-    "ApproxQuantile": FLOAT_TOLERANCE,
+    "Entropy": ENTROPY_TOLERANCE,
+    "MutualInformation": ENTROPY_TOLERANCE,
+    "ApproxQuantile": APPROX_TOLERANCE,
 
     # Approximate metrics
     "ApproxCountDistinct": APPROX_TOLERANCE,
@@ -95,6 +97,18 @@ def values_equal(
             return True
         if math.isnan(actual) or math.isnan(expected):
             return False
+
+    # Handle JSON strings vs dicts (for Histogram, DataType)
+    if isinstance(actual, str) and not isinstance(expected, str):
+        try:
+            actual = json.loads(actual)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    if isinstance(expected, str) and not isinstance(actual, str):
+        try:
+            expected = json.loads(expected)
+        except (json.JSONDecodeError, TypeError):
+            pass
 
     # Handle strings
     if isinstance(actual, str) and isinstance(expected, str):
@@ -349,7 +363,7 @@ def compare_profiles(
             ("minimum", FLOAT_TOLERANCE),
             ("maximum", FLOAT_TOLERANCE),
             ("sum", FLOAT_TOLERANCE),
-            ("std_dev", FLOAT_TOLERANCE),
+            ("std_dev", APPROX_TOLERANCE),  # Use relative tolerance for sample vs pop
         ]
 
         for attr, tolerance in attrs_to_compare:

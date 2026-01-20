@@ -101,7 +101,7 @@ class ColumnProfileOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin
                     MAX({col}) as max_val,
                     AVG({col}) as mean_val,
                     SUM({col}) as sum_val,
-                    STDDEV_SAMP({col}) as stddev_val
+                    STDDEV_POP({col}) as stddev_val
                 FROM {table}
             """
         else:
@@ -349,7 +349,7 @@ class MultiColumnProfileOperator(WhereClauseMixin, SafeExtractMixin, ColumnAlias
                 f"MAX({col}) as max_{col}",
                 f"AVG({col}) as mean_{col}",
                 f"SUM({col}) as sum_{col}",
-                f"STDDEV_SAMP({col}) as stddev_{col}",
+                f"STDDEV_POP({col}) as stddev_{col}",
             ])
 
         return f"SELECT {', '.join(aggregations)} FROM {table}"

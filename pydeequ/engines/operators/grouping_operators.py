@@ -160,10 +160,10 @@ class UniqueValueRatioOperator(GroupingOperator):
 
 class EntropyOperator(GroupingOperator):
     """
-    Computes entropy = -SUM(p * log2(p)).
+    Computes entropy = -SUM(p * ln(p)).
 
     Entropy measures the information content of a column's
-    value distribution.
+    value distribution. Uses natural log (nats) for Spark parity.
     """
 
     def __init__(self, column: str, where: Optional[str] = None):
@@ -199,7 +199,7 @@ class EntropyOperator(GroupingOperator):
                 SELECT SUM(cnt) AS total_cnt FROM freq
             )
             SELECT
-                -SUM((cnt * 1.0 / total_cnt) * LOG2(cnt * 1.0 / total_cnt)) AS entropy
+                -SUM((cnt * 1.0 / total_cnt) * LN(cnt * 1.0 / total_cnt)) AS entropy
             FROM freq, total
             WHERE cnt > 0
         """
@@ -252,7 +252,7 @@ class MutualInformationOperator(GroupingOperator):
             )
             SELECT SUM(
                 (j.cnt * 1.0 / t.n) *
-                LOG2((j.cnt * 1.0 / t.n) / ((m1.cnt1 * 1.0 / t.n) * (m2.cnt2 * 1.0 / t.n)))
+                LN((j.cnt * 1.0 / t.n) / ((m1.cnt1 * 1.0 / t.n) * (m2.cnt2 * 1.0 / t.n)))
             ) AS mi
             FROM joint j, total t, marginal1 m1, marginal2 m2
             WHERE j.{col1} = m1.{col1} AND j.{col2} = m2.{col2} AND j.cnt > 0

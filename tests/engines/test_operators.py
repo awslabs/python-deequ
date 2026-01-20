@@ -335,7 +335,7 @@ class TestEntropyOperator:
         op = EntropyOperator("category")
         query = op.build_query("products")
         assert "GROUP BY category" in query
-        assert "LOG2" in query
+        assert "LN" in query
         assert "entropy" in query
 
     def test_extract_result(self):

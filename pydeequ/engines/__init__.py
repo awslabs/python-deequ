@@ -347,29 +347,42 @@ def connect(
         con.execute("CREATE TABLE reviews AS SELECT * FROM 'reviews.csv'")
         engine = pydeequ.connect(con, table="reviews")
     """
+    connection_type = type(connection).__name__
+    connection_module = type(connection).__module__
+
     # Try DuckDB
-    try:
-        import duckdb
-        if isinstance(connection, duckdb.DuckDBPyConnection):
-            if table is None:
-                raise ValueError("table parameter is required for DuckDB connections")
-            from pydeequ.engines.duckdb import DuckDBEngine
-            return DuckDBEngine(connection, table)
-    except ImportError:
-        pass
+    if "duckdb" in connection_module.lower():
+        try:
+            import duckdb
+            if isinstance(connection, duckdb.DuckDBPyConnection):
+                if table is None:
+                    raise ValueError("table parameter is required for DuckDB connections")
+                from pydeequ.engines.duckdb import DuckDBEngine
+                return DuckDBEngine(connection, table)
+        except ImportError:
+            raise ImportError(
+                "DuckDB backend requires the 'duckdb' package. "
+                "Install it with: pip install pydeequ[duckdb]"
+            ) from None
 
     # Try Spark
-    try:
-        from pyspark.sql import SparkSession
-        if isinstance(connection, SparkSession):
-            from pydeequ.engines.spark import SparkEngine
-            return SparkEngine(connection, table=table, dataframe=dataframe)
-    except ImportError:
-        pass
+    if "pyspark" in connection_module.lower() or "spark" in connection_type.lower():
+        try:
+            from pyspark.sql import SparkSession
+            if isinstance(connection, SparkSession):
+                from pydeequ.engines.spark import SparkEngine
+                return SparkEngine(connection, table=table, dataframe=dataframe)
+        except ImportError:
+            raise ImportError(
+                "Spark backend requires the 'pyspark' package. "
+                "Install it with: pip install pydeequ[spark]"
+            ) from None
 
     raise ValueError(
-        f"Unsupported connection type: {type(connection).__name__}. "
-        "Supported types: duckdb.DuckDBPyConnection, pyspark.sql.SparkSession"
+        f"Unsupported connection type: {connection_type}. "
+        "Supported types:\n"
+        "  - duckdb.DuckDBPyConnection (pip install pydeequ[duckdb])\n"
+        "  - pyspark.sql.SparkSession (pip install pydeequ[spark])"
     )
 
 

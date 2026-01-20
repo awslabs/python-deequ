@@ -207,7 +207,7 @@ class StandardDeviationOperator(ScanOperator):
         return "StandardDeviation"
 
     def get_aggregations(self) -> List[str]:
-        agg = self.wrap_agg_with_where("STDDEV_SAMP", self.column)
+        agg = self.wrap_agg_with_where("STDDEV_POP", self.column)
         return [f"{agg} AS {self.alias}"]
 
     def extract_result(self, df: "pd.DataFrame") -> MetricResult:
