@@ -14,6 +14,15 @@
 """
 PyDeequ - Python API for Deequ data quality library.
 
+For PyDeequ 2.0 with DuckDB (no Spark required):
+    import duckdb
+    import pydeequ
+    from pydeequ.v2.analyzers import Size, Completeness
+
+    con = duckdb.connect()
+    con.execute("CREATE TABLE test AS SELECT 1 as id")
+    engine = pydeequ.connect(con, table="test")
+
 For PyDeequ 2.0 (Spark Connect), use:
     from pydeequ.v2 import VerificationSuite, Check, CheckLevel
     from pydeequ.v2.predicates import eq, gte
@@ -22,7 +31,51 @@ For PyDeequ 1.x (Legacy Py4J), set SPARK_VERSION env var and use:
     from pydeequ import deequ_maven_coord
     from pydeequ.checks import Check, CheckLevel
 """
+from typing import Any, Optional
+
 __version__ = "2.0.0b1"
+
+
+def connect(
+    connection: Any,
+    table: Optional[str] = None,
+    dataframe: Optional[Any] = None,
+):
+    """
+    Create an engine from a connection object with auto-detection.
+
+    This function inspects the connection type and creates the appropriate
+    engine backend. It supports:
+    - DuckDB connections (duckdb.DuckDBPyConnection) - runs locally
+    - Spark sessions (pyspark.sql.SparkSession) - uses Spark Connect
+
+    Args:
+        connection: A database connection or Spark session
+        table: Table name for SQL-based backends (required for DuckDB)
+        dataframe: DataFrame for Spark backend (alternative to table)
+
+    Returns:
+        An engine instance appropriate for the connection type
+
+    Raises:
+        ValueError: If connection type is not supported
+
+    Example:
+        # DuckDB (local, no Spark required)
+        import duckdb
+        import pydeequ
+
+        con = duckdb.connect()
+        con.execute("CREATE TABLE reviews AS SELECT * FROM 'reviews.csv'")
+        engine = pydeequ.connect(con, table="reviews")
+
+        # Spark Connect
+        from pyspark.sql import SparkSession
+        spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
+        engine = pydeequ.connect(spark, dataframe=df)
+    """
+    from pydeequ.engines import connect as engines_connect
+    return engines_connect(connection, table=table, dataframe=dataframe)
 
 # Legacy imports are deferred to avoid requiring SPARK_VERSION for V2 users.
 # V2 users should import from pydeequ.v2 directly.

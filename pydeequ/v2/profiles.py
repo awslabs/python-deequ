@@ -1,12 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-Column Profiler for Deequ Spark Connect.
+Column Profiler for PyDeequ v2.
 
 This module provides column profiling capabilities that analyze DataFrame columns
 to compute statistics like completeness, data type distribution, and optional
 KLL sketch-based quantile estimation.
 
-Example usage:
+Example usage with DuckDB:
+    import duckdb
+    import pydeequ
+    from pydeequ.v2.profiles import ColumnProfilerRunner
+
+    con = duckdb.connect()
+    con.execute("CREATE TABLE test AS SELECT 1 as id, 'foo' as name")
+    engine = pydeequ.connect(con, table="test")
+
+    profiles = (ColumnProfilerRunner()
+        .on_engine(engine)
+        .run())
+
+Example usage with Spark Connect:
     from pyspark.sql import SparkSession
     from pydeequ.v2.profiles import ColumnProfilerRunner, KLLParameters
 
@@ -30,8 +43,9 @@ Example usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
+import pandas as pd
 from google.protobuf import any_pb2
 
 from pydeequ.v2.proto import deequ_connect_pb2 as proto
@@ -39,6 +53,7 @@ from pydeequ.v2.spark_helpers import create_deequ_plan, dataframe_from_plan
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
+    from pydeequ.engines import BaseEngine
 
 
 @dataclass
@@ -74,9 +89,15 @@ class ColumnProfilerRunner:
 
     ColumnProfilerRunner analyzes DataFrame columns to compute statistics
     including completeness, data type, distinct values, and optionally
-    KLL sketches for numeric columns.
+    KLL sketches for numeric columns. Supports both engine-based and Spark-based execution.
 
-    Example:
+    Example (Engine-based with DuckDB):
+        profiles = (ColumnProfilerRunner()
+            .on_engine(engine)
+            .restrictToColumns(["col1", "col2"])
+            .run())
+
+    Example (Spark Connect):
         profiles = (ColumnProfilerRunner(spark)
             .onData(df)
             .restrictToColumns(["col1", "col2"])
@@ -84,26 +105,48 @@ class ColumnProfilerRunner:
             .run())
     """
 
-    def __init__(self, spark: "SparkSession"):
+    def __init__(self, spark: Optional["SparkSession"] = None):
         """
         Create a new ColumnProfilerRunner.
 
         Args:
-            spark: SparkSession (can be either local or Spark Connect)
+            spark: Optional SparkSession for Spark Connect mode.
+                   Not required for engine-based execution.
         """
         self._spark = spark
 
     def onData(self, df: "DataFrame") -> "ColumnProfilerRunBuilder":
         """
-        Specify the DataFrame to profile.
+        Specify the DataFrame to profile (Spark mode).
 
         Args:
             df: DataFrame to profile
 
         Returns:
             ColumnProfilerRunBuilder for method chaining
+
+        Raises:
+            ValueError: If SparkSession was not provided in constructor
         """
+        if self._spark is None:
+            raise ValueError(
+                "SparkSession required for onData(). "
+                "Use ColumnProfilerRunner(spark).onData(df) or "
+                "ColumnProfilerRunner().on_engine(engine) for engine-based execution."
+            )
         return ColumnProfilerRunBuilder(self._spark, df)
+
+    def on_engine(self, engine: "BaseEngine") -> "EngineColumnProfilerRunBuilder":
+        """
+        Specify the engine to run profiling on (Engine mode).
+
+        Args:
+            engine: BaseEngine instance (e.g., DuckDBEngine)
+
+        Returns:
+            EngineColumnProfilerRunBuilder for method chaining
+        """
+        return EngineColumnProfilerRunBuilder(engine)
 
 
 class ColumnProfilerRunBuilder:
@@ -274,9 +317,80 @@ class ColumnProfilerRunBuilder:
         return dataframe_from_plan(plan, self._spark)
 
 
+class EngineColumnProfilerRunBuilder:
+    """
+    Builder for configuring and executing engine-based column profiling.
+
+    This class works with DuckDB and other SQL backends via the engine abstraction.
+    """
+
+    def __init__(self, engine: "BaseEngine"):
+        """
+        Create a new EngineColumnProfilerRunBuilder.
+
+        Args:
+            engine: BaseEngine instance (e.g., DuckDBEngine)
+        """
+        self._engine = engine
+        self._restrict_to_columns: Optional[Sequence[str]] = None
+        self._low_cardinality_threshold: int = 0
+
+    def restrictToColumns(self, columns: Sequence[str]) -> "EngineColumnProfilerRunBuilder":
+        """
+        Restrict profiling to specific columns.
+
+        Args:
+            columns: List of column names to profile
+
+        Returns:
+            self for method chaining
+        """
+        self._restrict_to_columns = columns
+        return self
+
+    def withLowCardinalityHistogramThreshold(
+        self, threshold: int
+    ) -> "EngineColumnProfilerRunBuilder":
+        """
+        Set threshold for computing histograms.
+
+        Columns with distinct values <= threshold will have histograms computed.
+
+        Args:
+            threshold: Maximum distinct values for histogram computation
+
+        Returns:
+            self for method chaining
+        """
+        self._low_cardinality_threshold = threshold
+        return self
+
+    def run(self) -> pd.DataFrame:
+        """
+        Execute the profiling and return results as a pandas DataFrame.
+
+        The result DataFrame contains columns:
+        - column: Column name
+        - completeness: Non-null ratio (0.0-1.0)
+        - approx_distinct_values: Approximate cardinality
+        - data_type: Detected/provided type
+        - mean, minimum, maximum, sum, std_dev: Numeric stats (null for non-numeric)
+        - histogram: JSON string of histogram (or null)
+
+        Returns:
+            pandas DataFrame with profiling results (one row per column)
+        """
+        profiles = self._engine.profile_columns(
+            columns=self._restrict_to_columns,
+            low_cardinality_threshold=self._low_cardinality_threshold,
+        )
+        return self._engine.profiles_to_dataframe(profiles)
+
+
 # Export all public symbols
 __all__ = [
     "ColumnProfilerRunner",
     "ColumnProfilerRunBuilder",
+    "EngineColumnProfilerRunBuilder",
     "KLLParameters",
 ]

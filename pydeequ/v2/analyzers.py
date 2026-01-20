@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from pydeequ.v2.proto import deequ_connect_pb2 as proto
 

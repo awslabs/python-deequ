@@ -1,12 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-Constraint Suggestions for Deequ Spark Connect.
+Constraint Suggestions for PyDeequ v2.
 
 This module provides automatic constraint suggestion capabilities that analyze
 DataFrame columns and suggest appropriate data quality constraints based on
 the data characteristics.
 
-Example usage:
+Example usage with DuckDB:
+    import duckdb
+    import pydeequ
+    from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
+
+    con = duckdb.connect()
+    con.execute("CREATE TABLE test AS SELECT 1 as id, 'foo' as name")
+    engine = pydeequ.connect(con, table="test")
+
+    suggestions = (ConstraintSuggestionRunner()
+        .on_engine(engine)
+        .addConstraintRules(Rules.DEFAULT)
+        .run())
+
+Example usage with Spark Connect:
     from pyspark.sql import SparkSession
     from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
 
@@ -33,6 +47,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
+import pandas as pd
 from google.protobuf import any_pb2
 
 from pydeequ.v2.profiles import KLLParameters
@@ -41,6 +56,7 @@ from pydeequ.v2.spark_helpers import create_deequ_plan, dataframe_from_plan
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
+    from pydeequ.engines import BaseEngine
 
 
 class Rules(Enum):
@@ -79,34 +95,63 @@ class ConstraintSuggestionRunner:
 
     ConstraintSuggestionRunner analyzes DataFrame columns to suggest
     appropriate data quality constraints based on the data characteristics.
+    Supports both engine-based and Spark-based execution.
 
-    Example:
+    Example (Engine-based with DuckDB):
+        suggestions = (ConstraintSuggestionRunner()
+            .on_engine(engine)
+            .addConstraintRules(Rules.DEFAULT)
+            .run())
+
+    Example (Spark Connect):
         suggestions = (ConstraintSuggestionRunner(spark)
             .onData(df)
             .addConstraintRules(Rules.DEFAULT)
             .run())
     """
 
-    def __init__(self, spark: "SparkSession"):
+    def __init__(self, spark: Optional["SparkSession"] = None):
         """
         Create a new ConstraintSuggestionRunner.
 
         Args:
-            spark: SparkSession (can be either local or Spark Connect)
+            spark: Optional SparkSession for Spark Connect mode.
+                   Not required for engine-based execution.
         """
         self._spark = spark
 
     def onData(self, df: "DataFrame") -> "ConstraintSuggestionRunBuilder":
         """
-        Specify the DataFrame to analyze.
+        Specify the DataFrame to analyze (Spark mode).
 
         Args:
             df: DataFrame to analyze for constraint suggestions
 
         Returns:
             ConstraintSuggestionRunBuilder for method chaining
+
+        Raises:
+            ValueError: If SparkSession was not provided in constructor
         """
+        if self._spark is None:
+            raise ValueError(
+                "SparkSession required for onData(). "
+                "Use ConstraintSuggestionRunner(spark).onData(df) or "
+                "ConstraintSuggestionRunner().on_engine(engine) for engine-based execution."
+            )
         return ConstraintSuggestionRunBuilder(self._spark, df)
+
+    def on_engine(self, engine: "BaseEngine") -> "EngineConstraintSuggestionRunBuilder":
+        """
+        Specify the engine to run suggestion analysis on (Engine mode).
+
+        Args:
+            engine: BaseEngine instance (e.g., DuckDBEngine)
+
+        Returns:
+            EngineConstraintSuggestionRunBuilder for method chaining
+        """
+        return EngineConstraintSuggestionRunBuilder(engine)
 
 
 class ConstraintSuggestionRunBuilder:
@@ -332,9 +377,92 @@ class ConstraintSuggestionRunBuilder:
         return dataframe_from_plan(plan, self._spark)
 
 
+class EngineConstraintSuggestionRunBuilder:
+    """
+    Builder for configuring and executing engine-based constraint suggestions.
+
+    This class works with DuckDB and other SQL backends via the engine abstraction.
+    """
+
+    def __init__(self, engine: "BaseEngine"):
+        """
+        Create a new EngineConstraintSuggestionRunBuilder.
+
+        Args:
+            engine: BaseEngine instance (e.g., DuckDBEngine)
+        """
+        self._engine = engine
+        self._rules: List[Rules] = []
+        self._restrict_to_columns: Optional[Sequence[str]] = None
+
+    def addConstraintRules(self, rules: Rules) -> "EngineConstraintSuggestionRunBuilder":
+        """
+        Add a constraint rule set.
+
+        Can be called multiple times to add multiple rule sets.
+
+        Args:
+            rules: Rules enum value specifying which rules to use
+
+        Returns:
+            self for method chaining
+        """
+        self._rules.append(rules)
+        return self
+
+    def restrictToColumns(
+        self, columns: Sequence[str]
+    ) -> "EngineConstraintSuggestionRunBuilder":
+        """
+        Restrict suggestions to specific columns.
+
+        Args:
+            columns: List of column names to analyze
+
+        Returns:
+            self for method chaining
+        """
+        self._restrict_to_columns = columns
+        return self
+
+    def run(self) -> pd.DataFrame:
+        """
+        Execute the suggestion analysis and return results as a pandas DataFrame.
+
+        The result DataFrame contains columns:
+        - column_name: Column the constraint applies to
+        - constraint_name: Type of constraint (e.g., "Completeness", "IsIn")
+        - current_value: Current metric value that triggered suggestion
+        - description: Human-readable description
+        - suggesting_rule: Rule that generated this suggestion
+        - code_for_constraint: Python code snippet for the constraint
+
+        Returns:
+            pandas DataFrame with constraint suggestions
+
+        Raises:
+            ValueError: If no rules have been added
+        """
+        if not self._rules:
+            raise ValueError(
+                "At least one constraint rule set must be added. "
+                "Use .addConstraintRules(Rules.DEFAULT) to add rules."
+            )
+
+        # Convert Rules enum to string list
+        rule_strs = [r.value for r in self._rules]
+
+        suggestions = self._engine.suggest_constraints(
+            columns=self._restrict_to_columns,
+            rules=rule_strs,
+        )
+        return self._engine.suggestions_to_dataframe(suggestions)
+
+
 # Export all public symbols
 __all__ = [
     "ConstraintSuggestionRunner",
     "ConstraintSuggestionRunBuilder",
+    "EngineConstraintSuggestionRunBuilder",
     "Rules",
 ]
