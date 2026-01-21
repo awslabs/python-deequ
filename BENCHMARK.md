@@ -58,36 +58,36 @@ Benchmark run on Apple M3 Max (14 cores), macOS Darwin 25.2.0.
 
 | Rows | DuckDB (s) | Spark (s) | Speedup |
 |------|------------|-----------|---------|
-| 100K | 0.022 | 1.171 | **54.4x** |
-| 1M | 0.064 | 1.829 | **28.6x** |
-| 5M | 0.170 | 2.474 | **14.6x** |
-| 10M | 0.267 | 3.033 | **11.3x** |
-| 50M | 1.132 | 10.593 | **9.4x** |
-| 130M | 2.712 | 27.074 | **10.0x** |
+| 100K | 0.034 | 0.662 | **19.5x** |
+| 1M | 0.071 | 1.648 | **23.2x** |
+| 5M | 0.167 | 2.470 | **14.8x** |
+| 10M | 0.268 | 3.239 | **12.1x** |
+| 50M | 1.114 | 12.448 | **11.2x** |
+| 130M | 2.752 | 28.404 | **10.3x** |
 
 ### Experiment 2: Varying Columns
 
 | Cols | Checks | DuckDB (s) | Spark (s) | Speedup |
 |------|--------|------------|-----------|---------|
-| 10 | 16 | 0.090 | 1.556 | **17.2x** |
-| 20 | 46 | 0.111 | 2.169 | **19.5x** |
-| 40 | 106 | 0.143 | 2.878 | **20.2x** |
-| 80 | 226 | 0.253 | 4.474 | **17.7x** |
+| 10 | 16 | 0.076 | 1.619 | **21.3x** |
+| 20 | 46 | 0.081 | 2.078 | **25.7x** |
+| 40 | 106 | 0.121 | 2.781 | **23.0x** |
+| 80 | 226 | 0.177 | 4.258 | **24.1x** |
 
 ### Experiment 3: Column Profiling
 
 | Rows | DuckDB (s) | Spark (s) | Speedup |
 |------|------------|-----------|---------|
-| 100K | 0.044 | 0.638 | **14.5x** |
-| 1M | 0.297 | 0.701 | **2.4x** |
-| 5M | 1.521 | 1.886 | **1.2x** |
-| 10M | 2.902 | 3.406 | **1.2x** |
+| 100K | 0.045 | 0.585 | **13.0x** |
+| 1M | 0.288 | 0.720 | **2.5x** |
+| 5M | 1.524 | 2.351 | **1.5x** |
+| 10M | 2.993 | 3.975 | **1.3x** |
 
 ### Key Takeaways
 
-1. **DuckDB is 10-54x faster** for row-scaling validation workloads
-2. **Consistent speedup across complexity** - 17-20x speedup regardless of column count
-3. **Profiling converges** - at 10M rows, DuckDB is still 1.2x faster
+1. **DuckDB is 10-23x faster** for row-scaling validation workloads
+2. **Consistent speedup across complexity** - 21-26x speedup regardless of column count
+3. **Profiling converges** - at 10M rows, DuckDB is still 1.3x faster
 4. **No JVM overhead** - DuckDB runs natively in Python, no startup cost
 
 ## Performance Optimizations
@@ -208,49 +208,49 @@ plan = engine.explain_query("SELECT COUNT(*) FROM test")
 
 ### Measured Performance Improvements
 
-Benchmark comparison: Baseline (2026-01-20) vs After Optimization (2026-01-21)
+Benchmark comparison: Baseline (2026-01-20) vs After Optimization (2026-01-21, 5-run average)
 
 #### Experiment 2: Varying Columns (KEY METRIC - Speedup Degradation Fix)
 
 | Cols | Checks | Before DuckDB | After DuckDB | Spark | Before Speedup | After Speedup |
 |------|--------|---------------|--------------|-------|----------------|---------------|
-| 10 | 16 | 0.118s | 0.090s | 1.556s | 14.1x | **17.2x** |
-| 20 | 46 | 0.286s | 0.111s | 2.169s | 7.5x | **19.5x** |
-| 40 | 106 | 0.713s | 0.143s | 2.878s | 4.0x | **20.2x** |
-| 80 | 226 | 2.214s | 0.253s | 4.474s | 2.0x | **17.7x** |
+| 10 | 16 | 0.118s | 0.076s | 1.619s | 14.1x | **21.3x** |
+| 20 | 46 | 0.286s | 0.081s | 2.078s | 7.5x | **25.7x** |
+| 40 | 106 | 0.713s | 0.121s | 2.781s | 4.0x | **23.0x** |
+| 80 | 226 | 2.214s | 0.177s | 4.258s | 2.0x | **24.1x** |
 
 **Key Achievement**: The speedup degradation problem is **SOLVED**.
 - **Before**: Speedup degraded from 14x (10 cols) down to 2x (80 cols)
-- **After**: Speedup is consistent **~17-20x** across ALL column counts
+- **After**: Speedup is consistent **~21-26x** across ALL column counts
 
 #### DuckDB-Only Performance Gains
 
 | Cols | Before | After | Improvement |
 |------|--------|-------|-------------|
-| 10 | 0.118s | 0.090s | 24% faster |
-| 20 | 0.286s | 0.111s | 61% faster |
-| 40 | 0.713s | 0.143s | 80% faster |
-| 80 | 2.214s | 0.253s | **89% faster (~9x)** |
+| 10 | 0.118s | 0.076s | 36% faster |
+| 20 | 0.286s | 0.081s | 72% faster |
+| 40 | 0.713s | 0.121s | 83% faster |
+| 80 | 2.214s | 0.177s | **92% faster (~12x)** |
 
 #### Experiment 1: Varying Rows (16 checks)
 
 | Rows | Before | After | Improvement |
 |------|--------|-------|-------------|
-| 100K | 0.052s | 0.022s | 58% faster |
-| 1M | 0.090s | 0.064s | 29% faster |
-| 5M | 0.221s | 0.170s | 23% faster |
-| 10M | 0.335s | 0.267s | 20% faster |
-| 50M | 1.177s | 1.132s | 4% faster |
-| 130M | 2.897s | 2.712s | 6% faster |
+| 100K | 0.052s | 0.034s | 35% faster |
+| 1M | 0.090s | 0.071s | 21% faster |
+| 5M | 0.221s | 0.167s | 24% faster |
+| 10M | 0.335s | 0.268s | 20% faster |
+| 50M | 1.177s | 1.114s | 5% faster |
+| 130M | 2.897s | 2.752s | 5% faster |
 
 #### Experiment 3: Column Profiling (10 columns)
 
 | Rows | Before | After | Change |
 |------|--------|-------|--------|
-| 100K | 0.086s | 0.044s | 49% faster |
-| 1M | 0.388s | 0.297s | 23% faster |
-| 5M | 1.470s | 1.521s | ~same |
-| 10M | 2.659s | 2.902s | 9% slower |
+| 100K | 0.086s | 0.045s | 48% faster |
+| 1M | 0.388s | 0.288s | 26% faster |
+| 5M | 1.470s | 1.524s | ~same |
+| 10M | 2.659s | 2.993s | 13% slower |
 
 Note: Profiling shows slight regression at very high row counts due to batched query overhead, which is a trade-off for the significant gains in column scaling.
 
