@@ -48,6 +48,10 @@ from pydeequ.engines.constraints.base import (
     BaseEvaluator,
     RatioCheckEvaluator,
 )
+from pydeequ.engines.constraints.batch_evaluator import (
+    ConstraintBatchEvaluator,
+    SCAN_BASED_EVALUATORS,
+)
 from pydeequ.engines.constraints.evaluators import (
     ApproxCountDistinctEvaluator,
     ApproxQuantileEvaluator,
@@ -88,6 +92,9 @@ __all__ = [
     "BaseEvaluator",
     "RatioCheckEvaluator",
     "AnalyzerBasedEvaluator",
+    # Batch evaluator
+    "ConstraintBatchEvaluator",
+    "SCAN_BASED_EVALUATORS",
     # Analyzer-based evaluators
     "SizeEvaluator",
     "CompletenessEvaluator",

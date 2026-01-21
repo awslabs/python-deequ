@@ -354,10 +354,34 @@ class MultiColumnProfileOperator(WhereClauseMixin, SafeExtractMixin, ColumnAlias
 
         return f"SELECT {', '.join(aggregations)} FROM {table}"
 
+    def build_percentile_query(self, table: str) -> str:
+        """
+        Build query for percentiles of all numeric columns.
+
+        Args:
+            table: Table name to query
+
+        Returns:
+            SQL query string (empty if no numeric columns)
+        """
+        if not self.numeric_columns:
+            return ""
+
+        aggregations = []
+        for col in self.numeric_columns:
+            aggregations.extend([
+                f"QUANTILE_CONT({col}, 0.25) as p25_{col}",
+                f"QUANTILE_CONT({col}, 0.50) as p50_{col}",
+                f"QUANTILE_CONT({col}, 0.75) as p75_{col}",
+            ])
+
+        return f"SELECT {', '.join(aggregations)} FROM {table}"
+
     def extract_profiles(
         self,
         completeness_df: "pd.DataFrame",
         numeric_df: Optional["pd.DataFrame"] = None,
+        percentile_df: Optional["pd.DataFrame"] = None,
     ) -> List[ColumnProfile]:
         """
         Extract column profiles from query results.
@@ -365,6 +389,7 @@ class MultiColumnProfileOperator(WhereClauseMixin, SafeExtractMixin, ColumnAlias
         Args:
             completeness_df: DataFrame with completeness statistics
             numeric_df: DataFrame with numeric statistics (optional)
+            percentile_df: DataFrame with percentile statistics (optional)
 
         Returns:
             List of ColumnProfile objects
@@ -399,6 +424,17 @@ class MultiColumnProfileOperator(WhereClauseMixin, SafeExtractMixin, ColumnAlias
                 profile.mean = self.safe_float(numeric_df, f"mean_{col}")
                 profile.sum = self.safe_float(numeric_df, f"sum_{col}")
                 profile.std_dev = self.safe_float(numeric_df, f"stddev_{col}")
+
+            # Add percentiles if applicable
+            if col in self.numeric_columns and percentile_df is not None:
+                p25 = self.safe_float(percentile_df, f"p25_{col}")
+                p50 = self.safe_float(percentile_df, f"p50_{col}")
+                p75 = self.safe_float(percentile_df, f"p75_{col}")
+                profile.approx_percentiles = json.dumps({
+                    "0.25": p25,
+                    "0.50": p50,
+                    "0.75": p75,
+                })
 
             profiles.append(profile)
 

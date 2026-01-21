@@ -42,6 +42,10 @@ Example usage:
 
 from pydeequ.engines.operators.base import GroupingOperator, ScanOperator
 from pydeequ.engines.operators.factory import OperatorFactory
+from pydeequ.engines.operators.grouping_batcher import (
+    GroupingOperatorBatcher,
+    BATCHABLE_OPERATORS,
+)
 from pydeequ.engines.operators.grouping_operators import (
     DistinctnessOperator,
     EntropyOperator,
@@ -120,6 +124,9 @@ __all__ = [
     "EntropyOperator",
     "MutualInformationOperator",
     "HistogramOperator",
+    # Grouping operator batching
+    "GroupingOperatorBatcher",
+    "BATCHABLE_OPERATORS",
     # Metadata operators
     "DataTypeOperator",
     # Profiling operators

@@ -400,3 +400,11 @@ __all__ = [
     # Factory function
     "connect",
 ]
+
+
+# Lazy import for DuckDB config to avoid import errors when duckdb is not installed
+def __getattr__(name: str) -> Any:
+    if name == "DuckDBEngineConfig":
+        from pydeequ.engines.duckdb_config import DuckDBEngineConfig
+        return DuckDBEngineConfig
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

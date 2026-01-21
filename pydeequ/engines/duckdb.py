@@ -15,10 +15,17 @@ Example usage:
 
     engine = DuckDBEngine(con, table="test")
     metrics = engine.compute_metrics([Size(), Completeness("id"), Mean("value")])
+
+    # With profiling enabled
+    engine = DuckDBEngine(con, table="test", enable_profiling=True)
+    engine.compute_metrics([Size(), Completeness("id")])
+    stats = engine.get_query_stats()
+    print(f"Total queries: {engine.get_query_count()}")
 """
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
 import pandas as pd
@@ -32,10 +39,11 @@ from pydeequ.engines import (
     CheckStatus,
     MetricResult,
 )
-from pydeequ.engines.operators import OperatorFactory
+from pydeequ.engines.operators import GroupingOperatorBatcher, OperatorFactory
 
 if TYPE_CHECKING:
     import duckdb
+    from pydeequ.engines.duckdb_config import DuckDBEngineConfig
     from pydeequ.v2.analyzers import _ConnectAnalyzer
     from pydeequ.v2.checks import Check
     from pydeequ.v2.predicates import Predicate
@@ -51,19 +59,35 @@ class DuckDBEngine(BaseEngine):
     Attributes:
         con: DuckDB connection
         table: Name of the table to analyze
+        enable_profiling: Whether to collect query timing statistics
+        config: Optional configuration for DuckDB optimization
     """
 
-    def __init__(self, con: "duckdb.DuckDBPyConnection", table: str):
+    def __init__(
+        self,
+        con: "duckdb.DuckDBPyConnection",
+        table: str,
+        enable_profiling: bool = False,
+        config: Optional["DuckDBEngineConfig"] = None,
+    ):
         """
         Create a new DuckDBEngine.
 
         Args:
             con: DuckDB connection object
             table: Name of the table to analyze
+            enable_profiling: Whether to collect query timing statistics
+            config: Optional DuckDB configuration for optimization
         """
         self.con = con
         self.table = table
         self._schema: Optional[Dict[str, str]] = None
+        self._enable_profiling = enable_profiling
+        self._query_stats: List[Dict] = []
+
+        # Apply configuration if provided
+        if config is not None:
+            config.apply(con)
 
     def get_schema(self) -> Dict[str, str]:
         """Get the schema of the table."""
@@ -80,7 +104,33 @@ class DuckDBEngine(BaseEngine):
 
     def _execute_query(self, query: str) -> pd.DataFrame:
         """Execute a SQL query and return results as DataFrame."""
+        if self._enable_profiling:
+            start = time.perf_counter()
+            result = self.con.execute(query).fetchdf()
+            elapsed = time.perf_counter() - start
+            self._query_stats.append({
+                'query': query[:200] + ('...' if len(query) > 200 else ''),
+                'time_ms': elapsed * 1000,
+                'rows': len(result),
+            })
+            return result
         return self.con.execute(query).fetchdf()
+
+    def get_query_stats(self) -> pd.DataFrame:
+        """Return profiling statistics as DataFrame."""
+        return pd.DataFrame(self._query_stats)
+
+    def get_query_count(self) -> int:
+        """Return number of queries executed."""
+        return len(self._query_stats)
+
+    def explain_query(self, query: str) -> str:
+        """Get DuckDB query plan with EXPLAIN ANALYZE."""
+        return self.con.execute(f"EXPLAIN ANALYZE {query}").fetchdf().to_string()
+
+    def reset_profiling(self) -> None:
+        """Reset profiling statistics."""
+        self._query_stats = []
 
     def _get_row_count(self, where: Optional[str] = None) -> int:
         """Get the row count, optionally filtered."""
@@ -178,22 +228,45 @@ class DuckDBEngine(BaseEngine):
                         message=f"Batch query failed: {str(e)}"
                     ))
 
-        # Execute grouping operators individually
-        for operator in grouping_operators:
+        # Execute grouping operators with batching optimization
+        if grouping_operators:
+            batcher = GroupingOperatorBatcher(grouping_operators)
+
+            # Execute batched queries (fused operators with same columns/where)
             try:
-                query = operator.build_query(self.table)
-                df = self._execute_query(query)
-                result = operator.extract_result(df)
-                results.append(result)
+                batched_results = batcher.execute_batched(
+                    self.table, self._execute_query
+                )
+                results.extend(batched_results)
             except Exception as e:
-                results.append(MetricResult(
-                    name=operator.metric_name,
-                    instance=operator.instance,
-                    entity=operator.entity,
-                    value=None,
-                    success=False,
-                    message=str(e)
-                ))
+                # If batched execution fails, fall back to individual execution
+                for operator in grouping_operators:
+                    if operator not in batcher.get_unbatchable_operators():
+                        results.append(MetricResult(
+                            name=operator.metric_name,
+                            instance=operator.instance,
+                            entity=operator.entity,
+                            value=None,
+                            success=False,
+                            message=f"Batched query failed: {str(e)}"
+                        ))
+
+            # Execute unbatchable operators individually
+            for operator in batcher.get_unbatchable_operators():
+                try:
+                    query = operator.build_query(self.table)
+                    df = self._execute_query(query)
+                    result = operator.extract_result(df)
+                    results.append(result)
+                except Exception as e:
+                    results.append(MetricResult(
+                        name=operator.metric_name,
+                        instance=operator.instance,
+                        entity=operator.entity,
+                        value=None,
+                        success=False,
+                        message=str(e)
+                    ))
 
         # Execute metadata operators using schema
         schema = self.get_schema()
@@ -218,30 +291,56 @@ class DuckDBEngine(BaseEngine):
     # =========================================================================
 
     def run_checks(self, checks: Sequence["Check"]) -> List[ConstraintResult]:
-        """Run verification checks and return constraint results."""
+        """Run verification checks and return constraint results.
+
+        Uses ConstraintBatchEvaluator to batch compatible constraints,
+        reducing the number of SQL queries executed.
+        """
         from pydeequ.v2.checks import CheckLevel
-        from pydeequ.engines.constraints import ConstraintEvaluatorFactory
+        from pydeequ.engines.constraints import (
+            ConstraintBatchEvaluator,
+            ConstraintEvaluatorFactory,
+        )
 
         results: List[ConstraintResult] = []
 
+        # Phase 1: Create all evaluators and collect metadata
+        all_evaluators = []
+        constraint_info = []  # (check, constraint, evaluator) tuples
+
+        for check in checks:
+            for constraint in check._constraints:
+                evaluator = ConstraintEvaluatorFactory.create(constraint)
+                if evaluator:
+                    all_evaluators.append(evaluator)
+                    constraint_info.append((check, constraint, evaluator))
+                else:
+                    constraint_info.append((check, constraint, None))
+
+        # Phase 2: Batch execute all evaluators
+        computed_values: Dict = {}
+        if all_evaluators:
+            batcher = ConstraintBatchEvaluator(all_evaluators)
+            computed_values = batcher.execute(self.table, self._execute_query)
+
+        # Phase 3: Process results by check
+        info_idx = 0
         for check in checks:
             check_description = check.description
             check_level = check.level.value
-
-            # Track overall check status
             check_has_failure = False
 
             for constraint in check._constraints:
+                _, _, evaluator = constraint_info[info_idx]
+                info_idx += 1
+
                 constraint_message = None
                 constraint_passed = False
 
                 try:
-                    # Create evaluator for this constraint
-                    evaluator = ConstraintEvaluatorFactory.create(constraint)
-
                     if evaluator:
-                        # Compute the metric value
-                        value = evaluator.compute_value(self.table, self._execute_query)
+                        # Get pre-computed value from batch execution
+                        value = computed_values.get(evaluator)
 
                         # Evaluate the constraint
                         constraint_passed = evaluator.evaluate(value)
@@ -304,9 +403,9 @@ class DuckDBEngine(BaseEngine):
         """
         Profile columns in the table.
 
-        Uses ColumnProfileOperator to compute statistics for each column
-        including completeness, distinct values, and (for numeric columns)
-        min, max, mean, sum, stddev, and percentiles.
+        Uses MultiColumnProfileOperator to batch profile statistics across
+        multiple columns, significantly reducing the number of SQL queries
+        from 2-3 per column to 2-3 total.
 
         Args:
             columns: Optional list of columns to profile. If None, profile all.
@@ -316,7 +415,10 @@ class DuckDBEngine(BaseEngine):
         Returns:
             List of ColumnProfile objects
         """
-        from pydeequ.engines.operators.profiling_operators import ColumnProfileOperator
+        from pydeequ.engines.operators.profiling_operators import (
+            ColumnProfileOperator,
+            MultiColumnProfileOperator,
+        )
 
         schema = self.get_schema()
 
@@ -326,46 +428,50 @@ class DuckDBEngine(BaseEngine):
         else:
             cols_to_profile = list(schema.keys())
 
-        profiles: List[ColumnProfile] = []
+        if not cols_to_profile:
+            return []
 
-        for col in cols_to_profile:
-            col_type = schema[col]
+        # Use MultiColumnProfileOperator for batched profiling
+        operator = MultiColumnProfileOperator(cols_to_profile, schema)
 
-            # Create operator for this column
-            operator = ColumnProfileOperator(
-                column=col,
-                column_type=col_type,
-                compute_percentiles=True,
-                compute_histogram=(low_cardinality_threshold > 0),
-                histogram_limit=low_cardinality_threshold,
-            )
+        # Query 1: Completeness and distinct counts for all columns
+        completeness_query = operator.build_completeness_query(self.table)
+        completeness_df = self._execute_query(completeness_query)
 
-            # Execute base query and extract stats
-            base_query = operator.build_base_query(self.table)
-            base_result = self._execute_query(base_query)
-            base_stats = operator.extract_base_result(base_result)
+        # Query 2: Numeric stats for all numeric columns (if any)
+        numeric_df = None
+        numeric_query = operator.build_numeric_stats_query(self.table)
+        if numeric_query:
+            numeric_df = self._execute_query(numeric_query)
 
-            # Execute percentile query for numeric columns
-            percentiles = None
-            if operator.compute_percentiles:
-                try:
-                    percentile_query = operator.build_percentile_query(self.table)
-                    percentile_result = self._execute_query(percentile_query)
-                    percentiles = operator.extract_percentile_result(percentile_result)
-                except Exception:
-                    # Percentile computation may fail for some types
-                    pass
+        # Query 3: Percentiles for all numeric columns (if any)
+        percentile_df = None
+        percentile_query = operator.build_percentile_query(self.table)
+        if percentile_query:
+            try:
+                percentile_df = self._execute_query(percentile_query)
+            except Exception:
+                # Percentile computation may fail for some types
+                pass
 
-            # Execute histogram query for low cardinality columns
-            histogram = None
-            if operator.compute_histogram and base_stats["distinct_count"] <= low_cardinality_threshold:
-                hist_query = operator.build_histogram_query(self.table)
-                hist_result = self._execute_query(hist_query)
-                histogram = operator.extract_histogram_result(hist_result)
+        # Extract profiles from batched results
+        profiles = operator.extract_profiles(completeness_df, numeric_df, percentile_df)
 
-            # Build and append profile
-            profile = operator.build_profile(base_stats, percentiles, histogram)
-            profiles.append(profile)
+        # Add histograms for low cardinality columns (requires per-column queries)
+        if low_cardinality_threshold > 0:
+            for profile in profiles:
+                if profile.approx_distinct_values <= low_cardinality_threshold:
+                    col_type = schema.get(profile.column, "VARCHAR")
+                    col_operator = ColumnProfileOperator(
+                        column=profile.column,
+                        column_type=col_type,
+                        compute_percentiles=False,
+                        compute_histogram=True,
+                        histogram_limit=low_cardinality_threshold,
+                    )
+                    hist_query = col_operator.build_histogram_query(self.table)
+                    hist_result = self._execute_query(hist_query)
+                    profile.histogram = col_operator.extract_histogram_result(hist_result)
 
         return profiles
 
