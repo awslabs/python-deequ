@@ -7,14 +7,19 @@ v2 Spark Connect API, providing a unified engine interface.
 
 Example usage:
     from pyspark.sql import SparkSession
-    from pydeequ.engines.spark import SparkEngine
+    import pydeequ
+    from pydeequ.v2.verification import AnalysisRunner
     from pydeequ.v2.analyzers import Size, Completeness
 
     spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
     df = spark.createDataFrame([(1, 2), (3, 4)], ["a", "b"])
 
-    engine = SparkEngine(spark, dataframe=df)
-    metrics = engine.compute_metrics([Size(), Completeness("a")])
+    engine = pydeequ.connect(spark)
+    result = (AnalysisRunner(engine)
+        .onData(dataframe=df)
+        .addAnalyzer(Size())
+        .addAnalyzer(Completeness("a"))
+        .run())
 """
 
 from __future__ import annotations
@@ -71,6 +76,14 @@ class SparkEngine(BaseEngine):
         self.table = table
         self._dataframe = dataframe
 
+    def for_table(self, table: str) -> "SparkEngine":
+        """Return a new SparkEngine bound to the given table."""
+        return SparkEngine(self.spark, table=table)
+
+    def for_dataframe(self, df: "DataFrame") -> "SparkEngine":
+        """Return a new SparkEngine bound to the given dataframe."""
+        return SparkEngine(self.spark, dataframe=df)
+
     def _get_dataframe(self) -> "DataFrame":
         """Get the DataFrame to analyze."""
         if self._dataframe is not None:
@@ -96,16 +109,16 @@ class SparkEngine(BaseEngine):
         Returns:
             List of MetricResult objects
         """
-        from pydeequ.v2.verification import AnalysisRunner
+        from pydeequ.v2.verification import _SparkAnalysisRunBuilder
 
         df = self._get_dataframe()
 
-        # Build and run the analysis
-        runner = AnalysisRunner(self.spark).onData(df)
+        # Build and run the analysis using internal builder
+        builder = _SparkAnalysisRunBuilder(self.spark, df)
         for analyzer in analyzers:
-            runner = runner.addAnalyzer(analyzer)
+            builder = builder.addAnalyzer(analyzer)
 
-        result_df = runner.run()
+        result_df = builder.run()
 
         # Convert Spark DataFrame result to MetricResult objects
         results: List[MetricResult] = []
@@ -129,16 +142,16 @@ class SparkEngine(BaseEngine):
         Returns:
             List of ConstraintResult objects
         """
-        from pydeequ.v2.verification import VerificationSuite
+        from pydeequ.v2.verification import _SparkVerificationRunBuilder
 
         df = self._get_dataframe()
 
-        # Build and run the verification
-        suite = VerificationSuite(self.spark).onData(df)
+        # Build and run the verification using internal builder
+        builder = _SparkVerificationRunBuilder(self.spark, df)
         for check in checks:
-            suite = suite.addCheck(check)
+            builder = builder.addCheck(check)
 
-        result_df = suite.run()
+        result_df = builder.run()
 
         # Convert Spark DataFrame result to ConstraintResult objects
         results: List[ConstraintResult] = []
@@ -169,12 +182,12 @@ class SparkEngine(BaseEngine):
         Returns:
             List of ColumnProfile objects
         """
-        from pydeequ.v2.profiles import ColumnProfilerRunner
+        from pydeequ.v2.profiles import _SparkColumnProfilerRunBuilder
 
         df = self._get_dataframe()
 
-        # Build and run the profiler
-        runner = ColumnProfilerRunner(self.spark).onData(df)
+        # Build and run the profiler using internal builder
+        runner = _SparkColumnProfilerRunBuilder(self.spark, df)
 
         if columns:
             runner = runner.restrictToColumns(columns)
@@ -219,12 +232,12 @@ class SparkEngine(BaseEngine):
         Returns:
             List of ConstraintSuggestion objects
         """
-        from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
+        from pydeequ.v2.suggestions import _SparkConstraintSuggestionRunBuilder, Rules
 
         df = self._get_dataframe()
 
-        # Build and run the suggestion runner
-        runner = ConstraintSuggestionRunner(self.spark).onData(df)
+        # Build and run the suggestion runner using internal builder
+        runner = _SparkConstraintSuggestionRunBuilder(self.spark, df)
 
         if columns:
             runner = runner.restrictToColumns(columns)

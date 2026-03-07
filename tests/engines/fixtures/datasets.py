@@ -39,15 +39,31 @@ def create_df_full() -> pd.DataFrame:
 
 
 def create_df_missing() -> pd.DataFrame:
-    """Dataset with NULL handling patterns (12 rows).
+    """Dataset with NULL handling patterns (1200 rows).
 
     Purpose: NULL handling tests
-    Edge cases: att1: 50% complete, att2: 75% complete
+    Sized large enough for HLL to be accurate within 10% tolerance.
+    Ratios: att1: 50% complete (600 non-null), att2: 75% complete (900 non-null)
     """
+    n = 1200
+    # att1: 50% complete - pattern of 2 values then 2 nulls
+    att1 = []
+    for i in range(n):
+        if i % 4 < 2:
+            att1.append(f"a_{i}")
+        else:
+            att1.append(None)
+    # att2: 75% complete - pattern of 3 values then 1 null
+    att2 = []
+    for i in range(n):
+        if i % 4 < 3:
+            att2.append(f"d_{i}")
+        else:
+            att2.append(None)
     return pd.DataFrame({
-        "att1": ["a", "b", None, None, "e", "f", None, None, "i", "j", None, None],
-        "att2": ["d", "e", "f", None, "h", "i", "j", None, "l", "m", "n", None],
-        "item": list(range(1, 13)),
+        "att1": att1,
+        "att2": att2,
+        "item": list(range(1, n + 1)),
     })
 
 
@@ -84,17 +100,20 @@ def create_df_unique() -> pd.DataFrame:
 
 
 def create_df_distinct() -> pd.DataFrame:
-    """Dataset for distinctness testing with duplicates (6 rows).
+    """Dataset for distinctness testing with duplicates (2000 rows).
 
-    Purpose: Distinctness and uniqueness ratio testing
-    Edge cases: 3 distinct values in att1 with duplicates
-    - att1: ["a", "a", "b", "b", "c", "c"] -> 3 distinct, 0 unique
-    - att2: ["x", "y", "z", "w", "v", "u"] -> 6 distinct, 6 unique
+    Purpose: Distinctness and uniqueness ratio testing.
+    Sized large enough for HLL to be accurate within 10% tolerance.
+    - att1: 1000 distinct values, each appearing twice -> 0 unique, distinctness=0.5
+    - att2: 2000 distinct values -> all unique, distinctness=1.0
     """
+    n = 2000
+    att1_values = [f"val_{i // 2}" for i in range(n)]  # 1000 distinct, each twice
+    att2_values = [f"id_{i}" for i in range(n)]         # 2000 distinct
     return pd.DataFrame({
-        "att1": ["a", "a", "b", "b", "c", "c"],
-        "att2": ["x", "y", "z", "w", "v", "u"],
-        "item": [1, 2, 3, 4, 5, 6],
+        "att1": att1_values,
+        "att2": att2_values,
+        "item": list(range(1, n + 1)),
     })
 
 
@@ -340,7 +359,7 @@ def create_df_data_type() -> pd.DataFrame:
 EXPECTED_VALUES: Dict[Tuple[str, str, Any], float] = {
     # Size analyzer
     ("df_full", "Size", None): 4.0,
-    ("df_missing", "Size", None): 12.0,
+    ("df_missing", "Size", None): 1200.0,
     ("df_numeric", "Size", None): 6.0,
     ("df_empty", "Size", None): 0.0,
     ("df_single", "Size", None): 1.0,
@@ -389,19 +408,19 @@ EXPECTED_VALUES: Dict[Tuple[str, str, Any], float] = {
     ("df_string_lengths", "MaxLength", "att2"): 5.0,  # "hello", "world", "value"
 
     # Distinctness analyzer (distinct values / total rows)
-    ("df_distinct", "Distinctness", "att1"): 0.5,  # 3 distinct / 6 rows
-    ("df_distinct", "Distinctness", "att2"): 1.0,  # 6 distinct / 6 rows
+    ("df_distinct", "Distinctness", "att1"): 0.5,  # 1000 distinct / 2000 rows
+    ("df_distinct", "Distinctness", "att2"): 1.0,  # 2000 distinct / 2000 rows
     ("df_unique", "Distinctness", "all_same"): 1/6,  # 1 distinct / 6 rows
 
     # Uniqueness analyzer (rows with unique values / total rows)
     ("df_distinct", "Uniqueness", "att1"): 0.0,  # No unique values (all duplicated)
-    ("df_distinct", "Uniqueness", "att2"): 1.0,  # All values are unique
+    ("df_distinct", "Uniqueness", "att2"): 1.0,  # All 2000 values are unique
     ("df_unique", "Uniqueness", "unique_col"): 1.0,  # All values unique
     ("df_unique", "Uniqueness", "non_unique"): 0.0,  # All values duplicated
 
     # UniqueValueRatio analyzer (unique values / distinct values)
-    ("df_distinct", "UniqueValueRatio", "att1"): 0.0,  # 0 unique / 3 distinct
-    ("df_distinct", "UniqueValueRatio", "att2"): 1.0,  # 6 unique / 6 distinct
+    ("df_distinct", "UniqueValueRatio", "att1"): 0.0,  # 0 unique / 1000 distinct
+    ("df_distinct", "UniqueValueRatio", "att2"): 1.0,  # 2000 unique / 2000 distinct
 
     # Correlation analyzer
     ("df_correlation", "Correlation", ("x", "y")): 1.0,   # Perfect positive
@@ -414,13 +433,13 @@ EXPECTED_VALUES: Dict[Tuple[str, str, Any], float] = {
     # ApproxCountDistinct analyzer
     ("df_full", "ApproxCountDistinct", "att1"): 3.0,  # "a", "b", "c" (a appears twice)
     ("df_full", "ApproxCountDistinct", "item"): 4.0,  # 1, 2, 3, 4
-    ("df_distinct", "ApproxCountDistinct", "att1"): 3.0,  # "a", "b", "c"
-    ("df_distinct", "ApproxCountDistinct", "att2"): 6.0,  # All distinct
+    ("df_distinct", "ApproxCountDistinct", "att1"): 1000.0,  # 1000 distinct values
+    ("df_distinct", "ApproxCountDistinct", "att2"): 2000.0,  # 2000 distinct values
 
     # CountDistinct analyzer
     ("df_full", "CountDistinct", "att1"): 3.0,
-    ("df_distinct", "CountDistinct", "att1"): 3.0,
-    ("df_distinct", "CountDistinct", "att2"): 6.0,
+    ("df_distinct", "CountDistinct", "att1"): 1000.0,
+    ("df_distinct", "CountDistinct", "att2"): 2000.0,
 
     # PatternMatch analyzer (fraction of rows matching pattern)
     # These will be tested with specific patterns in the tests
@@ -431,9 +450,9 @@ EXPECTED_VALUES: Dict[Tuple[str, str, Any], float] = {
     ("df_compliance", "Compliance", "mixed > 0"): 0.5,  # 3/6 > 0
 
     # Quantile analyzer (approximate)
-    ("df_quantile", "ApproxQuantile", ("value", 0.5)): 5.5,  # Median
-    ("df_quantile", "ApproxQuantile", ("value", 0.25)): 3.0,  # 25th percentile (approx)
-    ("df_quantile", "ApproxQuantile", ("value", 0.75)): 8.0,  # 75th percentile (approx)
+    ("df_quantile", "ApproxQuantile-0.5", ("value", 0.5)): 5.5,  # Median
+    ("df_quantile", "ApproxQuantile-0.25", ("value", 0.25)): 3.0,  # 25th percentile (approx)
+    ("df_quantile", "ApproxQuantile-0.75", ("value", 0.75)): 8.0,  # 75th percentile (approx)
 }
 
 
@@ -475,7 +494,10 @@ ANALYZER_TOLERANCES: Dict[str, float] = {
 
 def get_tolerance(analyzer_name: str) -> float:
     """Get the appropriate tolerance for an analyzer type."""
-    return ANALYZER_TOLERANCES.get(analyzer_name, FLOAT_TOLERANCE)
+    if analyzer_name in ANALYZER_TOLERANCES:
+        return ANALYZER_TOLERANCES[analyzer_name]
+    base_name = analyzer_name.split("-")[0]
+    return ANALYZER_TOLERANCES.get(base_name, FLOAT_TOLERANCE)
 
 
 def is_close(actual: float, expected: float, tolerance: float) -> bool:

@@ -66,7 +66,7 @@ class DuckDBEngine(BaseEngine):
     def __init__(
         self,
         con: "duckdb.DuckDBPyConnection",
-        table: str,
+        table: Optional[str] = None,
         enable_profiling: bool = False,
         config: Optional["DuckDBEngineConfig"] = None,
     ):
@@ -75,7 +75,8 @@ class DuckDBEngine(BaseEngine):
 
         Args:
             con: DuckDB connection object
-            table: Name of the table to analyze
+            table: Optional name of the table to analyze.
+                   Can be specified later via ``for_table()``.
             enable_profiling: Whether to collect query timing statistics
             config: Optional DuckDB configuration for optimization
         """
@@ -88,6 +89,14 @@ class DuckDBEngine(BaseEngine):
         # Apply configuration if provided
         if config is not None:
             config.apply(con)
+
+    def for_table(self, table: str) -> "DuckDBEngine":
+        """Return a new DuckDBEngine bound to the given table."""
+        return DuckDBEngine(
+            self.con,
+            table=table,
+            enable_profiling=self._enable_profiling,
+        )
 
     def get_schema(self) -> Dict[str, str]:
         """Get the schema of the table."""

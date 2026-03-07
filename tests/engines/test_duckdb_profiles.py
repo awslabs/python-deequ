@@ -95,8 +95,8 @@ class TestDistinctValuesProfile:
         """Distinct count handles duplicates correctly."""
         profiles = engine_distinct.profile_columns(columns=["att1"])
         profile = get_profile_by_column(profiles, "att1")
-        # att1: ["a", "a", "b", "b", "c", "c"] -> 3 distinct
-        assert profile.approx_distinct_values == 3
+        # att1: 1000 distinct values, each appearing twice
+        assert abs(profile.approx_distinct_values - 1000) / 1000 < 0.1
 
 
 class TestDataTypeProfile:

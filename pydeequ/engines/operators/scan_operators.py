@@ -460,11 +460,11 @@ class ApproxQuantileOperator(ScanOperator):
     def __init__(self, column: str, quantile: float = 0.5, where: Optional[str] = None):
         super().__init__(column, where)
         self.quantile = quantile
-        self.alias = self.make_alias("approx_quantile", column)
+        self.alias = self.make_alias(f"approx_quantile_{str(quantile).replace('.', '_')}", column)
 
     @property
     def metric_name(self) -> str:
-        return "ApproxQuantile"
+        return f"ApproxQuantile-{self.quantile}"
 
     def get_aggregations(self) -> List[str]:
         if self.where:

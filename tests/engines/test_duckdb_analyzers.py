@@ -82,7 +82,7 @@ class TestSizeAnalyzer:
         """Size counts all rows regardless of NULLs."""
         metrics = engine_missing.compute_metrics([Size()])
         value = get_metric_value(metrics, "Size")
-        assert value == 12.0
+        assert value == 1200.0
 
     def test_size_with_where(self, engine_where):
         """Size respects WHERE clause."""
@@ -326,13 +326,13 @@ class TestCountDistinctAnalyzer:
         """CountDistinct equals row count when all values are distinct."""
         metrics = engine_distinct.compute_metrics([CountDistinct(["att2"])])
         value = get_metric_value(metrics, "CountDistinct", "att2")
-        assert is_close(value, 6.0, FLOAT_EPSILON)
+        assert is_close(value, 2000.0, FLOAT_EPSILON)
 
     def test_count_distinct_with_duplicates(self, engine_distinct):
         """CountDistinct counts only distinct values."""
         metrics = engine_distinct.compute_metrics([CountDistinct(["att1"])])
         value = get_metric_value(metrics, "CountDistinct", "att1")
-        assert is_close(value, 3.0, FLOAT_EPSILON)
+        assert is_close(value, 1000.0, FLOAT_EPSILON)
 
 
 class TestApproxCountDistinctAnalyzer:
@@ -349,8 +349,7 @@ class TestApproxCountDistinctAnalyzer:
         """ApproxCountDistinct handles all-unique column."""
         metrics = engine_distinct.compute_metrics([ApproxCountDistinct("att2")])
         value = get_metric_value(metrics, "ApproxCountDistinct", "att2")
-        # HyperLogLog can have higher variance on small datasets (up to 20% error)
-        assert is_close(value, 6.0, 0.2)
+        assert is_close(value, 2000.0, APPROX_TOLERANCE)
 
 
 class TestApproxQuantileAnalyzer:
@@ -359,7 +358,7 @@ class TestApproxQuantileAnalyzer:
     def test_approx_quantile_median(self, engine_quantile):
         """ApproxQuantile calculates median correctly."""
         metrics = engine_quantile.compute_metrics([ApproxQuantile("value", 0.5)])
-        value = get_metric_value(metrics, "ApproxQuantile", "value")
+        value = get_metric_value(metrics, "ApproxQuantile-0.5", "value")
         # Median of [1,2,3,4,5,6,7,8,9,10] = 5.5
         assert is_close(value, 5.5, FLOAT_TOLERANCE)
 
@@ -370,7 +369,7 @@ class TestApproxQuantileAnalyzer:
             ApproxQuantile("value", 0.75),
         ])
         # For small datasets, quantile calculation may vary slightly
-        q25 = get_metric_value(metrics, "ApproxQuantile", "value")
+        q25 = get_metric_value(metrics, "ApproxQuantile-0.25", "value")
         # Note: DuckDB uses QUANTILE_CONT which interpolates
         assert q25 is not None
 

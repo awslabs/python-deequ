@@ -183,7 +183,7 @@ def benchmark_duckdb_validation(engine: Any, check: Check, n_runs: int) -> float
     times = []
     for _ in range(n_runs):
         start = time.perf_counter()
-        result = VerificationSuite().on_engine(engine).addCheck(check).run()
+        result = VerificationSuite(engine).onData(table="benchmark_data").addCheck(check).run()
         _ = len(result)
         elapsed = time.perf_counter() - start
         times.append(elapsed)
@@ -195,7 +195,7 @@ def benchmark_duckdb_profiling(engine: Any, n_runs: int) -> float:
     times = []
     for _ in range(n_runs):
         start = time.perf_counter()
-        result = ColumnProfilerRunner().on_engine(engine).run()
+        result = ColumnProfilerRunner(engine).onData(table="benchmark_data").run()
         _ = len(result)
         elapsed = time.perf_counter() - start
         times.append(elapsed)
@@ -230,11 +230,12 @@ def load_spark_from_parquet(spark: Any, parquet_path: str) -> Tuple[Any, float]:
 
 def benchmark_spark_validation(spark: Any, spark_df: Any, check: Check, n_runs: int) -> float:
     """Time Spark VerificationSuite.run() over N runs, return average."""
+    engine = pydeequ.connect(spark)
     times = []
     for _ in range(n_runs):
         start = time.perf_counter()
-        result = VerificationSuite(spark).onData(spark_df).addCheck(check).run()
-        _ = result.collect()
+        result = VerificationSuite(engine).onData(dataframe=spark_df).addCheck(check).run()
+        _ = len(result)
         elapsed = time.perf_counter() - start
         times.append(elapsed)
     return sum(times) / len(times)
@@ -242,11 +243,12 @@ def benchmark_spark_validation(spark: Any, spark_df: Any, check: Check, n_runs: 
 
 def benchmark_spark_profiling(spark: Any, spark_df: Any, n_runs: int) -> float:
     """Time Spark ColumnProfilerRunner.run() over N runs, return average."""
+    engine = pydeequ.connect(spark)
     times = []
     for _ in range(n_runs):
         start = time.perf_counter()
-        result = ColumnProfilerRunner(spark).onData(spark_df).run()
-        _ = result.collect()
+        result = ColumnProfilerRunner(engine).onData(dataframe=spark_df).run()
+        _ = len(result)
         elapsed = time.perf_counter() - start
         times.append(elapsed)
     return sum(times) / len(times)

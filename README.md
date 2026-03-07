@@ -137,6 +137,7 @@ pip install pydeequ[duckdb]
 ```python
 import duckdb
 import pydeequ
+from pydeequ.v2.verification import AnalysisRunner, VerificationSuite
 from pydeequ.v2.analyzers import Size, Completeness, Mean
 from pydeequ.v2.checks import Check, CheckLevel
 from pydeequ.v2.predicates import eq, gte
@@ -152,18 +153,19 @@ con.execute("""
 """)
 
 # Create an engine from the connection
-engine = pydeequ.connect(con, table="users")
+engine = pydeequ.connect(con)
 
 # Run analyzers
-metrics = engine.compute_metrics([
-    Size(),
-    Completeness("id"),
-    Completeness("age"),
-    Mean("age"),
-])
+result = (AnalysisRunner(engine)
+    .onData(table="users")
+    .addAnalyzer(Size())
+    .addAnalyzer(Completeness("id"))
+    .addAnalyzer(Completeness("age"))
+    .addAnalyzer(Mean("age"))
+    .run())
+
 print("Metrics:")
-for m in metrics:
-    print(f"  {m.name}({m.instance}): {m.value}")
+print(result.to_string(index=False))
 
 # Run constraint checks
 check = (Check(CheckLevel.Error, "Data quality checks")
@@ -172,16 +174,13 @@ check = (Check(CheckLevel.Error, "Data quality checks")
     .isComplete("name")
     .hasCompleteness("age", gte(0.5)))
 
-results = engine.run_checks([check])
-print("\nConstraint Results:")
-for r in results:
-    print(f"  {r.constraint}: {r.constraint_status}")
+result = (VerificationSuite(engine)
+    .onData(table="users")
+    .addCheck(check)
+    .run())
 
-# Profile columns
-profiles = engine.profile_columns()
-print("\nColumn Profiles:")
-for p in profiles:
-    print(f"  {p.column}: completeness={p.completeness}, distinct={p.approx_distinct_values}")
+print("\nConstraint Results:")
+print(result.to_string(index=False))
 
 con.close()
 ```
@@ -269,12 +268,14 @@ pip install pydeequ[spark]
 
 ```python
 from pyspark.sql import SparkSession, Row
+import pydeequ
 from pydeequ.v2.checks import Check, CheckLevel
 from pydeequ.v2.verification import VerificationSuite
 from pydeequ.v2.predicates import eq, gte
 
 # Connect to Spark Connect server
 spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
+engine = pydeequ.connect(spark)
 
 # Create sample data
 df = spark.createDataFrame([
@@ -292,12 +293,12 @@ check = (Check(CheckLevel.Error, "Data quality checks")
     .isUnique("id"))
 
 # Run verification
-result = (VerificationSuite(spark)
-    .onData(df)
+result = (VerificationSuite(engine)
+    .onData(dataframe=df)
     .addCheck(check)
     .run())
 
-result.show(truncate=False)
+print(result.to_string(index=False))
 spark.stop()
 ```
 
@@ -344,14 +345,21 @@ from pydeequ.v2.analyzers import (
     Uniqueness, Entropy, Correlation
 )
 
-result = (AnalysisRunner(spark)
-    .onData(df)
+# DuckDB
+result = (AnalysisRunner(engine)
+    .onData(table="users")
     .addAnalyzer(Size())
     .addAnalyzer(Completeness("name"))
     .addAnalyzer(Mean("age"))
     .run())
 
-result.show()
+# Spark
+result = (AnalysisRunner(engine)
+    .onData(dataframe=df)
+    .addAnalyzer(Size())
+    .addAnalyzer(Completeness("name"))
+    .addAnalyzer(Mean("age"))
+    .run())
 ```
 
 ### Constraint Methods
@@ -386,26 +394,21 @@ result.show()
 Profile column distributions and statistics across your dataset:
 
 ```python
-from pydeequ.v2.profiles import ColumnProfilerRunner, KLLParameters
+from pydeequ.v2.profiles import ColumnProfilerRunner
 
 # Basic profiling
-profiles = (ColumnProfilerRunner(spark)
-    .onData(df)
+profiles = (ColumnProfilerRunner(engine)
+    .onData(table="users")          # DuckDB: use table=
+    # .onData(dataframe=df)         # Spark: use dataframe=
     .run())
 
-profiles.show()
+print(profiles)
 
-# Advanced profiling with options
-profiles = (ColumnProfilerRunner(spark)
-    .onData(df)
-    .restrictToColumns(["id", "name", "age"])      # Profile specific columns
-    .withLowCardinalityHistogramThreshold(100)     # Generate histograms for low-cardinality columns
-    .withKLLProfiling()                            # Enable KLL sketch for approximate quantiles
-    .setKLLParameters(KLLParameters(
-        sketch_size=2048,
-        shrinking_factor=0.64,
-        num_buckets=64
-    ))
+# With options
+profiles = (ColumnProfilerRunner(engine)
+    .onData(table="users")
+    .restrictToColumns(["id", "name", "age"])
+    .withLowCardinalityHistogramThreshold(100)
     .run())
 ```
 
@@ -436,21 +439,13 @@ Auto-generate data quality constraints based on your data:
 from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
 
 # Basic suggestion generation
-suggestions = (ConstraintSuggestionRunner(spark)
-    .onData(df)
+suggestions = (ConstraintSuggestionRunner(engine)
+    .onData(table="users")          # DuckDB: use table=
+    # .onData(dataframe=df)         # Spark: use dataframe=
     .addConstraintRules(Rules.DEFAULT)
     .run())
 
-suggestions.show(truncate=False)
-
-# Advanced usage with train/test evaluation
-suggestions = (ConstraintSuggestionRunner(spark)
-    .onData(df)
-    .addConstraintRules(Rules.DEFAULT)
-    .addConstraintRules(Rules.EXTENDED)
-    .restrictToColumns(["id", "status", "score"])
-    .useTrainTestSplitWithTestsetRatio(0.2, seed=42)  # Evaluate suggestions on test set
-    .run())
+print(suggestions)
 ```
 
 **Available Rule Sets:**
@@ -509,10 +504,12 @@ result = ColumnProfilerRunner(spark).onData(df).run()
 for col, profile in result.profiles.items():
     print(profile)
 
-# After (2.0) - returns DataFrame
+# After (2.0) - unified engine API
+import pydeequ
 from pydeequ.v2.profiles import ColumnProfilerRunner
-result = ColumnProfilerRunner(spark).onData(df).run()
-result.show()
+engine = pydeequ.connect(spark)
+result = ColumnProfilerRunner(engine).onData(dataframe=df).run()
+print(result)
 ```
 
 **Suggestions changes:**
@@ -522,10 +519,12 @@ from pydeequ.suggestions import ConstraintSuggestionRunner, DEFAULT
 result = ConstraintSuggestionRunner(spark).onData(df).addConstraintRule(DEFAULT()).run()
 print(result)
 
-# After (2.0) - returns DataFrame
+# After (2.0) - unified engine API
+import pydeequ
 from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
-result = ConstraintSuggestionRunner(spark).onData(df).addConstraintRules(Rules.DEFAULT).run()
-result.show()
+engine = pydeequ.connect(spark)
+result = ConstraintSuggestionRunner(engine).onData(dataframe=df).addConstraintRules(Rules.DEFAULT).run()
+print(result)
 ```
 
 ---

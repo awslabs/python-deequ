@@ -13,15 +13,17 @@ Key design principles (inspired by DuckDQ):
 Example usage:
     import duckdb
     import pydeequ
+    from pydeequ.v2.verification import AnalysisRunner
+    from pydeequ.v2.analyzers import Size
 
-    # Auto-detection from connection type
     con = duckdb.connect()
     con.execute("CREATE TABLE test AS SELECT 1 as id, 2 as value")
-    engine = pydeequ.connect(con, table="test")
+    engine = pydeequ.connect(con)
 
-    # Direct import
-    from pydeequ.engines.duckdb import DuckDBEngine
-    engine = DuckDBEngine(con, table="test")
+    result = (AnalysisRunner(engine)
+        .onData(table="test")
+        .addAnalyzer(Size())
+        .run())
 """
 
 from __future__ import annotations
@@ -314,6 +316,18 @@ class BaseEngine(ABC):
             )
         return pd.DataFrame([s.to_dict() for s in suggestions])
 
+    @abstractmethod
+    def for_table(self, table: str) -> "BaseEngine":
+        """Return a new engine instance bound to the given table."""
+        pass
+
+    def for_dataframe(self, df: Any) -> "BaseEngine":
+        """Return a new engine instance bound to the given dataframe."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support dataframes. "
+            "Use onData(table='...') instead."
+        )
+
 
 def connect(
     connection: Any,
@@ -328,10 +342,14 @@ def connect(
     - DuckDB connections (duckdb.DuckDBPyConnection)
     - Spark sessions (pyspark.sql.SparkSession) - wraps existing v2 API
 
+    The returned engine can be passed to runner constructors. Use
+    ``onData(table=...)`` or ``onData(dataframe=...)`` on the runner to
+    bind data for each run.
+
     Args:
         connection: A database connection or Spark session
-        table: Table name for SQL-based backends
-        dataframe: DataFrame for Spark backend (alternative to table)
+        table: Optional table name (can also be specified via onData)
+        dataframe: Optional DataFrame (can also be specified via onData)
 
     Returns:
         An engine instance appropriate for the connection type
@@ -342,44 +360,37 @@ def connect(
     Example:
         import duckdb
         import pydeequ
+        from pydeequ.v2.verification import AnalysisRunner
+        from pydeequ.v2.analyzers import Size
 
         con = duckdb.connect()
         con.execute("CREATE TABLE reviews AS SELECT * FROM 'reviews.csv'")
-        engine = pydeequ.connect(con, table="reviews")
+        engine = pydeequ.connect(con)
+        result = (AnalysisRunner(engine)
+            .onData(table="reviews")
+            .addAnalyzer(Size())
+            .run())
     """
-    connection_type = type(connection).__name__
-    connection_module = type(connection).__module__
-
     # Try DuckDB
-    if "duckdb" in connection_module.lower():
-        try:
-            import duckdb
-            if isinstance(connection, duckdb.DuckDBPyConnection):
-                if table is None:
-                    raise ValueError("table parameter is required for DuckDB connections")
-                from pydeequ.engines.duckdb import DuckDBEngine
-                return DuckDBEngine(connection, table)
-        except ImportError:
-            raise ImportError(
-                "DuckDB backend requires the 'duckdb' package. "
-                "Install it with: pip install pydeequ[duckdb]"
-            ) from None
+    try:
+        import duckdb
+        if isinstance(connection, duckdb.DuckDBPyConnection):
+            from pydeequ.engines.duckdb import DuckDBEngine
+            return DuckDBEngine(connection, table)
+    except ImportError:
+        pass
 
     # Try Spark
-    if "pyspark" in connection_module.lower() or "spark" in connection_type.lower():
-        try:
-            from pyspark.sql import SparkSession
-            if isinstance(connection, SparkSession):
-                from pydeequ.engines.spark import SparkEngine
-                return SparkEngine(connection, table=table, dataframe=dataframe)
-        except ImportError:
-            raise ImportError(
-                "Spark backend requires the 'pyspark' package. "
-                "Install it with: pip install pydeequ[spark]"
-            ) from None
+    try:
+        from pyspark.sql import SparkSession
+        if isinstance(connection, SparkSession):
+            from pydeequ.engines.spark import SparkEngine
+            return SparkEngine(connection, table=table, dataframe=dataframe)
+    except ImportError:
+        pass
 
     raise ValueError(
-        f"Unsupported connection type: {connection_type}. "
+        f"Unsupported connection type: {type(connection).__name__}. "
         "Supported types:\n"
         "  - duckdb.DuckDBPyConnection (pip install pydeequ[duckdb])\n"
         "  - pyspark.sql.SparkSession (pip install pydeequ[spark])"

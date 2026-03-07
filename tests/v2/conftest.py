@@ -20,6 +20,9 @@ import os
 import pytest
 from pyspark.sql import Row, SparkSession
 
+import pydeequ
+
+
 @pytest.fixture(scope="module")
 def spark(spark_connect_server):
     """
@@ -32,6 +35,12 @@ def spark(spark_connect_server):
     session = SparkSession.builder.remote(remote_url).getOrCreate()
     yield session
     session.stop()
+
+
+@pytest.fixture(scope="module")
+def engine(spark):
+    """Module-scoped engine wrapping the Spark Connect session."""
+    return pydeequ.connect(spark)
 
 
 @pytest.fixture(scope="module")

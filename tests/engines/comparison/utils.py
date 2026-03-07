@@ -64,8 +64,16 @@ ANALYZER_TOLERANCES: Dict[str, float] = {
 
 
 def get_tolerance(analyzer_name: str) -> float:
-    """Get the appropriate tolerance for an analyzer type."""
-    return ANALYZER_TOLERANCES.get(analyzer_name, FLOAT_TOLERANCE)
+    """Get the appropriate tolerance for an analyzer type.
+
+    Supports exact matches and prefix matches for parameterized names
+    like 'ApproxQuantile-0.5'.
+    """
+    if analyzer_name in ANALYZER_TOLERANCES:
+        return ANALYZER_TOLERANCES[analyzer_name]
+    # Try prefix match for parameterized names (e.g., ApproxQuantile-0.5)
+    base_name = analyzer_name.split("-")[0]
+    return ANALYZER_TOLERANCES.get(base_name, FLOAT_TOLERANCE)
 
 
 def values_equal(

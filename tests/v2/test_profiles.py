@@ -11,16 +11,16 @@ import json
 import pytest
 from pyspark.sql import Row
 
-from pydeequ.v2.profiles import ColumnProfilerRunner, KLLParameters
+from pydeequ.v2.profiles import ColumnProfilerRunner, KLLParameters, _SparkColumnProfilerRunBuilder
 
 
 class TestBasicProfiling:
     """Test basic profiling metrics."""
 
-    def test_completeness_calculation(self, spark, profiler_df):
+    def test_completeness_calculation(self, engine, profiler_df):
         """Test completeness is correctly calculated."""
-        result = ColumnProfilerRunner(spark).onData(profiler_df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=profiler_df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         # id column is complete (8/8 = 1.0)
         assert rows["id"]["completeness"] == 1.0
@@ -31,10 +31,10 @@ class TestBasicProfiling:
         # age has 1 null out of 8
         assert abs(rows["age"]["completeness"] - 7 / 8) < 0.001
 
-    def test_data_type_inference(self, spark, profiler_df):
+    def test_data_type_inference(self, engine, profiler_df):
         """Test data types are correctly inferred."""
-        result = ColumnProfilerRunner(spark).onData(profiler_df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=profiler_df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         # Check data types contain expected type indicators
         # Deequ returns "Integral" for integer types
@@ -51,10 +51,10 @@ class TestBasicProfiling:
         )
         assert "Boolean" in rows["active"]["data_type"]
 
-    def test_approx_distinct_values(self, spark, profiler_df):
+    def test_approx_distinct_values(self, engine, profiler_df):
         """Test approximate distinct value count."""
-        result = ColumnProfilerRunner(spark).onData(profiler_df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=profiler_df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         # id should have 8 distinct values
         assert rows["id"]["approx_distinct_values"] == 8
@@ -62,10 +62,10 @@ class TestBasicProfiling:
         # active (boolean) should have 2 distinct values
         assert rows["active"]["approx_distinct_values"] == 2
 
-    def test_all_columns_profiled(self, spark, profiler_df):
+    def test_all_columns_profiled(self, engine, profiler_df):
         """Test that all columns are profiled by default."""
-        result = ColumnProfilerRunner(spark).onData(profiler_df).run()
-        rows = result.collect()
+        result = ColumnProfilerRunner(engine).onData(dataframe=profiler_df).run()
+        rows = result.to_dict('records')
 
         expected_columns = {"id", "name", "age", "salary", "active", "email", "score"}
         profiled_columns = {r["column"] for r in rows}
@@ -76,10 +76,10 @@ class TestBasicProfiling:
 class TestNumericProfiling:
     """Test numeric column profiling."""
 
-    def test_numeric_statistics(self, spark, profiler_df):
+    def test_numeric_statistics(self, engine, profiler_df):
         """Test mean, min, max, sum, stddev for numeric columns."""
-        result = ColumnProfilerRunner(spark).onData(profiler_df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=profiler_df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         age_profile = rows["age"]
         # age values: 30, 25, 35, 28, None, 45, 32, 29
@@ -89,10 +89,10 @@ class TestNumericProfiling:
         assert age_profile["mean"] is not None
         assert age_profile["std_dev"] is not None
 
-    def test_non_numeric_has_null_stats(self, spark, profiler_df):
+    def test_non_numeric_has_null_stats(self, engine, profiler_df):
         """Test non-numeric columns have null for numeric stats."""
-        result = ColumnProfilerRunner(spark).onData(profiler_df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=profiler_df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         name_profile = rows["name"]
         assert name_profile["mean"] is None
@@ -101,19 +101,19 @@ class TestNumericProfiling:
 
 
 class TestKLLProfiling:
-    """Test KLL sketch profiling."""
+    """Test KLL sketch profiling (Spark-specific, uses internal builder)."""
 
-    def test_kll_disabled_by_default(self, spark, profiler_df):
+    def test_kll_disabled_by_default(self, engine, profiler_df):
         """Test KLL is not computed by default."""
-        result = ColumnProfilerRunner(spark).onData(profiler_df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=profiler_df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         assert rows["age"]["kll_buckets"] is None
 
     def test_kll_enabled(self, spark, profiler_df):
         """Test KLL buckets are computed when enabled."""
         result = (
-            ColumnProfilerRunner(spark).onData(profiler_df).withKLLProfiling().run()
+            _SparkColumnProfilerRunBuilder(spark, profiler_df).withKLLProfiling().run()
         )
         rows = {r["column"]: r for r in result.collect()}
 
@@ -127,8 +127,7 @@ class TestKLLProfiling:
         """Test custom KLL parameters are applied."""
         params = KLLParameters(sketch_size=1024, shrinking_factor=0.5, num_buckets=32)
         result = (
-            ColumnProfilerRunner(spark)
-            .onData(profiler_df)
+            _SparkColumnProfilerRunBuilder(spark, profiler_df)
             .withKLLProfiling()
             .setKLLParameters(params)
             .run()
@@ -140,27 +139,27 @@ class TestKLLProfiling:
 class TestProfilerOptions:
     """Test profiler configuration options."""
 
-    def test_restrict_to_columns(self, spark, profiler_df):
+    def test_restrict_to_columns(self, engine, profiler_df):
         """Test restricting profiling to specific columns."""
         result = (
-            ColumnProfilerRunner(spark)
-            .onData(profiler_df)
+            ColumnProfilerRunner(engine)
+            .onData(dataframe=profiler_df)
             .restrictToColumns(["id", "name"])
             .run()
         )
 
-        columns = [r["column"] for r in result.collect()]
+        columns = [r["column"] for r in result.to_dict('records')]
         assert set(columns) == {"id", "name"}
 
-    def test_low_cardinality_histogram(self, spark, profiler_df):
+    def test_low_cardinality_histogram(self, engine, profiler_df):
         """Test histogram is computed for low cardinality columns."""
         result = (
-            ColumnProfilerRunner(spark)
-            .onData(profiler_df)
+            ColumnProfilerRunner(engine)
+            .onData(dataframe=profiler_df)
             .withLowCardinalityHistogramThreshold(10)
             .run()
         )
-        rows = {r["column"]: r for r in result.collect()}
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         # active (2 values) should have histogram
         assert rows["active"]["histogram"] is not None
@@ -169,10 +168,9 @@ class TestProfilerOptions:
         assert len(histogram) > 0
 
     def test_predefined_types(self, spark, profiler_df):
-        """Test predefined types override inference."""
+        """Test predefined types override inference (Spark-specific)."""
         result = (
-            ColumnProfilerRunner(spark)
-            .onData(profiler_df)
+            _SparkColumnProfilerRunBuilder(spark, profiler_df)
             .setPredefinedTypes({"id": "String"})
             .run()
         )
@@ -184,7 +182,7 @@ class TestProfilerOptions:
 class TestProfilerEdgeCases:
     """Test edge cases for profiler."""
 
-    def test_all_null_column(self, spark):
+    def test_all_null_column(self, spark, engine):
         """Test profiling column with all nulls."""
         from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
@@ -198,28 +196,28 @@ class TestProfilerEdgeCases:
             [(1, None), (2, None)],
             schema=schema,
         )
-        result = ColumnProfilerRunner(spark).onData(df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         assert rows["value"]["completeness"] == 0.0
 
-    def test_single_row(self, spark):
+    def test_single_row(self, spark, engine):
         """Test profiling single row DataFrame."""
         df = spark.createDataFrame([Row(id=1, value=100)])
-        result = ColumnProfilerRunner(spark).onData(df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         assert rows["value"]["minimum"] == 100.0
         assert rows["value"]["maximum"] == 100.0
         assert rows["value"]["completeness"] == 1.0
 
-    def test_large_dataframe(self, spark):
+    def test_large_dataframe(self, spark, engine):
         """Test profiling larger DataFrame."""
         df = spark.createDataFrame(
             [Row(id=i, value=i * 10, category=f"cat_{i % 5}") for i in range(1000)]
         )
-        result = ColumnProfilerRunner(spark).onData(df).run()
-        rows = {r["column"]: r for r in result.collect()}
+        result = ColumnProfilerRunner(engine).onData(dataframe=df).run()
+        rows = {r["column"]: r for r in result.to_dict('records')}
 
         # Allow some approximation error for HyperLogLog-based distinct count
         assert rows["id"]["approx_distinct_values"] >= 950

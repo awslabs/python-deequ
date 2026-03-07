@@ -73,8 +73,8 @@ def run_data_analysis(engine):
     print("DATA ANALYSIS")
     print("=" * 60)
 
-    result = (AnalysisRunner()
-        .on_engine(engine)
+    result = (AnalysisRunner(engine)
+        .onData(table="reviews")
         .addAnalyzer(Size())
         .addAnalyzer(Completeness("review_id"))
         .addAnalyzer(Completeness("marketplace"))
@@ -140,8 +140,8 @@ def run_constraint_verification(engine):
         .isContainedIn("insight", ["Y", "N"])
     )
 
-    result = (VerificationSuite()
-        .on_engine(engine)
+    result = (VerificationSuite(engine)
+        .onData(table="reviews")
         .addCheck(check)
         .run())
 
@@ -178,8 +178,8 @@ def run_column_profiling(engine):
     print("COLUMN PROFILING")
     print("=" * 60)
 
-    result = (ColumnProfilerRunner()
-        .on_engine(engine)
+    result = (ColumnProfilerRunner(engine)
+        .onData(table="reviews")
         .withLowCardinalityHistogramThreshold(10)  # Generate histograms for low-cardinality columns
         .run())
 
@@ -206,8 +206,8 @@ def run_constraint_suggestions(engine):
     print("CONSTRAINT SUGGESTIONS")
     print("=" * 60)
 
-    result = (ConstraintSuggestionRunner()
-        .on_engine(engine)
+    result = (ConstraintSuggestionRunner(engine)
+        .onData(table="reviews")
         .addConstraintRules(Rules.DEFAULT)
         .run())
 
@@ -233,10 +233,12 @@ def main():
     create_sample_data(con)
 
     # Create engine using pydeequ.connect()
-    engine = pydeequ.connect(con, table="reviews")
+    engine = pydeequ.connect(con)
 
     print("\nDataset Schema:")
-    schema = engine.get_schema()
+    # Use a table-bound engine for schema inspection
+    table_engine = engine.for_table("reviews")
+    schema = table_engine.get_schema()
     for col, dtype in schema.items():
         print(f"  {col}: {dtype}")
 
