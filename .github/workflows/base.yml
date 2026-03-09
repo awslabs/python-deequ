@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
       - uses: actions/setup-python@v5
         name: Install Python 3.12
         with:
@@ -41,14 +44,12 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip setuptools
-          pip install poetry==1.7.1
-          poetry install
-          poetry add "pyspark[connect]==3.5.0"
+          uv pip install -e ".[dev]" --system
+          uv pip install "pyspark[connect]==3.5.0" --system
 
       - name: Run V2 unit tests
         run: |
-          poetry run pytest tests/v2/test_unit.py -v
+          pytest tests/v2/test_unit.py -v
 
       - name: Start Spark Connect Server
         run: |
@@ -65,7 +66,7 @@ jobs:
         env:
           SPARK_REMOTE: "sc://localhost:15002"
         run: |
-          poetry run pytest tests/v2/ -v --ignore=tests/v2/test_unit.py
+          pytest tests/v2/ -v --ignore=tests/v2/test_unit.py
 
       - name: Stop Spark Connect Server
         if: always()
