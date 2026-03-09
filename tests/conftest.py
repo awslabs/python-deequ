@@ -2,8 +2,7 @@
 """
 Pytest configuration for PyDeequ tests using Spark Connect.
 
-All tests use the Spark Connect server which must be running before tests.
-Start it with: scripts/start-spark-connect.sh
+The Spark Connect server is automatically started by the spark_connect_server fixture.
 """
 
 import os
@@ -13,6 +12,33 @@ from pyspark.sql import SparkSession
 
 # Set environment variables required for pydeequ
 os.environ.setdefault("SPARK_VERSION", "3.5")
+
+
+@pytest.fixture(scope="session")
+def spark_connect_server():
+    """Session-scoped fixture to start Spark Connect server.
+
+    Automatically starts the Spark Connect server if not already running.
+    The server is NOT stopped after tests complete (to allow reuse across test runs).
+    """
+    from tests.helpers.spark_server import SparkConnectServer, SparkServerConfig
+
+    config = SparkServerConfig()
+    server = SparkConnectServer(config)
+
+    if not server.is_running():
+        print("\nStarting Spark Connect server for tests...")
+        server.start()
+        print("Spark Connect server started.")
+    else:
+        print("\nSpark Connect server already running.")
+
+    # Set SPARK_REMOTE if not already set
+    if not os.environ.get("SPARK_REMOTE"):
+        os.environ["SPARK_REMOTE"] = f"sc://localhost:{config.port}"
+
+    yield server
+    # Note: We don't stop the server here to allow reuse across test runs
 
 
 def create_spark_connect_session() -> SparkSession:
@@ -29,11 +55,12 @@ def create_spark_connect_session() -> SparkSession:
 
 
 @pytest.fixture(scope="module")
-def spark() -> SparkSession:
+def spark(spark_connect_server) -> SparkSession:
     """
     Pytest fixture providing a Spark Connect session.
 
     The session is shared within each test module for efficiency.
+    Depends on spark_connect_server to ensure server is running.
 
     Yields:
         SparkSession for testing
@@ -75,6 +102,6 @@ def setup_pyspark():
             return self
 
         def getOrCreate(self):
-            return get_spark_connect_session()
+            return create_spark_connect_session()
 
     return SparkConnectBuilder()

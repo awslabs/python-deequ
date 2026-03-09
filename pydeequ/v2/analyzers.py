@@ -6,26 +6,25 @@ This module provides Spark Connect compatible analyzer classes that build
 protobuf messages instead of using Py4J to call Scala code directly.
 
 Example usage:
-    from pydeequ.v2.analyzers import (
-        AnalysisRunner, AnalyzerContext,
-        Size, Completeness, Mean, Maximum, Minimum
-    )
+    import pydeequ
+    from pydeequ.v2.verification import AnalysisRunner
+    from pydeequ.v2.analyzers import Size, Completeness, Mean
 
-    result = (AnalysisRunner(spark)
-        .onData(df)
+    engine = pydeequ.connect(con)  # or pydeequ.connect(spark)
+    result = (AnalysisRunner(engine)
+        .onData(table="users")         # DuckDB
+        # .onData(dataframe=df)        # Spark
         .addAnalyzer(Size())
         .addAnalyzer(Completeness("email"))
         .addAnalyzer(Mean("amount"))
         .run())
-
-    metrics = AnalyzerContext.successMetricsAsDataFrame(result)
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from pydeequ.v2.proto import deequ_connect_pb2 as proto
 

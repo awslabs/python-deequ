@@ -21,6 +21,8 @@ Prerequisites:
 import os
 from pyspark.sql import SparkSession, Row
 
+import pydeequ
+
 # PyDeequ V2 imports
 from pydeequ.v2.analyzers import (
     Size,
@@ -79,7 +81,7 @@ def create_sample_data(spark: SparkSession):
     return spark.createDataFrame(data)
 
 
-def run_data_analysis(spark: SparkSession, df):
+def run_data_analysis(engine, df):
     """
     Run data analysis using AnalysisRunner.
 
@@ -94,8 +96,8 @@ def run_data_analysis(spark: SparkSession, df):
     print("DATA ANALYSIS")
     print("=" * 60)
 
-    result = (AnalysisRunner(spark)
-        .onData(df)
+    result = (AnalysisRunner(engine)
+        .onData(dataframe=df)
         .addAnalyzer(Size())
         .addAnalyzer(Completeness("review_id"))
         .addAnalyzer(Completeness("marketplace"))
@@ -125,7 +127,7 @@ def run_data_analysis(spark: SparkSession, df):
     return result
 
 
-def run_constraint_verification(spark: SparkSession, df):
+def run_constraint_verification(engine, df):
     """
     Run constraint verification using VerificationSuite.
 
@@ -163,8 +165,8 @@ def run_constraint_verification(spark: SparkSession, df):
         .isContainedIn("insight", ["Y", "N"])
     )
 
-    result = (VerificationSuite(spark)
-        .onData(df)
+    result = (VerificationSuite(engine)
+        .onData(dataframe=df)
         .addCheck(check)
         .run())
 
@@ -189,7 +191,7 @@ def run_constraint_verification(spark: SparkSession, df):
     return result
 
 
-def run_column_profiling(spark: SparkSession, df):
+def run_column_profiling(engine, df):
     """
     Run column profiling using ColumnProfilerRunner.
 
@@ -204,8 +206,8 @@ def run_column_profiling(spark: SparkSession, df):
     print("COLUMN PROFILING")
     print("=" * 60)
 
-    result = (ColumnProfilerRunner(spark)
-        .onData(df)
+    result = (ColumnProfilerRunner(engine)
+        .onData(dataframe=df)
         .withLowCardinalityHistogramThreshold(10)  # Generate histograms for low-cardinality columns
         .run())
 
@@ -219,7 +221,7 @@ def run_column_profiling(spark: SparkSession, df):
     return result
 
 
-def run_constraint_suggestions(spark: SparkSession, df):
+def run_constraint_suggestions(engine, df):
     """
     Run automated constraint suggestion using ConstraintSuggestionRunner.
 
@@ -233,8 +235,8 @@ def run_constraint_suggestions(spark: SparkSession, df):
     print("CONSTRAINT SUGGESTIONS")
     print("=" * 60)
 
-    result = (ConstraintSuggestionRunner(spark)
-        .onData(df)
+    result = (ConstraintSuggestionRunner(engine)
+        .onData(dataframe=df)
         .addConstraintRules(Rules.DEFAULT)
         .run())
 
@@ -261,6 +263,9 @@ def main():
     spark = SparkSession.builder.remote(spark_remote).getOrCreate()
 
     try:
+        # Create engine using pydeequ.connect()
+        engine = pydeequ.connect(spark)
+
         # Create sample data
         print("\nCreating sample product reviews dataset...")
         df = create_sample_data(spark)
@@ -272,10 +277,10 @@ def main():
         df.show(truncate=False)
 
         # Run all examples
-        run_data_analysis(spark, df)
-        run_constraint_verification(spark, df)
-        run_column_profiling(spark, df)
-        run_constraint_suggestions(spark, df)
+        run_data_analysis(engine, df)
+        run_constraint_verification(engine, df)
+        run_column_profiling(engine, df)
+        run_constraint_suggestions(engine, df)
 
         print("\n" + "=" * 60)
         print("EXAMPLE COMPLETE")

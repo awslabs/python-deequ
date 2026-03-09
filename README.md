@@ -6,73 +6,190 @@ PyDeequ is a Python API for [Deequ](https://github.com/awslabs/deequ), a library
 
 ## What's New in PyDeequ 2.0
 
-PyDeequ 2.0 introduces a new architecture using **Spark Connect**, bringing significant improvements:
+PyDeequ 2.0 introduces a new multi-engine architecture with **DuckDB** and **Spark Connect** backends:
 
 | Feature | PyDeequ 1.x | PyDeequ 2.0 |
 |---------|-------------|-------------|
-| Communication | Py4J (JVM bridge) | Spark Connect (gRPC) |
+| Backends | Spark only (Py4J) | DuckDB, Spark Connect |
+| JVM Required | Yes | No (DuckDB) / Yes (Spark) |
 | Assertions | Python lambdas | Serializable predicates |
-| Spark Session | Local only | Local or Remote |
-| Architecture | Tight JVM coupling | Clean client-server |
+| Remote Execution | No | Yes (Spark Connect) |
 
 **Key Benefits:**
-- **No Py4J dependency** - Uses Spark Connect protocol for communication
+- **DuckDB backend** - Lightweight, no JVM required, perfect for local development and CI/CD
+- **Spark Connect backend** - Production-scale processing with remote cluster support
 - **Serializable predicates** - Replace Python lambdas with predicate objects (`eq`, `gte`, `between`, etc.)
-- **Remote execution** - Connect to remote Spark clusters via Spark Connect
-- **Cleaner API** - Simplified imports and more Pythonic interface
+- **Unified API** - Same code works with both backends
 
 ### Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph CLIENT["Python Client"]
-        A["Python Code"] --> B["Protobuf<br/>Serialization"]
+        A["pydeequ.connect()"] --> B["Engine Auto-Detection"]
     end
-    B -- gRPC --> C["Spark Connect (gRPC)"]
-    subgraph SERVER["Spark Connect Server"]
-        D["DeequRelationPlugin"] --> E["Deequ Core"] --> F["Spark DataFrame API"] --> G["(Data)"]
+
+    B --> C{Connection Type}
+
+    C -->|DuckDB| D["DuckDBEngine"]
+    C -->|SparkSession| E["SparkEngine"]
+
+    subgraph DUCKDB["DuckDB Backend (Local)"]
+        D --> F["SQL Operators"] --> G["DuckDB"] --> H["Local Files<br/>Parquet/CSV"]
     end
-    G --> H["Results"] -- gRPC --> I["Python DataFrame"]
-    %% Styling for compactness and distinction
-    classDef code fill:#C8F2FB,stroke:#35a7c2,color:#13505B,font-weight:bold;
-    class A code;
+
+    subgraph SPARK["Spark Connect Backend (Distributed)"]
+        E --> I["Protobuf"] -- gRPC --> J["Spark Connect Server"]
+        J --> K["DeequRelationPlugin"] --> L["Deequ Core"] --> M["Data Lake"]
+    end
+
+    H --> N["Results"]
+    M --> N
+    N --> O["MetricResult / ConstraintResult / ColumnProfile"]
+
+    classDef duckdb fill:#FFF4CC,stroke:#E6B800,color:#806600;
+    classDef spark fill:#CCE5FF,stroke:#0066CC,color:#003366;
+    class D,F,G,H duckdb;
+    class E,I,J,K,L,M spark;
 ```
 
 **How it works:**
-1. **Client Side**: PyDeequ 2.0 builds checks and analyzers as Protobuf messages
-2. **Transport**: Messages are sent via gRPC to the Spark Connect server
-3. **Server Side**: The `DeequRelationPlugin` deserializes messages and executes Deequ operations
-4. **Results**: Verification results are returned as a Spark DataFrame
+- **Auto-detection**: `pydeequ.connect()` inspects the connection type and creates the appropriate engine
+- **DuckDB path**: Direct SQL execution in-process, no JVM required
+- **Spark path**: Protobuf serialization over gRPC to Spark Connect server with Deequ plugin
+- **Unified results**: Both engines return the same `MetricResult`, `ConstraintResult`, and `ColumnProfile` types
 
 ### Feature Support Matrix
 
-| Feature | PyDeequ 1.x | PyDeequ 2.0 |
-|---------|:-----------:|:-----------:|
-| **Constraint Verification** | | |
-| VerificationSuite | Yes | Yes |
-| Check constraints | Yes | Yes |
-| Custom SQL expressions | Yes | Yes |
-| **Metrics & Analysis** | | |
-| AnalysisRunner | Yes | Yes |
-| All standard analyzers | Yes | Yes |
-| **Column Profiling** | | |
-| ColumnProfilerRunner | Yes | Yes |
-| Numeric statistics | Yes | Yes |
-| KLL sketch profiling | Yes | Yes |
-| Low-cardinality histograms | Yes | Yes |
-| **Constraint Suggestions** | | |
-| ConstraintSuggestionRunner | Yes | Yes |
-| Rule sets (DEFAULT, EXTENDED, etc.) | Yes | Yes |
-| Train/test split evaluation | Yes | Yes |
-| **Metrics Repository** | | |
-| FileSystemMetricsRepository | Yes | Planned |
-| **Execution Mode** | | |
-| Local Spark | Yes | No |
-| Spark Connect (remote) | No | Yes |
+| Feature | PyDeequ 1.x | PyDeequ 2.0 (DuckDB) | PyDeequ 2.0 (Spark) |
+|---------|:-----------:|:--------------------:|:-------------------:|
+| **Constraint Verification** | | | |
+| VerificationSuite | Yes | Yes | Yes |
+| Check constraints | Yes | Yes | Yes |
+| Custom SQL expressions | Yes | Yes | Yes |
+| **Metrics & Analysis** | | | |
+| AnalysisRunner | Yes | Yes | Yes |
+| All standard analyzers | Yes | Yes | Yes |
+| **Column Profiling** | | | |
+| ColumnProfilerRunner | Yes | Yes | Yes |
+| Numeric statistics | Yes | Yes | Yes |
+| KLL sketch profiling | Yes | No | Yes |
+| Low-cardinality histograms | Yes | Yes | Yes |
+| **Constraint Suggestions** | | | |
+| ConstraintSuggestionRunner | Yes | Yes | Yes |
+| Rule sets (DEFAULT, EXTENDED, etc.) | Yes | Yes | Yes |
+| Train/test split evaluation | Yes | No | Yes |
+| **Metrics Repository** | | | |
+| FileSystemMetricsRepository | Yes | Planned | Planned |
+| **Execution Environment** | | | |
+| JVM Required | Yes | No | Yes |
+| Local execution | Yes | Yes | Yes |
+| Remote execution | No | No | Yes |
 
 ---
 
-## PyDeequ 2.0 Beta - Quick Start
+## Installation
+
+PyDeequ 2.0 supports multiple backends. Install only what you need:
+
+**From PyPI (when published):**
+```bash
+# DuckDB backend (lightweight, no JVM required)
+pip install pydeequ[duckdb]
+
+# Spark Connect backend (for production-scale processing)
+pip install pydeequ[spark]
+
+# Both backends
+pip install pydeequ[all]
+
+# Development (includes all backends + test tools)
+pip install pydeequ[dev]
+```
+
+**From GitHub Release (beta):**
+```bash
+# Install beta wheel + DuckDB
+pip install https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/pydeequ-2.0.0b1-py3-none-any.whl
+pip install duckdb
+
+# For Spark backend, also install:
+pip install pyspark[connect]==3.5.0
+```
+
+---
+
+## Quick Start with DuckDB (Recommended for Getting Started)
+
+The DuckDB backend is the easiest way to get started - no JVM or Spark server required.
+
+### Requirements
+- Python 3.9+
+
+### Installation
+
+```bash
+pip install pydeequ[duckdb]
+```
+
+### Run Your First Check
+
+```python
+import duckdb
+import pydeequ
+from pydeequ.v2.verification import AnalysisRunner, VerificationSuite
+from pydeequ.v2.analyzers import Size, Completeness, Mean
+from pydeequ.v2.checks import Check, CheckLevel
+from pydeequ.v2.predicates import eq, gte
+
+# Create a DuckDB connection and load data
+con = duckdb.connect()
+con.execute("""
+    CREATE TABLE users AS SELECT * FROM (VALUES
+        (1, 'Alice', 25),
+        (2, 'Bob', 30),
+        (3, 'Charlie', NULL)
+    ) AS t(id, name, age)
+""")
+
+# Create an engine from the connection
+engine = pydeequ.connect(con)
+
+# Run analyzers
+result = (AnalysisRunner(engine)
+    .onData(table="users")
+    .addAnalyzer(Size())
+    .addAnalyzer(Completeness("id"))
+    .addAnalyzer(Completeness("age"))
+    .addAnalyzer(Mean("age"))
+    .run())
+
+print("Metrics:")
+print(result.to_string(index=False))
+
+# Run constraint checks
+check = (Check(CheckLevel.Error, "Data quality checks")
+    .hasSize(eq(3))
+    .isComplete("id")
+    .isComplete("name")
+    .hasCompleteness("age", gte(0.5)))
+
+result = (VerificationSuite(engine)
+    .onData(table="users")
+    .addCheck(check)
+    .run())
+
+print("\nConstraint Results:")
+print(result.to_string(index=False))
+
+con.close()
+```
+
+---
+
+## Quick Start with Spark Connect (Production Scale)
+
+For production workloads and large-scale data processing, use the Spark Connect backend.
 
 ### Requirements
 
@@ -142,16 +259,23 @@ pip install pyspark[connect]==3.5.0
 pip install setuptools
 ```
 
+Or using the extras syntax (once published to PyPI):
+```bash
+pip install pydeequ[spark]
+```
+
 ### Step 5: Run Your First Check
 
 ```python
 from pyspark.sql import SparkSession, Row
+import pydeequ
 from pydeequ.v2.checks import Check, CheckLevel
 from pydeequ.v2.verification import VerificationSuite
 from pydeequ.v2.predicates import eq, gte
 
 # Connect to Spark Connect server
 spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
+engine = pydeequ.connect(spark)
 
 # Create sample data
 df = spark.createDataFrame([
@@ -169,12 +293,12 @@ check = (Check(CheckLevel.Error, "Data quality checks")
     .isUnique("id"))
 
 # Run verification
-result = (VerificationSuite(spark)
-    .onData(df)
+result = (VerificationSuite(engine)
+    .onData(dataframe=df)
     .addCheck(check)
     .run())
 
-result.show(truncate=False)
+print(result.to_string(index=False))
 spark.stop()
 ```
 
@@ -221,14 +345,21 @@ from pydeequ.v2.analyzers import (
     Uniqueness, Entropy, Correlation
 )
 
-result = (AnalysisRunner(spark)
-    .onData(df)
+# DuckDB
+result = (AnalysisRunner(engine)
+    .onData(table="users")
     .addAnalyzer(Size())
     .addAnalyzer(Completeness("name"))
     .addAnalyzer(Mean("age"))
     .run())
 
-result.show()
+# Spark
+result = (AnalysisRunner(engine)
+    .onData(dataframe=df)
+    .addAnalyzer(Size())
+    .addAnalyzer(Completeness("name"))
+    .addAnalyzer(Mean("age"))
+    .run())
 ```
 
 ### Constraint Methods
@@ -263,26 +394,21 @@ result.show()
 Profile column distributions and statistics across your dataset:
 
 ```python
-from pydeequ.v2.profiles import ColumnProfilerRunner, KLLParameters
+from pydeequ.v2.profiles import ColumnProfilerRunner
 
 # Basic profiling
-profiles = (ColumnProfilerRunner(spark)
-    .onData(df)
+profiles = (ColumnProfilerRunner(engine)
+    .onData(table="users")          # DuckDB: use table=
+    # .onData(dataframe=df)         # Spark: use dataframe=
     .run())
 
-profiles.show()
+print(profiles)
 
-# Advanced profiling with options
-profiles = (ColumnProfilerRunner(spark)
-    .onData(df)
-    .restrictToColumns(["id", "name", "age"])      # Profile specific columns
-    .withLowCardinalityHistogramThreshold(100)     # Generate histograms for low-cardinality columns
-    .withKLLProfiling()                            # Enable KLL sketch for approximate quantiles
-    .setKLLParameters(KLLParameters(
-        sketch_size=2048,
-        shrinking_factor=0.64,
-        num_buckets=64
-    ))
+# With options
+profiles = (ColumnProfilerRunner(engine)
+    .onData(table="users")
+    .restrictToColumns(["id", "name", "age"])
+    .withLowCardinalityHistogramThreshold(100)
     .run())
 ```
 
@@ -313,21 +439,13 @@ Auto-generate data quality constraints based on your data:
 from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
 
 # Basic suggestion generation
-suggestions = (ConstraintSuggestionRunner(spark)
-    .onData(df)
+suggestions = (ConstraintSuggestionRunner(engine)
+    .onData(table="users")          # DuckDB: use table=
+    # .onData(dataframe=df)         # Spark: use dataframe=
     .addConstraintRules(Rules.DEFAULT)
     .run())
 
-suggestions.show(truncate=False)
-
-# Advanced usage with train/test evaluation
-suggestions = (ConstraintSuggestionRunner(spark)
-    .onData(df)
-    .addConstraintRules(Rules.DEFAULT)
-    .addConstraintRules(Rules.EXTENDED)
-    .restrictToColumns(["id", "status", "score"])
-    .useTrainTestSplitWithTestsetRatio(0.2, seed=42)  # Evaluate suggestions on test set
-    .run())
+print(suggestions)
 ```
 
 **Available Rule Sets:**
@@ -386,10 +504,12 @@ result = ColumnProfilerRunner(spark).onData(df).run()
 for col, profile in result.profiles.items():
     print(profile)
 
-# After (2.0) - returns DataFrame
+# After (2.0) - unified engine API
+import pydeequ
 from pydeequ.v2.profiles import ColumnProfilerRunner
-result = ColumnProfilerRunner(spark).onData(df).run()
-result.show()
+engine = pydeequ.connect(spark)
+result = ColumnProfilerRunner(engine).onData(dataframe=df).run()
+print(result)
 ```
 
 **Suggestions changes:**
@@ -399,10 +519,12 @@ from pydeequ.suggestions import ConstraintSuggestionRunner, DEFAULT
 result = ConstraintSuggestionRunner(spark).onData(df).addConstraintRule(DEFAULT()).run()
 print(result)
 
-# After (2.0) - returns DataFrame
+# After (2.0) - unified engine API
+import pydeequ
 from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
-result = ConstraintSuggestionRunner(spark).onData(df).addConstraintRules(Rules.DEFAULT).run()
-result.show()
+engine = pydeequ.connect(spark)
+result = ConstraintSuggestionRunner(engine).onData(dataframe=df).addConstraintRules(Rules.DEFAULT).run()
+print(result)
 ```
 
 ---
@@ -444,7 +566,8 @@ The legacy PyDeequ API uses Py4J for JVM communication. It is still available fo
 ### Installation
 
 ```bash
-pip install pydeequ
+# Install with Spark backend (required for 1.x API)
+pip install pydeequ[spark]
 ```
 
 **Note:** Set the `SPARK_VERSION` environment variable to match your Spark version.
@@ -638,7 +761,14 @@ sdk install spark 3.5.0
 ### Poetry
 
 ```bash
-poetry install
+# Install all dependencies (including dev tools and both backends)
+poetry install --with dev --all-extras
+
+# Or install specific extras
+poetry install --extras duckdb      # DuckDB only
+poetry install --extras spark       # Spark only
+poetry install --extras all         # Both backends
+
 poetry update
 poetry show -o
 ```
@@ -646,7 +776,11 @@ poetry show -o
 ### Running Tests Locally
 
 ```bash
+# Run all tests (requires Spark Connect server for comparison tests)
 poetry run pytest
+
+# Run DuckDB-only tests (no Spark required)
+poetry run pytest tests/engines/test_duckdb*.py tests/engines/test_operators.py
 ```
 
 ### Running Tests (Docker)
