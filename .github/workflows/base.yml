@@ -30,17 +30,31 @@ jobs:
           distribution: "corretto"
           java-version: "17"
 
+      - name: Cache Spark and Deequ JAR
+        id: cache-spark
+        uses: actions/cache@v4
+        with:
+          path: |
+            spark-3.5.0-bin-hadoop3
+            deequ_2.12-2.1.0b-spark-3.5.jar
+          key: spark-3.5.0-deequ-2.1.0b
+
       - name: Download Spark 3.5
+        if: steps.cache-spark.outputs.cache-hit != 'true'
         run: |
           curl -L -o spark-3.5.0-bin-hadoop3.tgz \
             https://archive.apache.org/dist/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz
           tar -xzf spark-3.5.0-bin-hadoop3.tgz
-          echo "SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3" >> $GITHUB_ENV
+          rm spark-3.5.0-bin-hadoop3.tgz
 
       - name: Download Deequ JAR
+        if: steps.cache-spark.outputs.cache-hit != 'true'
         run: |
           curl -L -o deequ_2.12-2.1.0b-spark-3.5.jar \
             https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ_2.12-2.1.0b-spark-3.5.jar
+
+      - name: Set SPARK_HOME
+        run: echo "SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3" >> $GITHUB_ENV
 
       - name: Install Python dependencies
         run: |
