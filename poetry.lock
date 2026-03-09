@@ -844,22 +844,22 @@ diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "pyspark"
-version = "3.2.2"
+version = "3.3.2"
 description = "Apache Spark Python API"
 optional = true
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "pyspark-3.2.2.tar.gz", hash = "sha256:5455214cf0b83d4a184cda25ca3b0812481915353b180cf7d7ac227728a4d99e"},
+    {file = "pyspark-3.3.2.tar.gz", hash = "sha256:0dfd5db4300c1f6cc9c16d8dbdfb82d881b4b172984da71344ede1a9d4893da8"},
 ]
 
 [package.dependencies]
 py4j = "0.10.9.5"
 
 [package.extras]
-ml = ["numpy (>=1.7)"]
-mllib = ["numpy (>=1.7)"]
-pandas-on-spark = ["numpy (>=1.14)", "pandas (>=0.23.2)", "pyarrow (>=1.0.0)"]
-sql = ["pandas (>=0.23.2)", "pyarrow (>=1.0.0)"]
+ml = ["numpy (>=1.15)"]
+mllib = ["numpy (>=1.15)"]
+pandas-on-spark = ["numpy (>=1.15)", "pandas (>=1.0.5)", "pyarrow (>=1.0.0)"]
+sql = ["pandas (>=1.0.5)", "pyarrow (>=1.0.0)"]
 
 [[package]]
 name = "pytest"
@@ -1316,4 +1316,4 @@ pyspark = ["pyspark"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<4"
-content-hash = "19b8066a730bfeebe017b2f1be860d76a005a46d64784d9458c555e018c77be5"
+content-hash = "616e9d9c99206a718797187683520c788474e89486e6549d92eeed712ff6ae55"
