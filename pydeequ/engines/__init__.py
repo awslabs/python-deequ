@@ -380,10 +380,17 @@ def connect(
     except ImportError:
         pass
 
-    # Try Spark
+    # Try Spark (regular and Connect sessions are separate classes)
     try:
         from pyspark.sql import SparkSession
         if isinstance(connection, SparkSession):
+            from pydeequ.engines.spark import SparkEngine
+            return SparkEngine(connection, table=table, dataframe=dataframe)
+    except ImportError:
+        pass
+    try:
+        from pyspark.sql.connect.session import SparkSession as ConnectSession
+        if isinstance(connection, ConnectSession):
             from pydeequ.engines.spark import SparkEngine
             return SparkEngine(connection, table=table, dataframe=dataframe)
     except ImportError:

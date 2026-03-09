@@ -55,11 +55,9 @@ jobs:
         run: |
           $SPARK_HOME/sbin/start-connect-server.sh \
             --packages org.apache.spark:spark-connect_2.12:3.5.0 \
-            --jars $PWD/deequ_2.12-2.1.0b-spark-3.5.jar \
+            --jars ${{ github.workspace }}/deequ_2.12-2.1.0b-spark-3.5.jar \
             --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
-          # Wait for server to start
           sleep 20
-          # Verify server is running
           ps aux | grep SparkConnectServer | grep -v grep
 
       - name: Run V2 integration tests

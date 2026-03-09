@@ -90,14 +90,16 @@ class TestNumericProfiling:
         assert age_profile["std_dev"] is not None
 
     def test_non_numeric_has_null_stats(self, engine, profiler_df):
-        """Test non-numeric columns have null for numeric stats."""
+        """Test non-numeric columns have null/NaN for numeric stats."""
         result = ColumnProfilerRunner(engine).onData(dataframe=profiler_df).run()
         rows = {r["column"]: r for r in result.to_dict('records')}
 
         name_profile = rows["name"]
-        assert name_profile["mean"] is None
-        assert name_profile["minimum"] is None
-        assert name_profile["maximum"] is None
+        # Spark returns NaN for non-numeric stats, DuckDB returns None
+        import math
+        assert name_profile["mean"] is None or math.isnan(name_profile["mean"])
+        assert name_profile["minimum"] is None or math.isnan(name_profile["minimum"])
+        assert name_profile["maximum"] is None or math.isnan(name_profile["maximum"])
 
 
 class TestKLLProfiling:
