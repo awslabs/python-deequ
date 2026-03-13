@@ -15,7 +15,7 @@ Here are the current supported functionalities of Checks.
 |  | areAnyComplete(columns) | Done |
 |  | haveAnyCompleteness(columns, assertion) | Done |
 |  | isUnique(column) | Done |
-|  | isPrimaryKey(column, *columns) | Not Implemented |
+|  | isPrimaryKey(column, *columns) | Done |
 |  | hasUniqueness(columns, assertion) | Done |
 |  | hasDistinctness(columns, assertion) | Done |
 |  | hasUniqueValueRatio(columns, assertion) | Done |
