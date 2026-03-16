@@ -360,6 +360,30 @@ class CountDistinct(_AnalyzerObject):
         return self._deequAnalyzers.CountDistinct(to_scala_seq(self._jvm, self.columns))
 
 
+class CustomSql(_AnalyzerObject):
+    """
+    A custom SQL-based analyzer executing provided SQL expression.
+    The expression must return a single value.
+
+    :param str expression: A SQL expression to execute.
+    :param str disambiguator: A label used to distinguish this metric 
+        when running multiple custom SQL analyzers. Defaults to "*".
+    """
+
+    def __init__(self, expression: str, disambiguator: str = "*"):
+        self.expression = expression
+        self.disambiguator = disambiguator
+
+    @property
+    def _analyzer_jvm(self):
+        """
+        Returns the result of SQL expression execution.
+
+        :return self
+        """
+        return self._deequAnalyzers.CustomSql(self.expression, self.disambiguator)
+
+
 class DataType(_AnalyzerObject):
     """
     Data Type Analyzer. Returns the datatypes of column
