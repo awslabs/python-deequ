@@ -5,14 +5,30 @@ from pyspark import SQLContext
 from pyspark.sql import DataFrame, SparkSession
 
 from pydeequ.analyzers import AnalysisRunBuilder
-from pydeequ.checks import Check
+from pydeequ.checks import Check, CheckLevel
 from pydeequ.pandas_utils import ensure_pyspark_df
 
 # TODO integrate Analyzer context
 
 
 class AnomalyCheckConfig:
-    pass
+
+    def __init__(self, level: CheckLevel, description):
+        self.level = level
+        self.description = description
+
+    def _get_java_object(self, jvm):
+        self._jvm = jvm
+        self._java_level = self.level._get_java_object(self._jvm)
+        self._check_java_class = self._jvm.com.amazon.deequ.AnomalyCheckConfig
+        self._anomalyCheckConfig_jvm = self._check_java_class(
+            self._java_level,
+            self.description,
+            getattr(self._check_java_class, 'apply$default$3')(),
+            getattr(self._check_java_class, 'apply$default$4')(),
+            getattr(self._check_java_class, 'apply$default$5')(),
+        )
+        return self._anomalyCheckConfig_jvm
 
 
 class VerificationResult:
@@ -187,10 +203,11 @@ class VerificationRunBuilder:
         :param anomalyCheckConfig: Some configuration settings for the Check
         :return: Adds an anomaly strategy to the run
         """
+        anomalyCheckConfig_jvm = None
         if anomalyCheckConfig:
-            raise NotImplementedError("anomalyCheckConfigs have not been implemented yet, using default value")
+            anomalyCheckConfig_jvm = anomalyCheckConfig._get_java_object(self._jvm)
 
-        AnomalyCheckConfig = self._jvm.scala.Option.apply(anomalyCheckConfig)
+        AnomalyCheckConfig = self._jvm.scala.Option.apply(anomalyCheckConfig_jvm)
 
         anomaly._set_jvm(self._jvm)
         anomaly_jvm = anomaly._anomaly_jvm
