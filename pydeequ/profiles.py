@@ -254,7 +254,7 @@ class ColumnProfilesBuilder:
         :return: a setter for columnProfilerRunner result
         """
         self._run_result = run
-        profile_map = self._jvm.scala.collection.JavaConversions.mapAsJavaMap(run.profiles())  # TODO from ScalaUtils
+        profile_map = self._jvm.scala.collection.JavaConverters.mapAsJavaMapConverter(run.profiles()).asJava()  # TODO from ScalaUtils
         self._profiles = {column: self._columnProfileBuilder(column, profile_map[column]) for column in profile_map}
         return self
 
