@@ -311,7 +311,7 @@ class Compliance(_AnalyzerObject):
             self.instance,
             self.predicate,
             self._jvm.scala.Option.apply(self.where),
-            self._jvm.scala.collection.Seq.empty(),
+            to_scala_seq(self._jvm, self._jvm.java.util.ArrayList()),
             self._jvm.scala.Option.apply(None)
         )
 
