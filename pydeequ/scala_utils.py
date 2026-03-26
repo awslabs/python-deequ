@@ -77,7 +77,7 @@ def to_scala_seq(jvm, iterable):
     Returns:
         Scala sequence
     """
-    return jvm.scala.collection.JavaConversions.iterableAsScalaIterable(iterable).toSeq()
+    return jvm.scala.collection.JavaConverters.iterableAsScalaIterableConverter(iterable).asScala().toSeq()
 
 
 def to_scala_map(spark_session, d):
@@ -93,11 +93,11 @@ def to_scala_map(spark_session, d):
 
 
 def scala_map_to_dict(jvm, scala_map):
-    return dict(jvm.scala.collection.JavaConversions.mapAsJavaMap(scala_map))
+    return dict(jvm.scala.collection.JavaConverters.mapAsJavaMapConverter(scala_map).asJava())
 
 
 def scala_map_to_java_map(jvm, scala_map):
-    return jvm.scala.collection.JavaConversions.mapAsJavaMap(scala_map)
+    return jvm.scala.collection.JavaConverters.mapAsJavaMapConverter(scala_map).asJava()
 
 
 def java_list_to_python_list(java_list: str, datatype):
