@@ -15,22 +15,27 @@ jobs:
         include:
           - PYSPARK_VERSION: "3.1.3"
             JAVA_VERSION: "11"
+            PYTHON_VERSION: "3.8"
           - PYSPARK_VERSION: "3.2"
             JAVA_VERSION: "11"
+            PYTHON_VERSION: "3.8"
           - PYSPARK_VERSION: "3.3"
             JAVA_VERSION: "11"
+            PYTHON_VERSION: "3.8"
           - PYSPARK_VERSION: "3.5"
             JAVA_VERSION: "11"
+            PYTHON_VERSION: "3.8"
           - PYSPARK_VERSION: "4.0.0"
             JAVA_VERSION: "17"
+            PYTHON_VERSION: "3.9"
 
     steps:
       - uses: actions/checkout@v3
 
       - uses: actions/setup-python@v2
-        name: Install Python 3.8
+        name: Install Python ${{matrix.PYTHON_VERSION}}
         with:
-          python-version: 3.8
+          python-version: ${{matrix.PYTHON_VERSION}}
 
       - uses: actions/setup-java@v1
         name: Setup Java ${{matrix.JAVA_VERSION}}
