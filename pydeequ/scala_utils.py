@@ -80,6 +80,18 @@ def to_scala_seq(jvm, iterable):
     return jvm.scala.collection.JavaConverters.iterableAsScalaIterableConverter(iterable).asScala().toSeq()
 
 
+def empty_scala_seq(jvm):
+    """
+    Returns an empty Scala immutable List (Nil), usable as Seq[_].
+    Uses JavaConverters.toList() to produce an immutable.List rather than
+    a Stream, which is required for Py4J constructor/method lookup to succeed
+    across both Scala 2.12 (Spark 3.x) and Scala 2.13 (Spark 4+).
+    """
+    return jvm.scala.collection.JavaConverters.iterableAsScalaIterableConverter(
+        jvm.java.util.ArrayList()
+    ).asScala().toList()
+
+
 def to_scala_map(spark_session, d):
     """
     Convert a dict into a JVM Map.

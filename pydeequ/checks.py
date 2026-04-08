@@ -5,7 +5,7 @@ from py4j.protocol import Py4JError
 from pyspark.sql import SparkSession
 
 from pydeequ.check_functions import is_one
-from pydeequ.scala_utils import ScalaFunction1, to_scala_seq
+from pydeequ.scala_utils import ScalaFunction1, empty_scala_seq, to_scala_seq
 from pydeequ.configs import SPARK_VERSION
 
 # TODO implement custom assertions
@@ -563,7 +563,7 @@ class Check:
             constraintName,
             assertion_func,
             hint,
-            to_scala_seq(self._jvm, self._jvm.java.util.ArrayList()),
+            empty_scala_seq(self._jvm),
             self._jvm.scala.Option.apply(None)
         )
         return self

@@ -9,7 +9,7 @@ from pyspark.sql import DataFrame, SparkSession, SQLContext
 from pydeequ.pandas_utils import ensure_pyspark_df
 from pydeequ.repository import MetricsRepository, ResultKey
 from enum import Enum
-from pydeequ.scala_utils import to_scala_seq
+from pydeequ.scala_utils import empty_scala_seq, to_scala_seq
 from pydeequ.configs import SPARK_VERSION
 
 class _AnalyzerObject:
@@ -311,7 +311,7 @@ class Compliance(_AnalyzerObject):
             self.instance,
             self.predicate,
             self._jvm.scala.Option.apply(self.where),
-            to_scala_seq(self._jvm, self._jvm.java.util.ArrayList()),
+            empty_scala_seq(self._jvm),
             self._jvm.scala.Option.apply(None)
         )
 
