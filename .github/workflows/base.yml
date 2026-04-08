@@ -49,5 +49,5 @@ jobs:
           pip install --upgrade pip
           pip install poetry==1.7.1
           poetry install
-          poetry add pyspark==$SPARK_VERSION
+          poetry run pip install pyspark==$SPARK_VERSION
           poetry run python -m pytest -s tests
