@@ -12,28 +12,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        PYSPARK_VERSION: ["3.1.3", "3.2", "3.3", "3.5"]
+        include:
+          - PYSPARK_VERSION: "3.1.3"
+            JAVA_VERSION: "11"
+            PYTHON_VERSION: "3.8"
+          - PYSPARK_VERSION: "3.2"
+            JAVA_VERSION: "11"
+            PYTHON_VERSION: "3.8"
+          - PYSPARK_VERSION: "3.3"
+            JAVA_VERSION: "11"
+            PYTHON_VERSION: "3.8"
+          - PYSPARK_VERSION: "3.5"
+            JAVA_VERSION: "11"
+            PYTHON_VERSION: "3.8"
+          - PYSPARK_VERSION: "4.0.0"
+            JAVA_VERSION: "17"
+            PYTHON_VERSION: "3.9"
+            PANDAS_VERSION: ">=2.0.0"
 
     steps:
       - uses: actions/checkout@v3
 
       - uses: actions/setup-python@v2
-        name: Install Python 3.8
+        name: Install Python ${{matrix.PYTHON_VERSION}}
         with:
-          python-version: 3.8
+          python-version: ${{matrix.PYTHON_VERSION}}
 
       - uses: actions/setup-java@v1
-        name: Setup Java 11
-        if: startsWith(matrix.PYSPARK_VERSION, '3')
+        name: Setup Java ${{matrix.JAVA_VERSION}}
         with:
-          java-version: "11"
+          java-version: ${{matrix.JAVA_VERSION}}
 
       - name: Running tests with pyspark==${{matrix.PYSPARK_VERSION}}
         env:
           SPARK_VERSION: ${{matrix.PYSPARK_VERSION}}
+          PANDAS_VERSION: ${{matrix.PANDAS_VERSION}}
         run: |
           pip install --upgrade pip
           pip install poetry==1.7.1
           poetry install
-          poetry add pyspark==$SPARK_VERSION
+          poetry run pip install pyspark==$SPARK_VERSION
+          if [ -n "$PANDAS_VERSION" ]; then poetry run pip install "pandas$PANDAS_VERSION"; fi
           poetry run python -m pytest -s tests
