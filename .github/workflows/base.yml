@@ -14,50 +14,25 @@ jobs:
       matrix:
         include:
           - PYSPARK_VERSION: "3.1.3"
-<<<<<<< spark-4-support
+            PYTHON_VERSION: "3.9"
             JAVA_VERSION: "11"
-            PYTHON_VERSION: "3.8"
           - PYSPARK_VERSION: "3.2"
+            PYTHON_VERSION: "3.9"
             JAVA_VERSION: "11"
-            PYTHON_VERSION: "3.8"
           - PYSPARK_VERSION: "3.3"
+            PYTHON_VERSION: "3.9"
             JAVA_VERSION: "11"
-            PYTHON_VERSION: "3.8"
           - PYSPARK_VERSION: "3.5"
-            JAVA_VERSION: "11"
-            PYTHON_VERSION: "3.8"
+            PYTHON_VERSION: "3.9"
+            JAVA_VERSION: "17"
           - PYSPARK_VERSION: "4.0.0"
-            JAVA_VERSION: "17"
             PYTHON_VERSION: "3.9"
+            JAVA_VERSION: "17"
             PANDAS_VERSION: ">=2.0.0"
-=======
-            PYTHON_VERSION: "3.9"
-            JAVA_VERSION: "11"
-          - PYSPARK_VERSION: "3.2"
-            PYTHON_VERSION: "3.9"
-            JAVA_VERSION: "11"
-          - PYSPARK_VERSION: "3.3"
-            PYTHON_VERSION: "3.9"
-            JAVA_VERSION: "11"
-          - PYSPARK_VERSION: "3.5"
-            PYTHON_VERSION: "3.9"
-            JAVA_VERSION: "17"
->>>>>>> master
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-<<<<<<< spark-4-support
-      - uses: actions/setup-python@v2
-        name: Install Python ${{matrix.PYTHON_VERSION}}
-        with:
-          python-version: ${{matrix.PYTHON_VERSION}}
-
-      - uses: actions/setup-java@v1
-        name: Setup Java ${{matrix.JAVA_VERSION}}
-        with:
-          java-version: ${{matrix.JAVA_VERSION}}
-=======
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{matrix.PYTHON_VERSION}}
@@ -66,7 +41,6 @@ jobs:
         with:
           java-version: ${{matrix.JAVA_VERSION}}
           distribution: "temurin"
->>>>>>> master
 
       - name: Running tests with pyspark==${{matrix.PYSPARK_VERSION}}
         env:
@@ -77,9 +51,5 @@ jobs:
           pip install poetry==1.7.1
           poetry install
           poetry run pip install pyspark==$SPARK_VERSION
-<<<<<<< spark-4-support
           if [ -n "$PANDAS_VERSION" ]; then poetry run pip install "pandas$PANDAS_VERSION"; fi
-          poetry run python -m pytest -s tests
-=======
           poetry run python -m pytest -s tests --ignore=tests/test_bot.py
->>>>>>> master
