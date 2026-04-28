@@ -124,7 +124,15 @@ def to_scala_map(spark_session, d):
     Returns:
         Scala map
     """
-    return spark_session._jvm.PythonUtils.toScalaMap(d)
+    jvm = spark_session._jvm
+    try:
+        # PythonUtils.toScalaMap is a PySpark internal that may be removed in future versions.
+        return jvm.PythonUtils.toScalaMap(d)
+    except Exception:
+        style, converters = _get_converters(jvm)
+        if style == "jdk":
+            return converters.asScala(d).toMap()
+        return converters.mapAsScalaMapConverter(d).asScala().toMap()
 
 
 def scala_map_to_dict(jvm, scala_map):

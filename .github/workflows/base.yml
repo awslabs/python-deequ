@@ -25,10 +25,10 @@ jobs:
           - PYSPARK_VERSION: "3.5"
             PYTHON_VERSION: "3.9"
             JAVA_VERSION: "17"
-          - PYSPARK_VERSION: "4.0.0"
+          - PYSPARK_VERSION: "4.0"
             PYTHON_VERSION: "3.9"
             JAVA_VERSION: "17"
-            PANDAS_VERSION: ">=2.0.0"
+            PANDAS_VERSION_SPEC: ">=2.0.0"
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -45,11 +45,11 @@ jobs:
       - name: Running tests with pyspark==${{matrix.PYSPARK_VERSION}}
         env:
           SPARK_VERSION: ${{matrix.PYSPARK_VERSION}}
-          PANDAS_VERSION: ${{matrix.PANDAS_VERSION}}
+          PANDAS_VERSION_SPEC: ${{matrix.PANDAS_VERSION_SPEC}}
         run: |
           pip install --upgrade pip
           pip install poetry==1.7.1
           poetry install
           poetry run pip install pyspark==$SPARK_VERSION
-          if [ -n "$PANDAS_VERSION" ]; then poetry run pip install "pandas$PANDAS_VERSION"; fi
+          if [ -n "$PANDAS_VERSION_SPEC" ]; then poetry run pip install "pandas$PANDAS_VERSION_SPEC"; fi
           poetry run python -m pytest -s tests --ignore=tests/test_bot.py
