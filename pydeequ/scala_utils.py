@@ -68,6 +68,30 @@ def get_or_else_none(scala_option):
     return scala_option.get()
 
 
+# Cache per JVM instance so version detection only happens once per session.
+_jvm_converters_cache: dict = {}
+
+
+def _get_converters(jvm):
+    """
+    Return (style, converters) for the running Scala version.
+    style='jdk'    → scala.jdk.javaapi.CollectionConverters (Scala 2.13, Spark 4+)
+    style='legacy' → scala.collection.JavaConverters        (Scala 2.12, Spark 3.x)
+    """
+    key = id(jvm)
+    if key not in _jvm_converters_cache:
+        try:
+            converters = jvm.scala.jdk.javaapi.CollectionConverters
+            # On Scala 2.12, the path resolves to a JavaPackage placeholder (no class
+            # exists), so attribute access succeeds but any method call raises TypeError.
+            # Probe with an actual call to confirm the class is genuinely usable.
+            converters.asScala(jvm.java.util.ArrayList())
+            _jvm_converters_cache[key] = ("jdk", converters)
+        except Exception:
+            _jvm_converters_cache[key] = ("legacy", jvm.scala.collection.JavaConverters)
+    return _jvm_converters_cache[key]
+
+
 def to_scala_seq(jvm, iterable):
     """
     Helper method to take an iterable and turn it into a Scala sequence
@@ -77,7 +101,23 @@ def to_scala_seq(jvm, iterable):
     Returns:
         Scala sequence
     """
-    return jvm.scala.collection.JavaConversions.iterableAsScalaIterable(iterable).toSeq()
+    style, converters = _get_converters(jvm)
+    if style == "jdk":
+        return converters.asScala(iterable).toSeq()
+    return converters.iterableAsScalaIterableConverter(iterable).asScala().toSeq()
+
+
+def empty_scala_seq(jvm):
+    """
+    Returns an empty Scala immutable List (Nil), usable as Seq[_].
+    Converts an empty ArrayList via .asScala().toList() to produce an immutable.List
+    rather than a Stream, which is required for Py4J constructor/method lookup to
+    succeed across both Scala 2.12 (Spark 3.x) and Scala 2.13 (Spark 4+).
+    """
+    style, converters = _get_converters(jvm)
+    if style == "jdk":
+        return converters.asScala(jvm.java.util.ArrayList()).toList()
+    return converters.iterableAsScalaIterableConverter(jvm.java.util.ArrayList()).asScala().toList()
 
 
 def to_scala_map(spark_session, d):
@@ -89,15 +129,29 @@ def to_scala_map(spark_session, d):
     Returns:
         Scala map
     """
-    return spark_session._jvm.PythonUtils.toScalaMap(d)
+    jvm = spark_session._jvm
+    try:
+        # PythonUtils.toScalaMap is a PySpark internal that may be removed in future versions.
+        return jvm.PythonUtils.toScalaMap(d)
+    except Exception:
+        style, converters = _get_converters(jvm)
+        if style == "jdk":
+            return converters.asScala(d).toMap()
+        return converters.mapAsScalaMapConverter(d).asScala().toMap()
 
 
 def scala_map_to_dict(jvm, scala_map):
-    return dict(jvm.scala.collection.JavaConversions.mapAsJavaMap(scala_map))
+    style, converters = _get_converters(jvm)
+    if style == "jdk":
+        return dict(converters.asJava(scala_map))
+    return dict(converters.mapAsJavaMapConverter(scala_map).asJava())
 
 
 def scala_map_to_java_map(jvm, scala_map):
-    return jvm.scala.collection.JavaConversions.mapAsJavaMap(scala_map)
+    style, converters = _get_converters(jvm)
+    if style == "jdk":
+        return converters.asJava(scala_map)
+    return converters.mapAsJavaMapConverter(scala_map).asJava()
 
 
 def java_list_to_python_list(java_list: str, datatype):
