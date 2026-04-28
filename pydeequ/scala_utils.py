@@ -81,7 +81,12 @@ def _get_converters(jvm):
     key = id(jvm)
     if key not in _jvm_converters_cache:
         try:
-            _jvm_converters_cache[key] = ("jdk", jvm.scala.jdk.javaapi.CollectionConverters)
+            converters = jvm.scala.jdk.javaapi.CollectionConverters
+            # On Scala 2.12, the path resolves to a JavaPackage placeholder (no class
+            # exists), so attribute access succeeds but any method call raises TypeError.
+            # Probe with an actual call to confirm the class is genuinely usable.
+            converters.asScala(jvm.java.util.ArrayList())
+            _jvm_converters_cache[key] = ("jdk", converters)
         except Exception:
             _jvm_converters_cache[key] = ("legacy", jvm.scala.collection.JavaConverters)
     return _jvm_converters_cache[key]
