@@ -237,7 +237,7 @@ class Check:
         self._Check = self._Check.isUnique(column, hint, self._jvm.scala.Option.apply(None))
         return self
 
-    def isPrimaryKey(self, column, *columns):
+    def isPrimaryKey(self, column, *columns, hint=None):
         """
         Creates a constraint that asserts on a column(s) primary key characteristics.
         Currently only checks uniqueness, but reserved for primary key checks if there is another
@@ -247,10 +247,12 @@ class Check:
 
         :param str column: The 1st column in Data Frame to run the assertion on.
         :param list[str] columns: Additional columns to run the assertion on.
+        :param str hint: A hint that states why a constraint could have failed.
         :return: isPrimaryKey self: A Check.scala object that asserts completion in the columns.
         """
         columns_seq = to_scala_seq(self._jvm, columns)
-        self._Check = self._Check.isPrimaryKey(column, columns_seq)
+        hint = self._jvm.scala.Option.apply(hint)
+        self._Check = self._Check.isPrimaryKey(column, hint, columns_seq)
         return self
 
     def hasUniqueness(self, columns, assertion, hint=None):
