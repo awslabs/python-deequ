@@ -96,7 +96,7 @@ class TestProfiles(unittest.TestCase):
         for actual, expected in zip(actual_histogram, expected_histogram):
             self.assertEqual(actual.value, expected.value)
             self.assertEqual(actual.count, expected.count)
-            self.assertAlmostEquals(actual.ratio, expected.ratio)
+            self.assertAlmostEqual(actual.ratio, expected.ratio)
 
 
 if __name__ == "__main__":
