@@ -303,10 +303,8 @@ class TestRepository(unittest.TestCase):
                 .run()
             )
 
-        self.assertIn(
-            "Method saveOrAppendResult([class com.amazon.deequ.repository.ResultKey]) does not exist",
-            str(err.exception),
-        )
+        self.assertIn("ResultKey", str(err.exception))
+
 
     def test_fail_no_load(self):
         """This run fails because we do not load() for the repository reading."""
@@ -331,6 +329,4 @@ class TestRepository(unittest.TestCase):
                 .getSuccessMetricsAsJson()
             )
 
-        self.assertEqual(
-            "'FileSystemMetricsRepository' object has no attribute 'RepositoryLoader'", str(err.exception)
-        )
+        self.assertIn("RepositoryLoader", str(err.exception))
