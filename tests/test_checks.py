@@ -450,10 +450,10 @@ class TestChecks(unittest.TestCase):
     def test_isUnique(self):
         self.assertEqual(self.isUnique("b"), [Row(constraint_status="Success")])
         self.assertEqual(self.isUnique("b", "All rows are unique"), [Row(constraint_status="Success")])
+        self.assertEqual(self.isUnique("email", "All rows are unique"), [Row(constraint_status="Success")])
 
     def test_fail_isUnique(self):
         self.assertEqual(self.isUnique("d"), [Row(constraint_status="Failure")])
-        self.assertEqual(self.isUnique("email" "All rows are unique"), [Row(constraint_status="Failure")])
 
     def test_hasUniqueness(self):
         self.assertEqual(
