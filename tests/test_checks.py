@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import unittest
-from typing import Union
+from typing import List, Union
 
 from py4j.protocol import Py4JError
 from pyspark.sql import Row
@@ -94,7 +94,7 @@ class TestChecks(unittest.TestCase):
             ),
         )
 
-    def run_check(self, check: Check, columns: Union[str, list[str]] = "constraint_status") -> list[Row]:
+    def run_check(self, check: Check, columns: Union[str, List[str]] = "constraint_status") -> list[Row]:
         columns = [columns] if isinstance(columns, str) else columns
         result = VerificationSuite(self.spark).onData(self.df).addCheck(check).run()
         df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
