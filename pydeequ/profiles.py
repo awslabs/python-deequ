@@ -4,7 +4,6 @@ import json
 from collections import namedtuple
 from typing import Optional
 
-from py4j.java_gateway import JavaObject
 from pyspark.sql import DataFrame, SparkSession
 from pydeequ.analyzers import KLLParameters
 from pydeequ.metrics import BucketDistribution
@@ -540,7 +539,7 @@ class StringColumnProfile(StandardColumnProfile):
     """
 
     def __init__(
-        self, spark_session: SparkSession, column: str, java_column_profile: JavaObject
+        self, spark_session: SparkSession, column: str, java_column_profile
     ) -> None:
         super().__init__(spark_session, column, java_column_profile)
         self._minLength = get_or_else_none(java_column_profile.minLength())
