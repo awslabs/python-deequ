@@ -86,14 +86,17 @@ class TestProfiles(unittest.TestCase):
         self.assertEqual(column_profile.approximateNumDistinctValues, 3)
         self.assertEqual(column_profile.typeCounts["String"], 3)
         self.assertEqual(column_profile.isDataTypeInferred, False)
-        self.assertListEqual(
-            sorted(column_profile.histogram),
-            [
-                DistributionValue("bar", 1, 1/3),
-                DistributionValue("bazz", 1, 1/3),
-                DistributionValue("foo", 1, 1/3),
-            ]
-        )
+        actual_histogram = sorted(column_profile.histogram, key=lambda x: x.value)
+        self.assertEqual(len(actual_histogram), 3)
+        expected_histogram = [
+            DistributionValue("bar", 1, 1 / 3),
+            DistributionValue("bazz", 1, 1 / 3),
+            DistributionValue("foo", 1, 1 / 3),
+        ]
+        for actual, expected in zip(actual_histogram, expected_histogram):
+            self.assertEqual(actual.value, expected.value)
+            self.assertEqual(actual.count, expected.count)
+            self.assertAlmostEquals(actual.ratio, expected.ratio)
 
 
 if __name__ == "__main__":
