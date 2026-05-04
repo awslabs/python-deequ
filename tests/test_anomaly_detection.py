@@ -470,7 +470,7 @@ class TestAnomalies(unittest.TestCase):
     # TODO: test anomaly detector
     # Doesn"t work in verification suite
     def get_anomalyDetector(self, anomaly):
-        anomaly._set_jvm(self._jvm)
+        anomaly._set_jvm(self.spark._jvm)
         strategy_jvm = anomaly._anomaly_jvm
         raise NotImplementedError
         # AnomalyDetector._set_jvm(self._jvm, strategy_jvm)
@@ -480,7 +480,7 @@ class TestAnomalies(unittest.TestCase):
     def test_anomalyDetector(self):
         self.get_anomalyDetector(SimpleThresholdStrategy(1.0, 3.0))
 
-    def test_RelativeRateOfChangeStrategy(self):
+    def test_RelativeRateOfChangeStrategy_detailed(self):
         metricsRepository = InMemoryMetricsRepository(self.spark)
         yesterdaysKey = ResultKey(self.spark, ResultKey.current_milli_time() - 24 * 60 * 60 * 1000)
 
