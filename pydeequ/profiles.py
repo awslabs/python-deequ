@@ -273,7 +273,7 @@ class ColumnProfilesBuilder:
         """
         A getter for the number of records
 
-        :return Optional[int]: number of records
+        :return int: number of records
         """
         return self._numRecords
 
