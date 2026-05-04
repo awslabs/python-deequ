@@ -295,7 +295,7 @@ class TestRepository(unittest.TestCase):
         resultKey = ResultKey(self.spark, ResultKey.current_milli_time(), key_tags)
 
         # MISSING useRepository()
-        with self.assertRaises(Py4JError) as err:
+        with self.assertRaises(Py4JError):
             _ = (
                 self.AnalysisRunner.onData(self.df)
                 .addAnalyzer(ApproxCountDistinct("b"))
@@ -320,7 +320,7 @@ class TestRepository(unittest.TestCase):
         )
 
         # MISSING: repository.load()
-        with self.assertRaises(AttributeError) as err:
+        with self.assertRaises(AttributeError):
             _ = (
                 repository.before(ResultKey.current_milli_time())
                 .forAnalyzers([ApproxCountDistinct("b")])
