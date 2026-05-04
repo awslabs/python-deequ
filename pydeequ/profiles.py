@@ -2,7 +2,6 @@
 """ Profiles file for all the Profiles classes in Deequ"""
 import json
 from collections import namedtuple
-from typing import Optional
 
 from pyspark.sql import DataFrame, SparkSession
 from pydeequ.analyzers import KLLParameters
@@ -239,7 +238,7 @@ class ColumnProfilesBuilder:
         self._sc = spark_session.sparkContext
         self._jvm = spark_session._jvm
         self._profiles = []
-        self._numRecords = None
+        self._numRecords = 0
         self.columnProfileClasses = {
             "StandardColumnProfile": StandardColumnProfile,
             "StringColumnProfile": StandardColumnProfile,
@@ -270,7 +269,7 @@ class ColumnProfilesBuilder:
         return self._profiles
 
     @property
-    def numRecords(self) -> Optional[int]:
+    def numRecords(self) -> int:
         """
         A getter for the number of records
 
