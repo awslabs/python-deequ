@@ -777,10 +777,10 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.hasMax("c", lambda x: x == 6), [Row(constraint_status="Success")])
 
     def test_fail_hasMax(self):
-        self.assertEqual(self.hasMin("b", lambda x: x == 0), [Row(constraint_status="Failure")])
-        self.assertEqual(self.hasMin("c", lambda x: x == 6), [Row(constraint_status="Failure")])
-        self.assertEqual(self.hasMin("g", lambda x: x == 5), [Row(constraint_status="Failure")])
-        self.assertEqual(self.hasMin("email", lambda x: x == 5), [Row(constraint_status="Failure")])
+        self.assertEqual(self.hasMax("b", lambda x: x == 0), [Row(constraint_status="Failure")])
+        self.assertEqual(self.hasMax("c", lambda x: x == 5), [Row(constraint_status="Failure")])
+        self.assertEqual(self.hasMax("g", lambda x: x == 5), [Row(constraint_status="Failure")])
+        self.assertEqual(self.hasMax("email", lambda x: x == 5), [Row(constraint_status="Failure")])
 
     def test_hasMean(self):
         self.assertEqual(
