@@ -283,7 +283,7 @@ class TestAnomalies(unittest.TestCase):
             return df.select("check_status").collect()
 
     @pytest.mark.xfail(
-        os.environ.get("SPARK_VERSION").startswith(("3.1", "3.2")),
+        os.environ.get("SPARK_VERSION", "").startswith(("3.1", "3.2")),
         reason=(
             "Not supported in Spark < 3.3: breeze.stats.DescriptiveStats "
             "is in unnamed module of loader 'app'"
@@ -358,7 +358,7 @@ class TestAnomalies(unittest.TestCase):
         )
 
     @pytest.mark.xfail(
-        os.environ.get("SPARK_VERSION").startswith(("3.1", "3.2")),
+        os.environ.get("SPARK_VERSION", "").startswith(("3.1", "3.2")),
         reason=(
             "Not supported in Spark < 3.3: breeze.stats.DescriptiveStats "
             "is in unnamed module of loader 'app'"
