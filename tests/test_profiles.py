@@ -82,6 +82,7 @@ class TestProfiles(unittest.TestCase):
         self.assertEqual(column_profile.minLength, 3)
         self.assertEqual(column_profile.maxLength, 4)
         self.assertEqual(str(column_profile)[0:29], "StringProfiles for column: a:")
+        self.assertIn('"minLength": 3', str(column_profile))
 
         self.assertEqual(column_profile.completeness, 1.0)
         self.assertEqual(column_profile.approximateNumDistinctValues, 3)
