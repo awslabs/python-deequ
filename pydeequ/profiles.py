@@ -544,12 +544,16 @@ class StringColumnProfile(StandardColumnProfile):
         super().__init__(spark_session, column, java_column_profile)
         self._minLength = get_or_else_none(java_column_profile.minLength())
         self._maxLength = get_or_else_none(java_column_profile.maxLength())
-        self.all.update(
-            {
-                "minLength": self._minLength,
-                "maxLength": self._maxLength,
-            }
-        )
+        self.all = {
+            "completeness": self.completeness,
+            "approximateNumDistinctValues": self.approximateNumDistinctValues,
+            "dataType": self.dataType,
+            "isDataTypeInferred": self.isDataTypeInferred,
+            "typeCounts": self.typeCounts,
+            "histogram": self.histogram,
+            "minLength": self._minLength,
+            "maxLength": self._maxLength,
+        }
 
     @property
     def minLength(self) -> Optional[int]:
