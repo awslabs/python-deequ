@@ -1,16 +1,24 @@
 # -*- coding: utf-8 -*-
 import unittest
 from pyspark.sql import Row
-from pydeequ.profiles import ColumnProfilerRunBuilder, ColumnProfilerRunner, DistributionValue, StringColumnProfile
+from pydeequ.profiles import (
+    ColumnProfilerRunBuilder,
+    ColumnProfilerRunner,
+    DistributionValue,
+    StringColumnProfile,
+)
 from pydeequ.analyzers import KLLParameters, DataTypeInstances
 from tests.conftest import setup_pyspark
+
 
 class TestProfiles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.spark = setup_pyspark().appName("test-profiles-local").getOrCreate()
         cls.sc = cls.spark.sparkContext
-        cls.df = cls.sc.parallelize([Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="baz", b=3, c=None)]).toDF()
+        cls.df = cls.sc.parallelize(
+            [Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="baz", b=3, c=None)]
+        ).toDF()
 
     @classmethod
     def tearDownClass(cls):
@@ -18,10 +26,18 @@ class TestProfiles(unittest.TestCase):
         cls.spark.stop()
 
     def test_setPredefinedTypes(self):
-        result = ColumnProfilerRunner(self.spark) \
-            .onData(self.df) \
-            .setPredefinedTypes({'a': DataTypeInstances.Unknown, 'b': DataTypeInstances.String, 'c': DataTypeInstances.Fractional}) \
+        result = (
+            ColumnProfilerRunner(self.spark)
+            .onData(self.df)
+            .setPredefinedTypes(
+                {
+                    "a": DataTypeInstances.Unknown,
+                    "b": DataTypeInstances.String,
+                    "c": DataTypeInstances.Fractional,
+                }
+            )
             .run()
+        )
         print(result)
         for col, profile in result.profiles.items():
             print("Profiles:", profile)
