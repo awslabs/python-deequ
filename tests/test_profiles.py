@@ -10,7 +10,7 @@ class TestProfiles(unittest.TestCase):
     def setUpClass(cls):
         cls.spark = setup_pyspark().appName("test-profiles-local").getOrCreate()
         cls.sc = cls.spark.sparkContext
-        cls.df = cls.sc.parallelize([Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="bazz", b=3, c=None)]).toDF()
+        cls.df = cls.sc.parallelize([Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="baz", b=3, c=None)]).toDF()
 
     @classmethod
     def tearDownClass(cls):
@@ -76,24 +76,25 @@ class TestProfiles(unittest.TestCase):
         self.assertEqual(result.numRecords, 3)
 
     def test_StringColumnProfile(self):
-        result = ColumnProfilerRunner(self.spark).onData(self.df).run()
+        df = self.sc.parallelize([Row(a="ant"), Row(a="bee"), Row(a="bee"), Row(a="cricket")]).toDF()
+        result = ColumnProfilerRunner(self.spark).onData(df).run()
         column_profile = result.profiles["a"]
         self.assertIsInstance(column_profile, StringColumnProfile)
         self.assertEqual(column_profile.minLength, 3)
-        self.assertEqual(column_profile.maxLength, 4)
+        self.assertEqual(column_profile.maxLength, 7)
         self.assertEqual(str(column_profile)[0:29], "StringProfiles for column: a:")
         self.assertIn('"minLength": 3', str(column_profile))
 
-        self.assertEqual(column_profile.completeness, 1.0)
+        self.assertEqual(column_profile.completeness, 1)
         self.assertEqual(column_profile.approximateNumDistinctValues, 3)
-        self.assertEqual(column_profile.typeCounts["String"], 3)
+        self.assertEqual(column_profile.typeCounts["String"], 4)
         self.assertEqual(column_profile.isDataTypeInferred, False)
         actual_histogram = sorted(column_profile.histogram, key=lambda x: x.value)
         self.assertEqual(len(actual_histogram), 3)
         expected_histogram = [
-            DistributionValue("bar", 1, 1 / 3),
-            DistributionValue("bazz", 1, 1 / 3),
-            DistributionValue("foo", 1, 1 / 3),
+            DistributionValue("ant", 1, 0.25),
+            DistributionValue("bee", 2, 0.5),
+            DistributionValue("cricket", 1, 0.25),
         ]
         for actual, expected in zip(actual_histogram, expected_histogram):
             self.assertEqual(actual.value, expected.value)
