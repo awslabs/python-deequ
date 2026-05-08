@@ -92,7 +92,14 @@ class TestProfiles(unittest.TestCase):
         self.assertEqual(result.numRecords, 3)
 
     def test_StringColumnProfile(self):
-        df = self.sc.parallelize([Row(a="ant"), Row(a="bee"), Row(a="bee"), Row(a="cricket")]).toDF()
+        df = self.sc.parallelize(
+            [
+                Row(a="ant", b="dragonfly"),
+                Row(a="bee", b="earwig"),
+                Row(a="bee", b=None),
+                Row(a="cricket", b=None),
+            ]
+        ).toDF()
         result = ColumnProfilerRunner(self.spark).onData(df).run()
         column_profile = result.profiles["a"]
         self.assertIsInstance(column_profile, StringColumnProfile)
@@ -116,6 +123,13 @@ class TestProfiles(unittest.TestCase):
             self.assertEqual(actual.value, expected.value)
             self.assertEqual(actual.count, expected.count)
             self.assertAlmostEqual(actual.ratio, expected.ratio)
+
+        column_profile = result.profiles["b"]
+        self.assertEqual(column_profile.completeness, 0.5)
+        self.assertEqual(column_profile.approximateNumDistinctValues, 2)
+        self.assertEqual(column_profile.typeCounts["String"], 2)
+        self.assertEqual(column_profile.minLength, 0)
+        self.assertEqual(column_profile.maxLength, 9)
 
 
 if __name__ == "__main__":
