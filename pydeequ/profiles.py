@@ -529,7 +529,7 @@ class NumericColumnProfile(ColumnProfile):
         return self._approxPercentiles
 
 
-class StringColumnProfile(StandardColumnProfile):
+class StringColumnProfile(ColumnProfile):
     """
     String Column Profile class
 
