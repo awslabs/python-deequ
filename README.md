@@ -120,6 +120,17 @@ checkResult_df = VerificationResult.checkResultsAsDataFrame(spark, checkResult)
 checkResult_df.show()
 ```
 
+#### Row-Level Results
+
+You can also get row-level results to see which individual rows passed or failed each check. This is useful for quarantining rows with data quality issues:
+
+```python
+rowLevelResult_df = VerificationResult.rowLevelResultsAsDataFrame(spark, checkResult, df)
+rowLevelResult_df.show()
+```
+
+Each check produces a Boolean column (named after the check description) indicating pass/fail per row. Only checks with row-level-capable constraints (e.g., `isComplete`, `isContainedIn`, `hasPattern`, `isUnique`) will produce output columns.
+
 ### Repository
 
 Save to a Metrics Repository by adding the `useRepository()` and `saveOrAppendResult()` calls to your Analysis Runner.
