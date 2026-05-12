@@ -38,6 +38,9 @@ class TestRowLevelResults(unittest.TestCase):
         result = VerificationSuite(self.spark).onData(self.df).addCheck(check).run()
         row_level_df = VerificationResult.rowLevelResultsAsDataFrame(self.spark, result, self.df)
 
+        # Should have same row count as original DataFrame
+        self.assertEqual(row_level_df.count(), self.df.count())
+
         # Should have original columns (a, b, c) plus one Boolean column for the check
         self.assertIn("completeness_check", row_level_df.columns)
         self.assertTrue(isinstance(row_level_df.schema["completeness_check"].dataType, BooleanType))
