@@ -42,8 +42,9 @@ class TestRowLevelResults(unittest.TestCase):
         self.assertIn("completeness_check", row_level_df.columns)
         self.assertTrue(isinstance(row_level_df.schema["completeness_check"].dataType, BooleanType))
 
-        # Row 0: c=5 (complete), Row 1: c=6 (complete), Row 2: c=None (incomplete)
-        results = row_level_df.select("completeness_check").collect()
+        # Order by b to ensure deterministic row ordering
+        # b=1: c=5 (complete), b=2: c=6 (complete), b=3: c=None (incomplete)
+        results = row_level_df.orderBy("b").select("completeness_check").collect()
         values = [row["completeness_check"] for row in results]
         self.assertEqual(values, [True, True, False])
 
@@ -57,10 +58,11 @@ class TestRowLevelResults(unittest.TestCase):
 
         self.assertIn("contained_check", row_level_df.columns)
 
-        # Row 0: a="foo" (contained), Row 1: a="bar" (contained), Row 2: a="baz" (not contained)
-        results = row_level_df.select("contained_check").collect()
+        # Order by a to ensure deterministic row ordering
+        # a="bar" (contained), a="baz" (not contained), a="foo" (contained)
+        results = row_level_df.orderBy("a").select("contained_check").collect()
         values = [row["contained_check"] for row in results]
-        self.assertEqual(values, [True, True, False])
+        self.assertEqual(values, [True, False, True])
 
     def test_row_level_results_multiple_constraints_anded(self):
         """Test that multiple constraints in one Check are ANDed into a single column."""
@@ -72,8 +74,9 @@ class TestRowLevelResults(unittest.TestCase):
 
         self.assertIn("multi_check", row_level_df.columns)
 
-        # a is always complete, c is None for row 2 -> AND produces [True, True, False]
-        results = row_level_df.select("multi_check").collect()
+        # Order by b to ensure deterministic row ordering
+        # b=1: a,c complete -> True, b=2: a,c complete -> True, b=3: c=None -> False
+        results = row_level_df.orderBy("b").select("multi_check").collect()
         values = [row["multi_check"] for row in results]
         self.assertEqual(values, [True, True, False])
 
@@ -99,9 +102,9 @@ class TestRowLevelResults(unittest.TestCase):
         for col in self.df.columns:
             self.assertIn(col, row_level_df.columns)
 
-        # Verify original data is unchanged
-        original_values = self.df.select("a", "b").collect()
-        result_values = row_level_df.select("a", "b").collect()
+        # Verify original data is unchanged (ordered for deterministic comparison)
+        original_values = self.df.orderBy("b").select("a", "b").collect()
+        result_values = row_level_df.orderBy("b").select("a", "b").collect()
         self.assertEqual(original_values, result_values)
 
     def test_row_level_results_as_pandas(self):
