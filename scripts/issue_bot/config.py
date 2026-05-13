@@ -17,6 +17,8 @@ class Config:
             sys.exit(1)
         self.repo = _require("GITHUB_REPOSITORY")
         self.actor = os.getenv("GITHUB_ACTOR", "")
+        self.event_before = os.getenv("EVENT_BEFORE", "")
+        self.event_after = os.getenv("EVENT_AFTER", "")
 
         self.bedrock_model_id = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-opus-4-6-v1")
 
@@ -32,6 +34,8 @@ class Config:
         self.enable_repo_search = os.getenv("ENABLE_REPO_SEARCH", "true").lower() == "true"
 
         self.upstream_repo = os.getenv("UPSTREAM_REPO", "awslabs/python-deequ")
+        self.codebase_src_dir = os.getenv("CODEBASE_SRC_DIR", "pydeequ")
+        self.codebase_file_ext = os.getenv("CODEBASE_FILE_EXT", ".py")
 
         self.bedrock_timeout = 240
         self.max_context_chars = 800000
@@ -39,7 +43,7 @@ class Config:
         self.github_api_timeout = 10
         self.allowed_labels = {
             "bug", "enhancement", "question", "documentation",
-            "help-wanted", "analyzer", "check", "spark-compatibility", "installation",
+            "help wanted", "python",
         }
 
 
