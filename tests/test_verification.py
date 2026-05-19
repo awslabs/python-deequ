@@ -110,6 +110,40 @@ class TestRowLevelResults(unittest.TestCase):
         result_values = row_level_df.orderBy("b").select("a", "b").collect()
         self.assertEqual(original_values, result_values)
 
+    def test_row_level_results_multiple_checks(self):
+        """Test that multiple separate Check objects produce multiple Boolean columns."""
+        check1 = Check(self.spark, CheckLevel.Error, "completeness_check")
+        check1 = check1.isComplete("c")
+
+        check2 = Check(self.spark, CheckLevel.Error, "value_check")
+        check2 = check2.isContainedIn("a", ["foo", "bar"])
+
+        result = (
+            VerificationSuite(self.spark)
+            .onData(self.df)
+            .addCheck(check1)
+            .addCheck(check2)
+            .run()
+        )
+        row_level_df = VerificationResult.rowLevelResultsAsDataFrame(self.spark, result, self.df)
+
+        # Each Check should produce its own Boolean column
+        self.assertIn("completeness_check", row_level_df.columns)
+        self.assertIn("value_check", row_level_df.columns)
+        self.assertEqual(row_level_df.count(), 3)
+
+        # Verify values: c is null for row 3, and "baz" is not in ["foo", "bar"]
+        results = row_level_df.orderBy("b").select("completeness_check", "value_check").collect()
+        # Row 1 (a=foo, c=x): complete=True, contained=True
+        self.assertTrue(results[0]["completeness_check"])
+        self.assertTrue(results[0]["value_check"])
+        # Row 2 (a=bar, c=y): complete=True, contained=True
+        self.assertTrue(results[1]["completeness_check"])
+        self.assertTrue(results[1]["value_check"])
+        # Row 3 (a=baz, c=None): complete=False, contained=False
+        self.assertFalse(results[2]["completeness_check"])
+        self.assertFalse(results[2]["value_check"])
+
     def test_row_level_results_as_pandas(self):
         """Test the pandas=True option returns a Pandas DataFrame."""
         check = Check(self.spark, CheckLevel.Error, "pandas_check")
