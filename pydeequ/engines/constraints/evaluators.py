@@ -2,13 +2,18 @@
 """
 Constraint evaluator implementations.
 
-This module contains all concrete evaluator classes that implement
-specific constraint types.
+The bulk of analyzer-based evaluators are declarative: each subclass of
+``AnalyzerEvaluator`` only declares which operator to build and how to
+format its name. The shared logic — operator construction, column-list
+handling, ``to_string`` rendering — lives once on the base class.
+
+Evaluators with genuinely distinct behaviour (regex patterns, multi-column
+correlation, custom SQL conditions) keep their own subclasses.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, List, Optional
 
 from pydeequ.engines.constraints.base import (
     AnalyzerBasedEvaluator,
@@ -43,126 +48,196 @@ if TYPE_CHECKING:
 
 # =============================================================================
 # Analyzer-based evaluators
+#
+# Each shallow subclass is now declarative config: an operator builder, a
+# user-facing constraint name, and an optional alias used when no assertion
+# was provided (e.g. ``isComplete`` instead of ``hasCompleteness``).
 # =============================================================================
 
 
-class SizeEvaluator(AnalyzerBasedEvaluator):
+def _single_column_op(operator_cls: type) -> Callable[["AnalyzerEvaluator"], Any]:
+    """Build an operator from a single-column analyzer evaluator."""
+    return lambda ev: operator_cls(ev.column, where=ev.where)
+
+
+def _column_list_op(operator_cls: type) -> Callable[["AnalyzerEvaluator"], Any]:
+    """Build an operator from one-or-more column names.
+
+    Falls back to a single-element list when only ``column`` is set, so the
+    same evaluator handles ``isUnique("id")`` and ``hasUniqueness(["a","b"])``.
+    """
+    def build(ev: "AnalyzerEvaluator") -> Any:
+        cols = ev.columns if ev.columns else [ev.column]
+        return operator_cls(cols, where=ev.where)
+    return build
+
+
+class AnalyzerEvaluator(AnalyzerBasedEvaluator):
+    """
+    Generic analyzer-based evaluator driven by class-level config.
+
+    Subclasses set:
+        - ``OPERATOR_BUILDER``: callable taking the evaluator and returning an operator
+        - ``CONSTRAINT_NAME``: the user-facing name (e.g. ``"hasMean"``)
+        - ``BARE_NAME`` (optional): name used when there is no assertion
+                       (e.g. ``"isComplete"`` for ``hasCompleteness``).
+                       When None, the constraint always renders with an assertion suffix.
+        - ``MULTI_COLUMN`` (optional): if True, ``to_string`` joins ``self.columns``
+                       (falling back to ``[self.column]``); otherwise it renders ``self.column``.
+    """
+
+    OPERATOR_BUILDER: ClassVar[Optional[Callable[["AnalyzerEvaluator"], Any]]] = None
+    CONSTRAINT_NAME: ClassVar[str] = ""
+    BARE_NAME: ClassVar[Optional[str]] = None
+    MULTI_COLUMN: ClassVar[bool] = False
+
+    def get_operator(self):
+        if self.OPERATOR_BUILDER is None:
+            return None
+        return self.OPERATOR_BUILDER(self)
+
+    def _format_columns(self) -> str:
+        if self.MULTI_COLUMN:
+            cols = self.columns if self.columns else ([self.column] if self.column else [])
+            return ", ".join(c for c in cols if c is not None)
+        return self.column or ""
+
+    def to_string(self) -> str:
+        col_str = self._format_columns()
+        if not self.assertion and self.BARE_NAME:
+            return f"{self.BARE_NAME}({col_str})" if col_str else f"{self.BARE_NAME}()"
+        return (
+            f"{self.CONSTRAINT_NAME}({col_str}, assertion)"
+            if col_str
+            else f"{self.CONSTRAINT_NAME}(assertion)"
+        )
+
+
+# ---- Single-column analyzer evaluators -------------------------------------
+
+
+class SizeEvaluator(AnalyzerEvaluator):
     """Evaluator for hasSize constraint."""
 
-    def get_operator(self):
-        return SizeOperator(where=self.where)
+    OPERATOR_BUILDER = staticmethod(lambda ev: SizeOperator(where=ev.where))
+    CONSTRAINT_NAME = "hasSize"
+    BARE_NAME = "hasSize"  # rendered without column either way
 
     def to_string(self) -> str:
-        if self.assertion:
-            return f"hasSize(assertion)"
-        return "hasSize()"
+        # Size is dataset-level; never carries a column.
+        return "hasSize(assertion)" if self.assertion else "hasSize()"
 
 
-class CompletenessEvaluator(AnalyzerBasedEvaluator):
+class CompletenessEvaluator(AnalyzerEvaluator):
     """Evaluator for isComplete and hasCompleteness constraints."""
 
-    def get_operator(self):
-        return CompletenessOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        if self.assertion:
-            return f"hasCompleteness({self.column}, assertion)"
-        return f"isComplete({self.column})"
+    OPERATOR_BUILDER = staticmethod(_single_column_op(CompletenessOperator))
+    CONSTRAINT_NAME = "hasCompleteness"
+    BARE_NAME = "isComplete"
 
 
-class MeanEvaluator(AnalyzerBasedEvaluator):
+class MeanEvaluator(AnalyzerEvaluator):
     """Evaluator for hasMean constraint."""
 
-    def get_operator(self):
-        return MeanOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        return f"hasMean({self.column}, assertion)"
+    OPERATOR_BUILDER = staticmethod(_single_column_op(MeanOperator))
+    CONSTRAINT_NAME = "hasMean"
 
 
-class MinimumEvaluator(AnalyzerBasedEvaluator):
+class MinimumEvaluator(AnalyzerEvaluator):
     """Evaluator for hasMin constraint."""
 
-    def get_operator(self):
-        return MinimumOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        return f"hasMin({self.column}, assertion)"
+    OPERATOR_BUILDER = staticmethod(_single_column_op(MinimumOperator))
+    CONSTRAINT_NAME = "hasMin"
 
 
-class MaximumEvaluator(AnalyzerBasedEvaluator):
+class MaximumEvaluator(AnalyzerEvaluator):
     """Evaluator for hasMax constraint."""
 
-    def get_operator(self):
-        return MaximumOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        return f"hasMax({self.column}, assertion)"
+    OPERATOR_BUILDER = staticmethod(_single_column_op(MaximumOperator))
+    CONSTRAINT_NAME = "hasMax"
 
 
-class SumEvaluator(AnalyzerBasedEvaluator):
+class SumEvaluator(AnalyzerEvaluator):
     """Evaluator for hasSum constraint."""
 
-    def get_operator(self):
-        return SumOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        return f"hasSum({self.column}, assertion)"
+    OPERATOR_BUILDER = staticmethod(_single_column_op(SumOperator))
+    CONSTRAINT_NAME = "hasSum"
 
 
-class StandardDeviationEvaluator(AnalyzerBasedEvaluator):
+class StandardDeviationEvaluator(AnalyzerEvaluator):
     """Evaluator for hasStandardDeviation constraint."""
 
-    def get_operator(self):
-        return StandardDeviationOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        return f"hasStandardDeviation({self.column}, assertion)"
+    OPERATOR_BUILDER = staticmethod(_single_column_op(StandardDeviationOperator))
+    CONSTRAINT_NAME = "hasStandardDeviation"
 
 
-class UniquenessEvaluator(AnalyzerBasedEvaluator):
+class EntropyEvaluator(AnalyzerEvaluator):
+    """Evaluator for hasEntropy constraint."""
+
+    OPERATOR_BUILDER = staticmethod(_single_column_op(EntropyOperator))
+    CONSTRAINT_NAME = "hasEntropy"
+
+
+class MinLengthEvaluator(AnalyzerEvaluator):
+    """Evaluator for hasMinLength constraint."""
+
+    OPERATOR_BUILDER = staticmethod(_single_column_op(MinLengthOperator))
+    CONSTRAINT_NAME = "hasMinLength"
+
+
+class MaxLengthEvaluator(AnalyzerEvaluator):
+    """Evaluator for hasMaxLength constraint."""
+
+    OPERATOR_BUILDER = staticmethod(_single_column_op(MaxLengthOperator))
+    CONSTRAINT_NAME = "hasMaxLength"
+
+
+class ApproxCountDistinctEvaluator(AnalyzerEvaluator):
+    """Evaluator for hasApproxCountDistinct constraint."""
+
+    OPERATOR_BUILDER = staticmethod(_single_column_op(ApproxCountDistinctOperator))
+    CONSTRAINT_NAME = "hasApproxCountDistinct"
+
+
+# ---- Column-list analyzer evaluators ---------------------------------------
+
+
+class UniquenessEvaluator(AnalyzerEvaluator):
     """Evaluator for isUnique and hasUniqueness constraints."""
 
-    def get_operator(self):
-        cols = self.columns if self.columns else [self.column]
-        return UniquenessOperator(cols, where=self.where)
-
-    def to_string(self) -> str:
-        cols = self.columns if self.columns else [self.column]
-        col_str = ", ".join(cols)
-        if self.assertion:
-            return f"hasUniqueness({col_str}, assertion)"
-        return f"isUnique({col_str})"
+    OPERATOR_BUILDER = staticmethod(_column_list_op(UniquenessOperator))
+    CONSTRAINT_NAME = "hasUniqueness"
+    BARE_NAME = "isUnique"
+    MULTI_COLUMN = True
 
 
-class DistinctnessEvaluator(AnalyzerBasedEvaluator):
+class DistinctnessEvaluator(AnalyzerEvaluator):
     """Evaluator for hasDistinctness constraint."""
 
-    def get_operator(self):
-        cols = self.columns if self.columns else [self.column]
-        return DistinctnessOperator(cols, where=self.where)
-
-    def to_string(self) -> str:
-        cols = self.columns if self.columns else [self.column]
-        col_str = ", ".join(cols)
-        return f"hasDistinctness({col_str}, assertion)"
+    OPERATOR_BUILDER = staticmethod(_column_list_op(DistinctnessOperator))
+    CONSTRAINT_NAME = "hasDistinctness"
+    MULTI_COLUMN = True
 
 
-class UniqueValueRatioEvaluator(AnalyzerBasedEvaluator):
+class UniqueValueRatioEvaluator(AnalyzerEvaluator):
     """Evaluator for hasUniqueValueRatio constraint."""
 
-    def get_operator(self):
-        cols = self.columns if self.columns else [self.column]
-        return UniqueValueRatioOperator(cols, where=self.where)
-
-    def to_string(self) -> str:
-        cols = self.columns if self.columns else [self.column]
-        col_str = ", ".join(cols)
-        return f"hasUniqueValueRatio({col_str}, assertion)"
+    OPERATOR_BUILDER = staticmethod(_column_list_op(UniqueValueRatioOperator))
+    CONSTRAINT_NAME = "hasUniqueValueRatio"
+    MULTI_COLUMN = True
 
 
-class CorrelationEvaluator(AnalyzerBasedEvaluator):
-    """Evaluator for hasCorrelation constraint."""
+# ---- Evaluators with custom logic (kept as full subclasses) ----------------
+
+
+class CorrelationEvaluator(AnalyzerEvaluator):
+    """Evaluator for hasCorrelation constraint.
+
+    Requires exactly two columns; falls back to a no-op when the proto
+    carries fewer than two.
+    """
+
+    CONSTRAINT_NAME = "hasCorrelation"
 
     def get_operator(self):
         if len(self.columns) >= 2:
@@ -182,18 +257,13 @@ class CorrelationEvaluator(AnalyzerBasedEvaluator):
         return "hasCorrelation()"
 
 
-class EntropyEvaluator(AnalyzerBasedEvaluator):
-    """Evaluator for hasEntropy constraint."""
+class MutualInformationEvaluator(AnalyzerEvaluator):
+    """Evaluator for hasMutualInformation constraint.
 
-    def get_operator(self):
-        return EntropyOperator(self.column, where=self.where)
+    Requires at least two columns.
+    """
 
-    def to_string(self) -> str:
-        return f"hasEntropy({self.column}, assertion)"
-
-
-class MutualInformationEvaluator(AnalyzerBasedEvaluator):
-    """Evaluator for hasMutualInformation constraint."""
+    CONSTRAINT_NAME = "hasMutualInformation"
 
     def get_operator(self):
         if len(self.columns) >= 2:
@@ -212,8 +282,10 @@ class MutualInformationEvaluator(AnalyzerBasedEvaluator):
         return f"hasMutualInformation({col_str}, assertion)"
 
 
-class PatternMatchEvaluator(AnalyzerBasedEvaluator):
+class PatternMatchEvaluator(AnalyzerEvaluator):
     """Evaluator for hasPattern constraint."""
+
+    CONSTRAINT_NAME = "hasPattern"
 
     def __init__(self, constraint_proto):
         super().__init__(constraint_proto)
@@ -226,38 +298,10 @@ class PatternMatchEvaluator(AnalyzerBasedEvaluator):
         return f"hasPattern({self.column}, '{self.pattern}')"
 
 
-class MinLengthEvaluator(AnalyzerBasedEvaluator):
-    """Evaluator for hasMinLength constraint."""
-
-    def get_operator(self):
-        return MinLengthOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        return f"hasMinLength({self.column}, assertion)"
-
-
-class MaxLengthEvaluator(AnalyzerBasedEvaluator):
-    """Evaluator for hasMaxLength constraint."""
-
-    def get_operator(self):
-        return MaxLengthOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        return f"hasMaxLength({self.column}, assertion)"
-
-
-class ApproxCountDistinctEvaluator(AnalyzerBasedEvaluator):
-    """Evaluator for hasApproxCountDistinct constraint."""
-
-    def get_operator(self):
-        return ApproxCountDistinctOperator(self.column, where=self.where)
-
-    def to_string(self) -> str:
-        return f"hasApproxCountDistinct({self.column}, assertion)"
-
-
-class ApproxQuantileEvaluator(AnalyzerBasedEvaluator):
+class ApproxQuantileEvaluator(AnalyzerEvaluator):
     """Evaluator for hasApproxQuantile constraint."""
+
+    CONSTRAINT_NAME = "hasApproxQuantile"
 
     def __init__(self, constraint_proto):
         super().__init__(constraint_proto)
@@ -270,13 +314,19 @@ class ApproxQuantileEvaluator(AnalyzerBasedEvaluator):
         return f"hasApproxQuantile({self.column}, {self.quantile}, assertion)"
 
 
-class ComplianceEvaluator(AnalyzerBasedEvaluator):
+class ComplianceEvaluator(AnalyzerEvaluator):
     """Evaluator for satisfies constraint."""
+
+    CONSTRAINT_NAME = "satisfies"
 
     def __init__(self, constraint_proto):
         super().__init__(constraint_proto)
-        self.predicate = constraint_proto.column_condition if constraint_proto.column_condition else ""
-        self.name = constraint_proto.constraint_name if constraint_proto.constraint_name else "satisfies"
+        self.predicate = (
+            constraint_proto.column_condition if constraint_proto.column_condition else ""
+        )
+        self.name = (
+            constraint_proto.constraint_name if constraint_proto.constraint_name else "satisfies"
+        )
 
     def get_operator(self):
         return ComplianceOperator(self.name, self.predicate, where=self.where)
@@ -459,6 +509,8 @@ class MultiColumnCompletenessEvaluator(BaseEvaluator):
 
 
 __all__ = [
+    # Generic base for analyzer-based evaluators
+    "AnalyzerEvaluator",
     # Analyzer-based evaluators
     "SizeEvaluator",
     "CompletenessEvaluator",

@@ -47,28 +47,28 @@ class TestSizeConstraint:
         check = Check(CheckLevel.Error, "size check").hasSize(eq(4))
         results = engine_full.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_size_failure(self, engine_full):
         """hasSize fails when size doesn't match."""
         check = Check(CheckLevel.Error, "size check").hasSize(eq(10))
         results = engine_full.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_has_size_range(self, engine_full):
         """hasSize with between predicate."""
         check = Check(CheckLevel.Error, "size range").hasSize(between(3, 5))
         results = engine_full.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_size_empty(self, engine_empty):
         """hasSize correctly reports 0 for empty dataset."""
         check = Check(CheckLevel.Error, "empty size").hasSize(eq(0))
         results = engine_empty.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestCompletenessConstraints:
@@ -79,14 +79,14 @@ class TestCompletenessConstraints:
         check = Check(CheckLevel.Error, "complete").isComplete("att1")
         results = engine_full.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_is_complete_failure(self, engine_missing):
         """isComplete fails for column with NULLs."""
         check = Check(CheckLevel.Error, "complete").isComplete("att1")
         results = engine_missing.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_has_completeness_success(self, engine_missing):
         """hasCompleteness succeeds when threshold is met."""
@@ -94,7 +94,7 @@ class TestCompletenessConstraints:
         check = Check(CheckLevel.Error, "partial complete").hasCompleteness("att1", gte(0.5))
         results = engine_missing.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_completeness_failure(self, engine_missing):
         """hasCompleteness fails when threshold not met."""
@@ -102,28 +102,28 @@ class TestCompletenessConstraints:
         check = Check(CheckLevel.Error, "high threshold").hasCompleteness("att1", gte(0.9))
         results = engine_missing.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_are_complete_success(self, engine_full):
         """areComplete succeeds when all columns are complete."""
         check = Check(CheckLevel.Error, "multi complete").areComplete(["att1", "att2"])
         results = engine_full.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_are_complete_failure(self, engine_missing):
         """areComplete fails when any column has NULLs."""
         check = Check(CheckLevel.Error, "multi complete").areComplete(["att1", "att2"])
         results = engine_missing.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_have_completeness_success(self, engine_missing):
         """haveCompleteness succeeds for combined column threshold."""
         check = Check(CheckLevel.Error, "combined").haveCompleteness(["att1", "att2"], gte(0.5))
         results = engine_missing.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestUniquenessConstraints:
@@ -134,21 +134,21 @@ class TestUniquenessConstraints:
         check = Check(CheckLevel.Error, "unique").isUnique("unique_col")
         results = engine_unique.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_is_unique_failure(self, engine_unique):
         """isUnique fails when there are duplicates."""
         check = Check(CheckLevel.Error, "not unique").isUnique("non_unique")
         results = engine_unique.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_has_uniqueness_success(self, engine_unique):
         """hasUniqueness succeeds when threshold met."""
         check = Check(CheckLevel.Error, "uniqueness").hasUniqueness(["unique_col"], is_one())
         results = engine_unique.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_uniqueness_failure(self, engine_distinct):
         """hasUniqueness fails when uniqueness is below threshold."""
@@ -156,7 +156,7 @@ class TestUniquenessConstraints:
         check = Check(CheckLevel.Error, "low uniqueness").hasUniqueness(["att1"], gte(0.5))
         results = engine_distinct.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_has_distinctness_success(self, engine_distinct):
         """hasDistinctness succeeds when threshold met."""
@@ -164,7 +164,7 @@ class TestUniquenessConstraints:
         check = Check(CheckLevel.Error, "distinct").hasDistinctness(["att2"], is_one())
         results = engine_distinct.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_distinctness_partial(self, engine_distinct):
         """hasDistinctness with partial distinctness."""
@@ -172,14 +172,14 @@ class TestUniquenessConstraints:
         check = Check(CheckLevel.Error, "partial distinct").hasDistinctness(["att1"], gte(0.5))
         results = engine_distinct.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_unique_value_ratio_success(self, engine_distinct):
         """hasUniqueValueRatio succeeds for all-unique column."""
         check = Check(CheckLevel.Error, "uvr").hasUniqueValueRatio(["att2"], is_one())
         results = engine_distinct.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_unique_value_ratio_zero(self, engine_distinct):
         """hasUniqueValueRatio for all-duplicated column."""
@@ -187,7 +187,7 @@ class TestUniquenessConstraints:
         check = Check(CheckLevel.Error, "uvr zero").hasUniqueValueRatio(["att1"], eq(0))
         results = engine_distinct.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestStatisticalConstraints:
@@ -198,63 +198,63 @@ class TestStatisticalConstraints:
         check = Check(CheckLevel.Error, "min").hasMin("att1", eq(1))
         results = engine_numeric.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_min_failure(self, engine_numeric):
         """hasMin fails when minimum doesn't match."""
         check = Check(CheckLevel.Error, "min fail").hasMin("att1", eq(5))
         results = engine_numeric.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_has_max_success(self, engine_numeric):
         """hasMax succeeds when maximum matches."""
         check = Check(CheckLevel.Error, "max").hasMax("att1", eq(6))
         results = engine_numeric.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_max_failure(self, engine_numeric):
         """hasMax fails when maximum doesn't match."""
         check = Check(CheckLevel.Error, "max fail").hasMax("att1", eq(100))
         results = engine_numeric.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_has_mean_success(self, engine_numeric):
         """hasMean succeeds when mean matches."""
         check = Check(CheckLevel.Error, "mean").hasMean("att1", eq(3.5))
         results = engine_numeric.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_mean_range(self, engine_numeric):
         """hasMean with range predicate."""
         check = Check(CheckLevel.Error, "mean range").hasMean("att1", between(3.0, 4.0))
         results = engine_numeric.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_sum_success(self, engine_numeric):
         """hasSum succeeds when sum matches."""
         check = Check(CheckLevel.Error, "sum").hasSum("att1", eq(21))
         results = engine_numeric.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_standard_deviation_success(self, engine_numeric):
         """hasStandardDeviation with range check."""
         check = Check(CheckLevel.Error, "stddev").hasStandardDeviation("att1", between(1.5, 2.0))
         results = engine_numeric.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_approx_count_distinct_success(self, engine_full):
         """hasApproxCountDistinct succeeds when count is approximately correct."""
         check = Check(CheckLevel.Error, "approx distinct").hasApproxCountDistinct("att1", between(2, 4))
         results = engine_full.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestQuantileConstraints:
@@ -265,7 +265,7 @@ class TestQuantileConstraints:
         check = Check(CheckLevel.Error, "median").hasApproxQuantile("value", 0.5, between(5.0, 6.0))
         results = engine_quantile.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestCorrelationConstraints:
@@ -276,14 +276,14 @@ class TestCorrelationConstraints:
         check = Check(CheckLevel.Error, "positive corr").hasCorrelation("x", "y", is_one())
         results = engine_correlation.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_correlation_negative(self, engine_correlation):
         """hasCorrelation for negative correlation."""
         check = Check(CheckLevel.Error, "negative corr").hasCorrelation("x", "z", eq(-1))
         results = engine_correlation.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestEntropyConstraints:
@@ -295,14 +295,14 @@ class TestEntropyConstraints:
         check = Check(CheckLevel.Error, "entropy").hasEntropy("uniform", between(1.38, 1.39))
         results = engine_entropy.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_entropy_constant(self, engine_entropy):
         """hasEntropy for constant column (entropy=0)."""
         check = Check(CheckLevel.Error, "zero entropy").hasEntropy("constant", eq(0))
         results = engine_entropy.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestMutualInformationConstraints:
@@ -313,7 +313,7 @@ class TestMutualInformationConstraints:
         check = Check(CheckLevel.Error, "mi").hasMutualInformation("x", "y_dependent", gt(0))
         results = engine_mutual_info.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestStringLengthConstraints:
@@ -324,28 +324,28 @@ class TestStringLengthConstraints:
         check = Check(CheckLevel.Error, "min length").hasMinLength("att1", eq(0))
         results = engine_string_lengths.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_min_length_failure(self, engine_string_lengths):
         """hasMinLength fails when min length is higher."""
         check = Check(CheckLevel.Error, "min length fail").hasMinLength("att1", gte(2))
         results = engine_string_lengths.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_has_max_length_success(self, engine_string_lengths):
         """hasMaxLength succeeds when max is correct."""
         check = Check(CheckLevel.Error, "max length").hasMaxLength("att1", eq(4))
         results = engine_string_lengths.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_max_length_bound(self, engine_string_lengths):
         """hasMaxLength with upper bound."""
         check = Check(CheckLevel.Error, "max bound").hasMaxLength("att1", lte(5))
         results = engine_string_lengths.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestPatternConstraints:
@@ -356,7 +356,7 @@ class TestPatternConstraints:
         check = Check(CheckLevel.Error, "pattern").hasPattern("att1", r"^[a-c]$", is_one())
         results = engine_full.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_pattern_partial(self, engine_pattern):
         """hasPattern with partial match threshold."""
@@ -364,14 +364,14 @@ class TestPatternConstraints:
         check = Check(CheckLevel.Error, "email pattern").hasPattern("email", r".*@.*\..*", gte(0.5))
         results = engine_pattern.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_has_pattern_failure(self, engine_pattern):
         """hasPattern fails when match rate is below threshold."""
         check = Check(CheckLevel.Error, "strict pattern").hasPattern("email", r".*@.*\..*", is_one())
         results = engine_pattern.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
 
 class TestEmailUrlConstraints:
@@ -382,7 +382,7 @@ class TestEmailUrlConstraints:
         check = Check(CheckLevel.Error, "email").containsEmail("email", gte(0.5))
         results = engine_pattern.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_contains_url_failure(self, engine_pattern):
         """containsURL fails for non-URL column."""
@@ -390,7 +390,7 @@ class TestEmailUrlConstraints:
         results = engine_pattern.run_checks([check])
         result = results[0]
         # No URLs in email column
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
 
 class TestNumericConstraints:
@@ -401,21 +401,21 @@ class TestNumericConstraints:
         check = Check(CheckLevel.Error, "positive").isPositive("positive", is_one())
         results = engine_compliance.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_is_positive_failure(self, engine_compliance):
         """isPositive fails for negative column."""
         check = Check(CheckLevel.Error, "not positive").isPositive("negative", gte(0.5))
         results = engine_compliance.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_is_non_negative_success(self, engine_compliance):
         """isNonNegative for positive column."""
         check = Check(CheckLevel.Error, "non-neg").isNonNegative("positive", is_one())
         results = engine_compliance.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_is_non_negative_partial(self, engine_compliance):
         """isNonNegative with partial compliance."""
@@ -423,7 +423,7 @@ class TestNumericConstraints:
         check = Check(CheckLevel.Error, "partial non-neg").isNonNegative("mixed", gte(0.5))
         results = engine_compliance.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestColumnComparisonConstraints:
@@ -435,14 +435,14 @@ class TestColumnComparisonConstraints:
         check = Check(CheckLevel.Error, "less than").isLessThan("x", "y")
         results = engine_correlation.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_is_less_than_or_equal_to(self, engine_correlation):
         """isLessThanOrEqualTo for ordered columns."""
         check = Check(CheckLevel.Error, "lte").isLessThanOrEqualTo("x", "y")
         results = engine_correlation.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_is_greater_than(self, engine_correlation):
         """isGreaterThan for reverse-ordered columns."""
@@ -450,14 +450,14 @@ class TestColumnComparisonConstraints:
         check = Check(CheckLevel.Error, "greater than").isGreaterThan("y", "x")
         results = engine_correlation.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_is_greater_than_or_equal_to(self, engine_correlation):
         """isGreaterThanOrEqualTo for ordered columns."""
         check = Check(CheckLevel.Error, "gte").isGreaterThanOrEqualTo("y", "x")
         results = engine_correlation.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestContainedInConstraint:
@@ -470,7 +470,7 @@ class TestContainedInConstraint:
         )
         results = engine_contained_in.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_is_contained_in_failure(self, engine_contained_in):
         """isContainedIn fails when some values are not in set."""
@@ -480,7 +480,7 @@ class TestContainedInConstraint:
         results = engine_contained_in.run_checks([check])
         result = results[0]
         # "D" is not in the allowed set
-        assert result.constraint_status == ConstraintStatus.Failure
+        assert result.constraint_status == ConstraintStatus.FAILURE
 
     def test_is_contained_in_partial(self, engine_contained_in):
         """isContainedIn with threshold for partial match."""
@@ -490,7 +490,7 @@ class TestContainedInConstraint:
         results = engine_contained_in.run_checks([check])
         result = results[0]
         # 5/6 = 0.833 in allowed set
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestSatisfiesConstraint:
@@ -501,7 +501,7 @@ class TestSatisfiesConstraint:
         check = Check(CheckLevel.Error, "satisfies").satisfies("positive > 0", "positive_check", is_one())
         results = engine_compliance.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_satisfies_complex(self, engine_compliance):
         """satisfies with complex predicate."""
@@ -510,7 +510,7 @@ class TestSatisfiesConstraint:
         )
         results = engine_compliance.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_satisfies_partial(self, engine_compliance):
         """satisfies with partial compliance."""
@@ -518,7 +518,7 @@ class TestSatisfiesConstraint:
         results = engine_compliance.run_checks([check])
         result = results[0]
         # 3/6 = 0.5 > 0.4
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestCheckLevels:
@@ -530,7 +530,7 @@ class TestCheckLevels:
         results = engine_full.run_checks([check])
         result = results[0]
         assert result.check_level == "Error"
-        assert result.check_status == CheckStatus.Error
+        assert result.check_status == CheckStatus.ERROR
 
     def test_warning_level_failure(self, engine_full):
         """Warning level check results in Warning status on failure."""
@@ -538,14 +538,14 @@ class TestCheckLevels:
         results = engine_full.run_checks([check])
         result = results[0]
         assert result.check_level == "Warning"
-        assert result.check_status == CheckStatus.Warning
+        assert result.check_status == CheckStatus.WARNING
 
     def test_error_level_success(self, engine_full):
         """Error level check results in Success status on pass."""
         check = Check(CheckLevel.Error, "pass check").hasSize(eq(4))
         results = engine_full.run_checks([check])
         result = results[0]
-        assert result.check_status == CheckStatus.Success
+        assert result.check_status == CheckStatus.SUCCESS
 
 
 class TestMultipleConstraints:
@@ -558,8 +558,8 @@ class TestMultipleConstraints:
                 .isComplete("att1")
                 .isComplete("att2"))
         results = engine_full.run_checks([check])
-        assert all(r.constraint_status == ConstraintStatus.Success for r in results)
-        assert results[0].check_status == CheckStatus.Success
+        assert all(r.constraint_status == ConstraintStatus.SUCCESS for r in results)
+        assert results[0].check_status == CheckStatus.SUCCESS
 
     def test_some_fail(self, engine_missing):
         """Some constraints fail results in overall failure."""
@@ -569,10 +569,10 @@ class TestMultipleConstraints:
                 .hasCompleteness("att2", gte(0.5)))  # Pass
         results = engine_missing.run_checks([check])
         # Check that at least one constraint failed
-        failed = [r for r in results if r.constraint_status == ConstraintStatus.Failure]
+        failed = [r for r in results if r.constraint_status == ConstraintStatus.FAILURE]
         assert len(failed) >= 1
         # Overall check should fail
-        assert results[0].check_status == CheckStatus.Error
+        assert results[0].check_status == CheckStatus.ERROR
 
     def test_multiple_checks(self, engine_numeric):
         """Multiple checks can be run together."""
@@ -583,7 +583,7 @@ class TestMultipleConstraints:
         results = engine_numeric.run_checks([check1, check2, check3])
         # All should pass
         assert len(results) == 3
-        assert all(r.constraint_status == ConstraintStatus.Success for r in results)
+        assert all(r.constraint_status == ConstraintStatus.SUCCESS for r in results)
 
 
 class TestConstraintsWithWhere:
@@ -598,7 +598,7 @@ class TestConstraintsWithWhere:
         results = engine_where.run_checks([check])
         result = results[0]
         # Category A: att1 is complete
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     @pytest.mark.skip(reason="WHERE clause support not yet implemented in Check API")
     def test_size_where(self, engine_where):
@@ -608,7 +608,7 @@ class TestConstraintsWithWhere:
         )
         results = engine_where.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
 
 class TestEdgeCases:
@@ -620,7 +620,7 @@ class TestEdgeCases:
                 .hasSize(eq(0)))
         results = engine_empty.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS
 
     def test_single_row(self, engine_single):
         """Constraints on single-row dataset."""
@@ -630,7 +630,7 @@ class TestEdgeCases:
                 .hasMin("item", eq(1))
                 .hasMax("item", eq(1)))
         results = engine_single.run_checks([check])
-        assert all(r.constraint_status == ConstraintStatus.Success for r in results)
+        assert all(r.constraint_status == ConstraintStatus.SUCCESS for r in results)
 
     def test_all_null_column(self, engine_all_null):
         """Constraints on all-NULL column."""
@@ -638,4 +638,4 @@ class TestEdgeCases:
                 .hasCompleteness("value", eq(0)))
         results = engine_all_null.run_checks([check])
         result = results[0]
-        assert result.constraint_status == ConstraintStatus.Success
+        assert result.constraint_status == ConstraintStatus.SUCCESS

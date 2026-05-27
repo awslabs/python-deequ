@@ -161,21 +161,23 @@ def count_checks(n_extra_cols: int = 0) -> int:
 
 
 def setup_duckdb_from_parquet(parquet_path: str) -> Tuple[Any, duckdb.DuckDBPyConnection]:
-    """Setup DuckDB engine to read from Parquet file."""
-    con = duckdb.connect()
-    engine = pydeequ.connect(con, table=f"read_parquet('{parquet_path}')")
-    return engine, con
+    """Setup DuckDB engine reading from Parquet via a registered view.
 
-
-def setup_duckdb_for_profiling(parquet_path: str) -> Tuple[Any, duckdb.DuckDBPyConnection]:
-    """
-    Setup DuckDB engine for profiling by creating a view from parquet.
-    This is needed because PRAGMA table_info() doesn't work with read_parquet().
+    A view is required (rather than a raw ``read_parquet(...)`` expression)
+    because the engine queries schema with ``PRAGMA table_info('<table>')``,
+    which only works on registered relations.
     """
     con = duckdb.connect()
-    con.execute(f"CREATE VIEW benchmark_data AS SELECT * FROM read_parquet('{parquet_path}')")
+    parquet_path_sql = parquet_path.replace("'", "''")
+    con.execute(
+        f"CREATE VIEW benchmark_data AS SELECT * FROM read_parquet('{parquet_path_sql}')"
+    )
     engine = pydeequ.connect(con, table="benchmark_data")
     return engine, con
+
+
+# Backwards-compatible alias for callers that distinguished the profiling path.
+setup_duckdb_for_profiling = setup_duckdb_from_parquet
 
 
 def benchmark_duckdb_validation(engine: Any, check: Check, n_runs: int) -> float:

@@ -29,7 +29,7 @@ Example usage with Spark Connect:
 
     profiles = (ColumnProfilerRunner(engine)
         .onData(dataframe=df)
-        .withKLLProfiling()
+        .withLowCardinalityHistogramThreshold(100)
         .run())
 """
 
@@ -72,9 +72,7 @@ class KLLParameters:
 
 class ColumnProfilerRunner:
     """
-    Entry point for running column profiling.
-
-    Takes an engine in the constructor and uses ``onData()`` to bind data.
+    Run column profiling.
 
     Example:
         profiles = (ColumnProfilerRunner(engine)
@@ -85,56 +83,47 @@ class ColumnProfilerRunner:
 
     def __init__(self, engine: "BaseEngine"):
         self._engine = engine
-
-    def onData(
-        self, *, table: Optional[str] = None, dataframe: "Optional[DataFrame]" = None
-    ) -> "EngineColumnProfilerRunBuilder":
-        """
-        Bind data for profiling.
-
-        Args:
-            table: Table name (keyword-only)
-            dataframe: DataFrame (keyword-only)
-
-        Returns:
-            EngineColumnProfilerRunBuilder for method chaining
-        """
-        if table is not None and dataframe is not None:
-            raise ValueError("Provide either 'table' or 'dataframe', not both")
-        if table is not None:
-            bound_engine = self._engine.for_table(table)
-        elif dataframe is not None:
-            bound_engine = self._engine.for_dataframe(dataframe)
-        else:
-            raise ValueError("Must provide either 'table' or 'dataframe'")
-        return EngineColumnProfilerRunBuilder(bound_engine)
-
-
-class EngineColumnProfilerRunBuilder:
-    """Builder for configuring and executing engine-based column profiling."""
-
-    def __init__(self, engine: "BaseEngine"):
-        self._engine = engine
         self._restrict_to_columns: Optional[Sequence[str]] = None
         self._low_cardinality_threshold: int = 0
 
-    def restrictToColumns(self, columns: Sequence[str]) -> "EngineColumnProfilerRunBuilder":
+    def onData(
+        self,
+        *,
+        table: Optional[str] = None,
+        dataframe: "Optional[DataFrame]" = None,
+    ) -> "ColumnProfilerRunner":
+        """Bind data for profiling (keyword-only)."""
+        if table is not None and dataframe is not None:
+            raise ValueError("Provide either 'table' or 'dataframe', not both")
+        if table is not None:
+            self._engine = self._engine.for_table(table)
+        elif dataframe is not None:
+            self._engine = self._engine.for_dataframe(dataframe)
+        else:
+            raise ValueError("Must provide either 'table' or 'dataframe'")
+        return self
+
+    def restrictToColumns(self, columns: Sequence[str]) -> "ColumnProfilerRunner":
         self._restrict_to_columns = columns
         return self
 
     def withLowCardinalityHistogramThreshold(
         self, threshold: int
-    ) -> "EngineColumnProfilerRunBuilder":
+    ) -> "ColumnProfilerRunner":
         self._low_cardinality_threshold = threshold
         return self
 
     def run(self) -> pd.DataFrame:
-        """Execute the profiling and return results as a pandas DataFrame."""
+        """Execute profiling and return results as a pandas DataFrame."""
         profiles = self._engine.profile_columns(
             columns=self._restrict_to_columns,
             low_cardinality_threshold=self._low_cardinality_threshold,
         )
         return self._engine.profiles_to_dataframe(profiles)
+
+
+# Backwards-compatible alias for the previously-exposed builder class.
+EngineColumnProfilerRunBuilder = ColumnProfilerRunner
 
 
 # ---------------------------------------------------------------------------

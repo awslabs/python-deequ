@@ -257,27 +257,29 @@ class ConstraintBatchEvaluator:
         """
         results: Dict[BaseEvaluator, Optional[float]] = {}
 
-        # Build batched ratio query
-        cases = []
+        # Build per-evaluator match cases, applying the WHERE filter when set.
+        match_cases: List[str] = []
         for i, evaluator in enumerate(evaluators):
             condition = evaluator.get_condition()
-            cases.append(f"SUM(CASE WHEN {condition} THEN 1 ELSE 0 END) as matches_{i}")
+            if where:
+                match_cases.append(
+                    f"SUM(CASE WHEN ({where}) AND ({condition}) THEN 1 ELSE 0 END) "
+                    f"as matches_{i}"
+                )
+            else:
+                match_cases.append(
+                    f"SUM(CASE WHEN {condition} THEN 1 ELSE 0 END) as matches_{i}"
+                )
 
-        # Add total count
-        if where:
-            query = f"""
-                SELECT
-                    SUM(CASE WHEN {where} THEN 1 ELSE 0 END) as total,
-                    {', '.join([f"SUM(CASE WHEN ({where}) AND ({evaluators[i].get_condition()}) THEN 1 ELSE 0 END) as matches_{i}" for i in range(len(evaluators))])}
-                FROM {table}
-            """
-        else:
-            query = f"""
-                SELECT
-                    COUNT(*) as total,
-                    {', '.join(cases)}
-                FROM {table}
-            """
+        total_expr = (
+            f"SUM(CASE WHEN {where} THEN 1 ELSE 0 END) as total"
+            if where
+            else "COUNT(*) as total"
+        )
+
+        query = (
+            f"SELECT {total_expr}, {', '.join(match_cases)} FROM {table}"
+        )
 
         df = execute_fn(query)
         total = float(df["total"].iloc[0]) if df["total"].iloc[0] else 0

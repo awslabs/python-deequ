@@ -54,21 +54,12 @@ class ConstraintStatus(Enum):
     SUCCESS = "Success"
     FAILURE = "Failure"
 
-    # Aliases for backwards compatibility
-    Success = "Success"
-    Failure = "Failure"
-
 
 class CheckStatus(Enum):
     """Status of a check evaluation."""
     SUCCESS = "Success"
     WARNING = "Warning"
     ERROR = "Error"
-
-    # Aliases for backwards compatibility
-    Success = "Success"
-    Warning = "Warning"
-    Error = "Error"
 
 
 @dataclass

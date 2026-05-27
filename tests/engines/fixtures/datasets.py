@@ -367,8 +367,8 @@ EXPECTED_VALUES: Dict[Tuple[str, str, Any], float] = {
     # Completeness analyzer
     ("df_full", "Completeness", "att1"): 1.0,
     ("df_full", "Completeness", "att2"): 1.0,
-    ("df_missing", "Completeness", "att1"): 0.5,  # 6/12
-    ("df_missing", "Completeness", "att2"): 0.75,  # 9/12
+    ("df_missing", "Completeness", "att1"): 0.5,   # 600/1200 non-null
+    ("df_missing", "Completeness", "att2"): 0.75,  # 900/1200 non-null
     ("df_all_null", "Completeness", "value"): 0.0,
     ("df_single", "Completeness", "att1"): 1.0,
     ("df_unique", "Completeness", "unique_col"): 1.0,

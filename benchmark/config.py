@@ -5,6 +5,15 @@ from dataclasses import dataclass, field, asdict
 from typing import List, Optional
 
 
+def _required_env(name: str) -> str:
+    """Return the value of the required env var, or empty string if unset.
+
+    Empty values are validated at use sites (e.g., when the Spark server
+    is started) so config objects can be created without the env vars set.
+    """
+    return os.environ.get(name, "")
+
+
 # Default experiment configurations (from original script)
 DEFAULT_ROW_COUNTS = [100_000, 1_000_000, 5_000_000, 10_000_000, 50_000_000, 130_000_000]
 DEFAULT_COLUMN_COUNTS = [10, 20, 40, 80]
@@ -41,27 +50,42 @@ class ExperimentConfig:
 
 @dataclass
 class SparkServerConfig:
-    """Configuration for Spark Connect server."""
+    """Configuration for Spark Connect server.
 
-    java_home: str = field(
-        default_factory=lambda: os.environ.get(
-            "JAVA_HOME",
-            "/Library/Java/JavaVirtualMachines/amazon-corretto-17.jdk/Contents/Home",
-        )
-    )
-    spark_home: str = field(
-        default_factory=lambda: os.environ.get(
-            "SPARK_HOME", "/Volumes/workplace/deequ_rewrite/spark-3.5.0-bin-hadoop3"
-        )
-    )
+    Paths must be supplied via environment variables (or set programmatically)
+    rather than baked-in defaults. Required when starting a server:
+    - JAVA_HOME: path to a Java 17 install
+    - SPARK_HOME: path to a Spark 3.5 install
+    - DEEQU_JAR: path to the Deequ JAR with Spark Connect support
+    """
+
+    java_home: str = field(default_factory=lambda: _required_env("JAVA_HOME"))
+    spark_home: str = field(default_factory=lambda: _required_env("SPARK_HOME"))
     port: int = 15002
     startup_timeout: int = 60
     poll_interval: float = 1.0
     driver_memory: str = "16g"
     executor_memory: str = "16g"
-    deequ_jar: str = field(
-        default_factory=lambda: "/Volumes/workplace/deequ_rewrite/deequ/target/deequ_2.12-2.1.0b-spark-3.5.jar"
-    )
+    deequ_jar: str = field(default_factory=lambda: _required_env("DEEQU_JAR"))
+
+    def validate(self) -> None:
+        """Raise if any required path is missing or doesn't exist."""
+        missing = [
+            (name, val)
+            for name, val in (
+                ("JAVA_HOME", self.java_home),
+                ("SPARK_HOME", self.spark_home),
+                ("DEEQU_JAR", self.deequ_jar),
+            )
+            if not val
+        ]
+        if missing:
+            names = ", ".join(name for name, _ in missing)
+            raise RuntimeError(
+                f"SparkServerConfig is missing required values: {names}. "
+                "Set the corresponding environment variables or assign on the "
+                "config object before starting the server."
+            )
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""

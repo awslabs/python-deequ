@@ -68,9 +68,7 @@ class Rules(Enum):
 
 class ConstraintSuggestionRunner:
     """
-    Entry point for generating constraint suggestions.
-
-    Takes an engine in the constructor and uses ``onData()`` to bind data.
+    Generate constraint suggestions.
 
     Example:
         suggestions = (ConstraintSuggestionRunner(engine)
@@ -81,51 +79,38 @@ class ConstraintSuggestionRunner:
 
     def __init__(self, engine: "BaseEngine"):
         self._engine = engine
-
-    def onData(
-        self, *, table: Optional[str] = None, dataframe: "Optional[DataFrame]" = None
-    ) -> "EngineConstraintSuggestionRunBuilder":
-        """
-        Bind data for constraint suggestion.
-
-        Args:
-            table: Table name (keyword-only)
-            dataframe: DataFrame (keyword-only)
-
-        Returns:
-            EngineConstraintSuggestionRunBuilder for method chaining
-        """
-        if table is not None and dataframe is not None:
-            raise ValueError("Provide either 'table' or 'dataframe', not both")
-        if table is not None:
-            bound_engine = self._engine.for_table(table)
-        elif dataframe is not None:
-            bound_engine = self._engine.for_dataframe(dataframe)
-        else:
-            raise ValueError("Must provide either 'table' or 'dataframe'")
-        return EngineConstraintSuggestionRunBuilder(bound_engine)
-
-
-class EngineConstraintSuggestionRunBuilder:
-    """Builder for configuring and executing engine-based constraint suggestions."""
-
-    def __init__(self, engine: "BaseEngine"):
-        self._engine = engine
         self._rules: List[Rules] = []
         self._restrict_to_columns: Optional[Sequence[str]] = None
 
-    def addConstraintRules(self, rules: Rules) -> "EngineConstraintSuggestionRunBuilder":
+    def onData(
+        self,
+        *,
+        table: Optional[str] = None,
+        dataframe: "Optional[DataFrame]" = None,
+    ) -> "ConstraintSuggestionRunner":
+        """Bind data for constraint suggestion (keyword-only)."""
+        if table is not None and dataframe is not None:
+            raise ValueError("Provide either 'table' or 'dataframe', not both")
+        if table is not None:
+            self._engine = self._engine.for_table(table)
+        elif dataframe is not None:
+            self._engine = self._engine.for_dataframe(dataframe)
+        else:
+            raise ValueError("Must provide either 'table' or 'dataframe'")
+        return self
+
+    def addConstraintRules(self, rules: Rules) -> "ConstraintSuggestionRunner":
         self._rules.append(rules)
         return self
 
     def restrictToColumns(
         self, columns: Sequence[str]
-    ) -> "EngineConstraintSuggestionRunBuilder":
+    ) -> "ConstraintSuggestionRunner":
         self._restrict_to_columns = columns
         return self
 
     def run(self) -> pd.DataFrame:
-        """Execute the suggestion analysis and return results as a pandas DataFrame."""
+        """Execute suggestion analysis and return results as a pandas DataFrame."""
         if not self._rules:
             raise ValueError(
                 "At least one constraint rule set must be added. "
@@ -137,6 +122,10 @@ class EngineConstraintSuggestionRunBuilder:
             rules=rule_strs,
         )
         return self._engine.suggestions_to_dataframe(suggestions)
+
+
+# Backwards-compatible alias for the previously-exposed builder class.
+EngineConstraintSuggestionRunBuilder = ConstraintSuggestionRunner
 
 
 # ---------------------------------------------------------------------------

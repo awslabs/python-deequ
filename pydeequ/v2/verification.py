@@ -2,9 +2,10 @@
 """
 VerificationSuite and AnalysisRunner for PyDeequ v2.
 
-This module provides the main entry points for running data quality checks
-and analysis. All runners take an engine in the constructor and use
-``onData(table=..., dataframe=...)`` to bind data.
+Each runner is a single class with ``onData``, ``addCheck``/``addAnalyzer``,
+and ``run``. The data-binding seam lives at the engine
+(``BaseEngine.for_table`` / ``for_dataframe``); the runner owns the
+collected state and the call into the engine.
 
 Example usage with DuckDB:
     import duckdb
@@ -47,7 +48,7 @@ Example usage with Spark Connect:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import pandas as pd
 
@@ -59,11 +60,28 @@ if TYPE_CHECKING:
     from pydeequ.engines import BaseEngine
 
 
+def _bind_engine(
+    engine: "BaseEngine",
+    *,
+    table: Optional[str],
+    dataframe: Optional[Any],
+) -> "BaseEngine":
+    """Resolve ``onData(table=…, dataframe=…)`` to a bound engine.
+
+    Exactly one of ``table`` or ``dataframe`` must be provided.
+    """
+    if table is not None and dataframe is not None:
+        raise ValueError("Provide either 'table' or 'dataframe', not both")
+    if table is not None:
+        return engine.for_table(table)
+    if dataframe is not None:
+        return engine.for_dataframe(dataframe)
+    raise ValueError("Must provide either 'table' or 'dataframe'")
+
+
 class VerificationSuite:
     """
-    Main entry point for running data quality verification.
-
-    Takes an engine in the constructor and uses ``onData()`` to bind data.
+    Run data-quality verification.
 
     Example:
         result = (VerificationSuite(engine)
@@ -74,58 +92,31 @@ class VerificationSuite:
 
     def __init__(self, engine: "BaseEngine"):
         self._engine = engine
+        self._checks: List[Check] = []
 
     def onData(
-        self, *, table: Optional[str] = None, dataframe: "Optional[DataFrame]" = None
-    ) -> "EngineVerificationRunBuilder":
-        """
-        Bind data for verification.
+        self,
+        *,
+        table: Optional[str] = None,
+        dataframe: "Optional[DataFrame]" = None,
+    ) -> "VerificationSuite":
+        """Bind data for verification (keyword-only)."""
+        self._engine = _bind_engine(self._engine, table=table, dataframe=dataframe)
+        return self
 
-        Args:
-            table: Table name (keyword-only)
-            dataframe: DataFrame (keyword-only)
-
-        Returns:
-            EngineVerificationRunBuilder for method chaining
-        """
-        if table is not None and dataframe is not None:
-            raise ValueError("Provide either 'table' or 'dataframe', not both")
-        if table is not None:
-            bound_engine = self._engine.for_table(table)
-        elif dataframe is not None:
-            bound_engine = self._engine.for_dataframe(dataframe)
-        else:
-            raise ValueError("Must provide either 'table' or 'dataframe'")
-        return EngineVerificationRunBuilder(bound_engine)
-
-
-class EngineVerificationRunBuilder:
-    """Builder for configuring and executing engine-based verification."""
-
-    def __init__(self, engine: "BaseEngine"):
-        self._engine = engine
-        self._checks: List[Check] = []
-        self._analyzers: List[_ConnectAnalyzer] = []
-
-    def addCheck(self, check: Check) -> "EngineVerificationRunBuilder":
+    def addCheck(self, check: Check) -> "VerificationSuite":
         self._checks.append(check)
         return self
 
-    def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "EngineVerificationRunBuilder":
-        self._analyzers.append(analyzer)
-        return self
-
     def run(self) -> pd.DataFrame:
-        """Execute the verification and return results as a pandas DataFrame."""
+        """Execute verification and return results as a pandas DataFrame."""
         results = self._engine.run_checks(self._checks)
         return self._engine.constraints_to_dataframe(results)
 
 
 class AnalysisRunner:
     """
-    Entry point for running analyzers without checks.
-
-    Takes an engine in the constructor and uses ``onData()`` to bind data.
+    Run analyzers without checks.
 
     Example:
         result = (AnalysisRunner(engine)
@@ -137,46 +128,33 @@ class AnalysisRunner:
 
     def __init__(self, engine: "BaseEngine"):
         self._engine = engine
-
-    def onData(
-        self, *, table: Optional[str] = None, dataframe: "Optional[DataFrame]" = None
-    ) -> "EngineAnalysisRunBuilder":
-        """
-        Bind data for analysis.
-
-        Args:
-            table: Table name (keyword-only)
-            dataframe: DataFrame (keyword-only)
-
-        Returns:
-            EngineAnalysisRunBuilder for method chaining
-        """
-        if table is not None and dataframe is not None:
-            raise ValueError("Provide either 'table' or 'dataframe', not both")
-        if table is not None:
-            bound_engine = self._engine.for_table(table)
-        elif dataframe is not None:
-            bound_engine = self._engine.for_dataframe(dataframe)
-        else:
-            raise ValueError("Must provide either 'table' or 'dataframe'")
-        return EngineAnalysisRunBuilder(bound_engine)
-
-
-class EngineAnalysisRunBuilder:
-    """Builder for configuring and executing engine-based analysis."""
-
-    def __init__(self, engine: "BaseEngine"):
-        self._engine = engine
         self._analyzers: List[_ConnectAnalyzer] = []
 
-    def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "EngineAnalysisRunBuilder":
+    def onData(
+        self,
+        *,
+        table: Optional[str] = None,
+        dataframe: "Optional[DataFrame]" = None,
+    ) -> "AnalysisRunner":
+        """Bind data for analysis (keyword-only)."""
+        self._engine = _bind_engine(self._engine, table=table, dataframe=dataframe)
+        return self
+
+    def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "AnalysisRunner":
         self._analyzers.append(analyzer)
         return self
 
     def run(self) -> pd.DataFrame:
-        """Execute the analysis and return metrics as pandas DataFrame."""
+        """Execute analysis and return metrics as a pandas DataFrame."""
         results = self._engine.compute_metrics(self._analyzers)
         return self._engine.metrics_to_dataframe(results)
+
+
+# Backwards-compatible aliases for the previously-exposed builder classes.
+# The deepening collapses the runner and its builder into a single class —
+# anything that imported the builder name still resolves.
+EngineVerificationRunBuilder = VerificationSuite
+EngineAnalysisRunBuilder = AnalysisRunner
 
 
 # ---------------------------------------------------------------------------

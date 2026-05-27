@@ -28,30 +28,41 @@ from typing import Optional
 
 @dataclass
 class SparkServerConfig:
-    """Configuration for Spark Connect server."""
+    """Configuration for Spark Connect server.
 
-    java_home: str = field(
-        default_factory=lambda: os.environ.get(
-            "JAVA_HOME",
-            "/Library/Java/JavaVirtualMachines/amazon-corretto-17.jdk/Contents/Home",
-        )
-    )
-    spark_home: str = field(
-        default_factory=lambda: os.environ.get(
-            "SPARK_HOME", "/Volumes/workplace/deequ_rewrite/spark-3.5.0-bin-hadoop3"
-        )
-    )
+    Paths must be supplied via environment variables (or set programmatically).
+    Required when starting a server:
+    - JAVA_HOME: path to a Java 17 install
+    - SPARK_HOME: path to a Spark 3.5 install
+    - DEEQU_JAR: path to the Deequ JAR with Spark Connect support
+    """
+
+    java_home: str = field(default_factory=lambda: os.environ.get("JAVA_HOME", ""))
+    spark_home: str = field(default_factory=lambda: os.environ.get("SPARK_HOME", ""))
     port: int = 15002
     startup_timeout: int = 60
     poll_interval: float = 1.0
     driver_memory: str = "4g"
     executor_memory: str = "4g"
-    deequ_jar: str = field(
-        default_factory=lambda: os.environ.get(
-            "DEEQU_JAR",
-            "/Volumes/workplace/deequ_rewrite/deequ/target/deequ_2.12-2.1.0b-spark-3.5.jar"
-        )
-    )
+    deequ_jar: str = field(default_factory=lambda: os.environ.get("DEEQU_JAR", ""))
+
+    def validate(self) -> None:
+        """Raise if any required path is missing."""
+        missing = [
+            name
+            for name, val in (
+                ("JAVA_HOME", self.java_home),
+                ("SPARK_HOME", self.spark_home),
+                ("DEEQU_JAR", self.deequ_jar),
+            )
+            if not val
+        ]
+        if missing:
+            raise RuntimeError(
+                f"SparkServerConfig is missing required values: {', '.join(missing)}. "
+                "Set the corresponding environment variables or assign on the "
+                "config object before starting the server."
+            )
 
 
 class SparkConnectServer:
@@ -93,6 +104,7 @@ class SparkConnectServer:
             print(f"Spark Connect server already running on port {self.config.port}")
             return 0.0
 
+        self.config.validate()
         start_time = time.time()
 
         # Build the startup command

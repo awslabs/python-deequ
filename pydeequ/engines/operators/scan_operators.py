@@ -12,35 +12,26 @@ from typing import TYPE_CHECKING, List, Optional
 
 from pydeequ.engines import MetricResult
 from pydeequ.engines.operators.base import ScanOperator
-from pydeequ.engines.operators.mixins import (
-    ColumnAliasMixin,
-    SafeExtractMixin,
-    WhereClauseMixin,
-)
 
 if TYPE_CHECKING:
     import pandas as pd
 
 
-class SizeOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin):
+class SizeOperator(ScanOperator):
     """
     Computes the number of rows in a table.
 
     Unlike other scan operators, Size operates on the dataset level
-    rather than a specific column.
+    rather than a specific column, so ``column`` is None.
     """
 
     def __init__(self, where: Optional[str] = None):
-        self.where = where
+        super().__init__(column=None, where=where)
         self.alias = "size_value"
 
     @property
     def metric_name(self) -> str:
         return "Size"
-
-    @property
-    def instance(self) -> str:
-        return "*"
 
     @property
     def entity(self) -> str:
@@ -310,18 +301,19 @@ class PatternMatchOperator(ScanOperator):
         )
 
 
-class ComplianceOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin):
+class ComplianceOperator(ScanOperator):
     """
     Computes the fraction of rows satisfying a SQL condition.
 
     Unlike other scan operators, Compliance operates on a predicate
-    rather than a specific column.
+    rather than a specific column. ``column`` is left None, and the
+    instance identifier is the user-supplied label.
     """
 
     def __init__(self, instance: str, predicate: str, where: Optional[str] = None):
+        super().__init__(column=None, where=where)
         self.instance_name = instance
         self.predicate = predicate
-        self.where = where
         self.count_alias = "compliance_count"
         self.match_alias = self.make_alias("compliance_match", instance)
 
@@ -357,13 +349,17 @@ class ComplianceOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin):
         )
 
 
-class CorrelationOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin):
-    """Computes Pearson correlation between two columns."""
+class CorrelationOperator(ScanOperator):
+    """Computes Pearson correlation between two columns.
+
+    Operates on a column pair rather than a single column, so ``column``
+    is None and ``column1``/``column2`` carry the per-column references.
+    """
 
     def __init__(self, column1: str, column2: str, where: Optional[str] = None):
+        super().__init__(column=None, where=where)
         self.column1 = column1
         self.column2 = column2
-        self.where = where
         self.alias = self.make_alias("corr", column1, column2)
 
     @property
@@ -394,12 +390,16 @@ class CorrelationOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin):
         )
 
 
-class CountDistinctOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin):
-    """Computes the count of distinct values in column(s)."""
+class CountDistinctOperator(ScanOperator):
+    """Computes the count of distinct values in column(s).
+
+    Operates on one or more columns. ``column`` is None; ``columns``
+    carries the actual list of column references.
+    """
 
     def __init__(self, columns: List[str], where: Optional[str] = None):
+        super().__init__(column=None, where=where)
         self.columns = columns
-        self.where = where
         self.alias = self.make_alias("count_distinct", *columns)
 
     @property

@@ -26,7 +26,8 @@ Example usage:
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
+import uuid
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 import pandas as pd
 
@@ -98,6 +99,22 @@ class DuckDBEngine(BaseEngine):
             enable_profiling=self._enable_profiling,
         )
 
+    def for_dataframe(self, df: Any) -> "DuckDBEngine":
+        """Return a new DuckDBEngine bound to the given dataframe.
+
+        The dataframe is registered as a temporary view on the underlying
+        DuckDB connection under a unique name. Any object DuckDB's
+        ``con.register`` accepts works (pandas DataFrame, pyarrow Table,
+        polars DataFrame, etc.).
+        """
+        view_name = f"_pydeequ_df_{uuid.uuid4().hex[:12]}"
+        self.con.register(view_name, df)
+        return DuckDBEngine(
+            self.con,
+            table=view_name,
+            enable_profiling=self._enable_profiling,
+        )
+
     def get_schema(self) -> Dict[str, str]:
         """Get the schema of the table."""
         if self._schema is None:
@@ -151,149 +168,155 @@ class DuckDBEngine(BaseEngine):
         return int(result["cnt"].iloc[0])
 
     # =========================================================================
-    # Main compute_metrics implementation using operators
+    # compute_metrics — dispatcher over three operator-family planners
     # =========================================================================
 
     def compute_metrics(
         self, analyzers: Sequence["_ConnectAnalyzer"]
     ) -> List[MetricResult]:
         """
-        Compute metrics for the given analyzers.
+        Compute metrics by dispatching analyzers to operator-family planners.
 
-        This method uses the operator abstraction to:
-        1. Create operators from analyzers via OperatorFactory
-        2. Batch scan operators into a single SQL query
-        3. Execute grouping operators individually
-        4. Handle metadata operators using schema access
-        5. Extract results using operator-specific logic
+        Each planner owns one operator family:
+        - ``_run_scan_operators``: single-pass aggregations, batched into one SELECT
+        - ``_run_grouping_operators``: GROUP BY queries, fused where compatible
+        - ``_run_metadata_operators``: schema-based, no SQL
+
+        Unsupported analyzers fall through to a typed failure result.
         """
+        scan_ops: List = []
+        grouping_ops: List = []
+        metadata_ops: List = []
         results: List[MetricResult] = []
-
-        # Separate analyzers by operator type
-        scan_operators = []
-        grouping_operators = []
-        metadata_operators = []
 
         for analyzer in analyzers:
             if OperatorFactory.is_scan_operator(analyzer):
-                operator = OperatorFactory.create(analyzer)
-                if operator:
-                    scan_operators.append(operator)
+                op = OperatorFactory.create(analyzer)
+                if op:
+                    scan_ops.append(op)
             elif OperatorFactory.is_grouping_operator(analyzer):
-                operator = OperatorFactory.create(analyzer)
-                if operator:
-                    grouping_operators.append(operator)
+                op = OperatorFactory.create(analyzer)
+                if op:
+                    grouping_ops.append(op)
             elif OperatorFactory.is_metadata_operator(analyzer):
-                operator = OperatorFactory.create(analyzer)
-                if operator:
-                    metadata_operators.append(operator)
+                op = OperatorFactory.create(analyzer)
+                if op:
+                    metadata_ops.append(op)
             else:
-                # Unsupported analyzer
-                results.append(MetricResult(
-                    name=type(analyzer).__name__,
-                    instance=getattr(analyzer, 'column', '*'),
-                    entity="Column" if hasattr(analyzer, 'column') else "Dataset",
-                    value=None,
-                    success=False,
-                    message=f"Analyzer {type(analyzer).__name__} not implemented"
-                ))
+                results.append(self._unsupported_analyzer_result(analyzer))
 
-        # Execute batched scan query
-        if scan_operators:
-            try:
-                # Collect all aggregations
-                aggregations = []
-                for operator in scan_operators:
-                    aggregations.extend(operator.get_aggregations())
-
-                # Build and execute single query
-                query = f"SELECT {', '.join(aggregations)} FROM {self.table}"
-                scan_result = self._execute_query(query)
-
-                # Extract results from each operator
-                for operator in scan_operators:
-                    try:
-                        result = operator.extract_result(scan_result)
-                        results.append(result)
-                    except Exception as e:
-                        results.append(MetricResult(
-                            name=operator.metric_name,
-                            instance=operator.instance,
-                            entity=operator.entity,
-                            value=None,
-                            success=False,
-                            message=str(e)
-                        ))
-
-            except Exception as e:
-                # If batch query fails, report error for all scan operators
-                for operator in scan_operators:
-                    results.append(MetricResult(
-                        name=operator.metric_name,
-                        instance=operator.instance,
-                        entity=operator.entity,
-                        value=None,
-                        success=False,
-                        message=f"Batch query failed: {str(e)}"
-                    ))
-
-        # Execute grouping operators with batching optimization
-        if grouping_operators:
-            batcher = GroupingOperatorBatcher(grouping_operators)
-
-            # Execute batched queries (fused operators with same columns/where)
-            try:
-                batched_results = batcher.execute_batched(
-                    self.table, self._execute_query
-                )
-                results.extend(batched_results)
-            except Exception as e:
-                # If batched execution fails, fall back to individual execution
-                for operator in grouping_operators:
-                    if operator not in batcher.get_unbatchable_operators():
-                        results.append(MetricResult(
-                            name=operator.metric_name,
-                            instance=operator.instance,
-                            entity=operator.entity,
-                            value=None,
-                            success=False,
-                            message=f"Batched query failed: {str(e)}"
-                        ))
-
-            # Execute unbatchable operators individually
-            for operator in batcher.get_unbatchable_operators():
-                try:
-                    query = operator.build_query(self.table)
-                    df = self._execute_query(query)
-                    result = operator.extract_result(df)
-                    results.append(result)
-                except Exception as e:
-                    results.append(MetricResult(
-                        name=operator.metric_name,
-                        instance=operator.instance,
-                        entity=operator.entity,
-                        value=None,
-                        success=False,
-                        message=str(e)
-                    ))
-
-        # Execute metadata operators using schema
-        schema = self.get_schema()
-        for operator in metadata_operators:
-            try:
-                result = operator.compute_from_schema(schema)
-                results.append(result)
-            except Exception as e:
-                results.append(MetricResult(
-                    name=operator.metric_name,
-                    instance=operator.instance,
-                    entity=operator.entity,
-                    value=None,
-                    success=False,
-                    message=str(e)
-                ))
+        if scan_ops:
+            results.extend(self._run_scan_operators(scan_ops))
+        if grouping_ops:
+            results.extend(self._run_grouping_operators(grouping_ops))
+        if metadata_ops:
+            results.extend(self._run_metadata_operators(metadata_ops))
 
         return results
+
+    # -------------------------------------------------------------------------
+    # Planner: scan operators
+    # -------------------------------------------------------------------------
+
+    def _run_scan_operators(self, operators: List) -> List[MetricResult]:
+        """Run scan operators by fusing their aggregations into one query.
+
+        On batch failure, each operator gets a typed failure result.
+        On per-operator extract failure, only that operator fails.
+        """
+        aggregations: List[str] = []
+        for op in operators:
+            aggregations.extend(op.get_aggregations())
+        query = f"SELECT {', '.join(aggregations)} FROM {self.table}"
+
+        try:
+            df = self._execute_query(query)
+        except Exception as e:
+            return [
+                self._failure_result(op, f"Batch query failed: {e}") for op in operators
+            ]
+
+        return [self._safe_extract(op, lambda o=op: o.extract_result(df)) for op in operators]
+
+    # -------------------------------------------------------------------------
+    # Planner: grouping operators
+    # -------------------------------------------------------------------------
+
+    def _run_grouping_operators(self, operators: List) -> List[MetricResult]:
+        """Run grouping operators with fused-batch + per-operator fallback.
+
+        Operators sharing (columns, where) run in a single fused query;
+        unbatchable operators run one query each. Individual operator
+        failures are returned as failure results so other operators still
+        produce values.
+        """
+        batcher = GroupingOperatorBatcher(operators)
+        results: List[MetricResult] = []
+
+        try:
+            results.extend(batcher.execute_batched(self.table, self._execute_query))
+        except Exception as e:
+            # Fused query failed — synthesise a failure for every batchable op.
+            unbatchable = set(map(id, batcher.get_unbatchable_operators()))
+            for op in operators:
+                if id(op) not in unbatchable:
+                    results.append(self._failure_result(op, f"Batched query failed: {e}"))
+
+        for op in batcher.get_unbatchable_operators():
+            results.append(
+                self._safe_extract(
+                    op, lambda o=op: o.extract_result(self._execute_query(o.build_query(self.table)))
+                )
+            )
+
+        return results
+
+    # -------------------------------------------------------------------------
+    # Planner: metadata operators
+    # -------------------------------------------------------------------------
+
+    def _run_metadata_operators(self, operators: List) -> List[MetricResult]:
+        """Run metadata operators against the cached table schema."""
+        schema = self.get_schema()
+        return [
+            self._safe_extract(op, lambda o=op: o.compute_from_schema(schema))
+            for op in operators
+        ]
+
+    # -------------------------------------------------------------------------
+    # Failure helpers
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _failure_result(operator, message: str) -> MetricResult:
+        return MetricResult(
+            name=operator.metric_name,
+            instance=operator.instance,
+            entity=operator.entity,
+            value=None,
+            success=False,
+            message=message,
+        )
+
+    @classmethod
+    def _safe_extract(cls, operator, fn) -> MetricResult:
+        """Run ``fn``, returning a typed failure result on any exception."""
+        try:
+            return fn()
+        except Exception as e:
+            return cls._failure_result(operator, str(e))
+
+    @staticmethod
+    def _unsupported_analyzer_result(analyzer) -> MetricResult:
+        name = type(analyzer).__name__
+        return MetricResult(
+            name=name,
+            instance=getattr(analyzer, "column", "*"),
+            entity="Column" if hasattr(analyzer, "column") else "Dataset",
+            value=None,
+            success=False,
+            message=f"Analyzer {name} not implemented",
+        )
 
     # =========================================================================
     # Constraint checking

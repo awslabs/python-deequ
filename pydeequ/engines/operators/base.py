@@ -35,16 +35,19 @@ class ScanOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin, ABC):
         - extract_result(): Parse query results into MetricResult
 
     Attributes:
-        column: Column name to analyze
+        column: Column name to analyze (None for dataset-level operators
+                like Size, or operators that scope by something other than
+                a single column, like Compliance or Correlation)
         where: Optional SQL WHERE clause for filtering
     """
 
-    def __init__(self, column: str, where: Optional[str] = None):
+    def __init__(self, column: Optional[str] = None, where: Optional[str] = None):
         """
         Initialize scan operator.
 
         Args:
-            column: Column name to analyze
+            column: Column name to analyze, or None for operators that don't
+                scope to a single column (Size, Compliance, Correlation, ...)
             where: Optional SQL WHERE clause for filtering
         """
         self.column = column
@@ -76,7 +79,7 @@ class ScanOperator(WhereClauseMixin, SafeExtractMixin, ColumnAliasMixin, ABC):
     @property
     def instance(self) -> str:
         """Return the instance identifier for this operator."""
-        return self.column
+        return self.column if self.column is not None else "*"
 
     @property
     def entity(self) -> str:

@@ -110,11 +110,10 @@ def run_data_analysis(engine, df):
         .run())
 
     print("\nAnalysis Results:")
-    result.show(truncate=False)
+    print(result.to_string(index=False))
 
     # Extract key insights
-    rows = result.collect()
-    metrics = {(r["name"], r["instance"]): r["value"] for r in rows}
+    metrics = {(r["name"], r["instance"]): r["value"] for _, r in result.iterrows()}
 
     print("\nKey Insights:")
     print(f"  - Dataset contains {int(metrics.get(('Size', '*'), 0))} reviews")
@@ -171,22 +170,20 @@ def run_constraint_verification(engine, df):
         .run())
 
     print("\nVerification Results:")
-    result.show(truncate=False)
+    print(result.to_string(index=False))
 
     # Summarize results
-    rows = result.collect()
-    passed = sum(1 for r in rows if r["constraint_status"] == "Success")
-    failed = sum(1 for r in rows if r["constraint_status"] == "Failure")
+    passed = (result["constraint_status"] == "Success").sum()
+    failed = (result["constraint_status"] == "Failure").sum()
 
-    print(f"\nSummary: {passed} passed, {failed} failed out of {len(rows)} constraints")
+    print(f"\nSummary: {passed} passed, {failed} failed out of {len(result)} constraints")
 
     if failed > 0:
         print("\nFailed Constraints:")
-        for r in rows:
-            if r["constraint_status"] == "Failure":
-                print(f"  - {r['constraint']}")
-                if r["constraint_message"]:
-                    print(f"    Message: {r['constraint_message']}")
+        for _, r in result[result["constraint_status"] == "Failure"].iterrows():
+            print(f"  - {r['constraint']}")
+            if r["constraint_message"]:
+                print(f"    Message: {r['constraint_message']}")
 
     return result
 
@@ -212,11 +209,12 @@ def run_column_profiling(engine, df):
         .run())
 
     print("\nColumn Profiles:")
-    # Show selected columns for readability
-    result.select(
+    cols_to_show = [
         "column", "completeness", "approx_distinct_values",
-        "data_type", "mean", "minimum", "maximum"
-    ).show(truncate=False)
+        "data_type", "mean", "minimum", "maximum",
+    ]
+    available_cols = [c for c in cols_to_show if c in result.columns]
+    print(result[available_cols].to_string(index=False))
 
     return result
 
@@ -241,13 +239,11 @@ def run_constraint_suggestions(engine, df):
         .run())
 
     print("\nSuggested Constraints:")
-    result.select(
-        "column_name", "constraint_name", "description", "code_for_constraint"
-    ).show(truncate=False)
+    cols_to_show = ["column_name", "constraint_name", "description", "code_for_constraint"]
+    available_cols = [c for c in cols_to_show if c in result.columns]
+    print(result[available_cols].to_string(index=False))
 
-    # Count suggestions per column
-    rows = result.collect()
-    print(f"\nTotal suggestions: {len(rows)}")
+    print(f"\nTotal suggestions: {len(result)}")
 
     return result
 

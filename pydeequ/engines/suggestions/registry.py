@@ -40,9 +40,16 @@ class RuleRegistry:
         """
         Register a suggestion rule.
 
+        Skips registration if a rule of the same type is already present
+        so that re-importing the module (e.g., during pytest reloads or
+        ``importlib.reload``) does not duplicate built-in rules.
+
         Args:
             rule: SuggestionRule instance to register
         """
+        rule_type = type(rule)
+        if any(type(r) is rule_type for r in cls._rules):
+            return
         cls._rules.append(rule)
 
     @classmethod

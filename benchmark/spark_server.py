@@ -50,6 +50,7 @@ class SparkConnectServer:
             print(f"Spark Connect server already running on port {self.config.port}")
             return 0.0
 
+        self.config.validate()
         start_time = time.time()
 
         # Build the startup command

@@ -126,8 +126,9 @@ class BaseEvaluator(WhereClauseMixin, SafeExtractMixin, ABC):
         if self.assertion:
             return self._evaluate_predicate(value, self.assertion)
 
-        # Default: value must equal 1.0 (for completeness-like constraints)
-        return value == 1.0
+        # Default: value must equal 1.0 (for completeness-like constraints).
+        # Use epsilon comparison to tolerate floating-point arithmetic noise.
+        return abs(value - 1.0) < 1e-9
 
     @abstractmethod
     def compute_value(
