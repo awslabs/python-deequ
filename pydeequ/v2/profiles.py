@@ -74,6 +74,9 @@ class ColumnProfilerRunner:
     """
     Run column profiling.
 
+    ``onData()`` returns a fresh runner bound to the chosen data; the
+    original instance is left untouched.
+
     Example:
         profiles = (ColumnProfilerRunner(engine)
             .onData(table="users")
@@ -92,16 +95,16 @@ class ColumnProfilerRunner:
         table: Optional[str] = None,
         dataframe: "Optional[DataFrame]" = None,
     ) -> "ColumnProfilerRunner":
-        """Bind data for profiling (keyword-only)."""
+        """Return a fresh runner bound to the given data (keyword-only)."""
         if table is not None and dataframe is not None:
             raise ValueError("Provide either 'table' or 'dataframe', not both")
         if table is not None:
-            self._engine = self._engine.for_table(table)
+            bound = self._engine.for_table(table)
         elif dataframe is not None:
-            self._engine = self._engine.for_dataframe(dataframe)
+            bound = self._engine.for_dataframe(dataframe)
         else:
             raise ValueError("Must provide either 'table' or 'dataframe'")
-        return self
+        return ColumnProfilerRunner(bound)
 
     def restrictToColumns(self, columns: Sequence[str]) -> "ColumnProfilerRunner":
         self._restrict_to_columns = columns

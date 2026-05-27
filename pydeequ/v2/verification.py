@@ -83,6 +83,11 @@ class VerificationSuite:
     """
     Run data-quality verification.
 
+    ``onData()`` returns a fresh suite bound to the chosen data; the
+    original instance is left untouched. This means a single suite
+    object can be reused across multiple tables or dataframes without
+    state bleeding between runs.
+
     Example:
         result = (VerificationSuite(engine)
             .onData(table="users")
@@ -100,9 +105,10 @@ class VerificationSuite:
         table: Optional[str] = None,
         dataframe: "Optional[DataFrame]" = None,
     ) -> "VerificationSuite":
-        """Bind data for verification (keyword-only)."""
-        self._engine = _bind_engine(self._engine, table=table, dataframe=dataframe)
-        return self
+        """Return a fresh suite bound to the given data (keyword-only)."""
+        return VerificationSuite(
+            _bind_engine(self._engine, table=table, dataframe=dataframe)
+        )
 
     def addCheck(self, check: Check) -> "VerificationSuite":
         self._checks.append(check)
@@ -117,6 +123,9 @@ class VerificationSuite:
 class AnalysisRunner:
     """
     Run analyzers without checks.
+
+    ``onData()`` returns a fresh runner bound to the chosen data; the
+    original instance is left untouched.
 
     Example:
         result = (AnalysisRunner(engine)
@@ -136,9 +145,10 @@ class AnalysisRunner:
         table: Optional[str] = None,
         dataframe: "Optional[DataFrame]" = None,
     ) -> "AnalysisRunner":
-        """Bind data for analysis (keyword-only)."""
-        self._engine = _bind_engine(self._engine, table=table, dataframe=dataframe)
-        return self
+        """Return a fresh runner bound to the given data (keyword-only)."""
+        return AnalysisRunner(
+            _bind_engine(self._engine, table=table, dataframe=dataframe)
+        )
 
     def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "AnalysisRunner":
         self._analyzers.append(analyzer)
