@@ -1,3 +1,5 @@
+name: PyDeequ V2 Tests
+
 on:
   push:
     branches:
@@ -7,43 +9,65 @@ on:
       - "master"
 
 jobs:
-  test:
+  # V2 tests with Spark Connect (Python 3.12)
+  v2-tests:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - PYSPARK_VERSION: "3.1.3"
-            PYTHON_VERSION: "3.9"
-            JAVA_VERSION: "11"
-          - PYSPARK_VERSION: "3.2"
-            PYTHON_VERSION: "3.9"
-            JAVA_VERSION: "11"
-          - PYSPARK_VERSION: "3.3"
-            PYTHON_VERSION: "3.9"
-            JAVA_VERSION: "11"
-          - PYSPARK_VERSION: "3.5"
-            PYTHON_VERSION: "3.9"
-            JAVA_VERSION: "17"
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        name: Install Python 3.12
         with:
-          python-version: ${{matrix.PYTHON_VERSION}}
+          python-version: "3.12"
 
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        name: Setup Java 17
         with:
-          java-version: ${{matrix.JAVA_VERSION}}
           distribution: "temurin"
+          java-version: "17"
 
-      - name: Running tests with pyspark==${{matrix.PYSPARK_VERSION}}
-        env:
-          SPARK_VERSION: ${{matrix.PYSPARK_VERSION}}
+      - name: Download Spark 3.5
         run: |
-          pip install --upgrade pip
+          curl -L -o spark-3.5.0-bin-hadoop3.tgz \
+            https://archive.apache.org/dist/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz
+          tar -xzf spark-3.5.0-bin-hadoop3.tgz
+          echo "SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3" >> $GITHUB_ENV
+
+      - name: Download Deequ JAR
+        run: |
+          curl -L -o deequ_2.12-2.1.0b-spark-3.5.jar \
+            https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ_2.12-2.1.0b-spark-3.5.jar
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip setuptools
           pip install poetry==1.7.1
           poetry install
-          poetry run pip install pyspark==$SPARK_VERSION
-          poetry run python -m pytest -s tests --ignore=tests/test_bot.py
+          poetry add "pyspark[connect]==3.5.0"
+
+      - name: Run V2 unit tests
+        run: |
+          poetry run pytest tests/v2/test_unit.py -v
+
+      - name: Start Spark Connect Server
+        run: |
+          $SPARK_HOME/sbin/start-connect-server.sh \
+            --packages org.apache.spark:spark-connect_2.12:3.5.0 \
+            --jars $PWD/deequ_2.12-2.1.0b-spark-3.5.jar \
+            --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
+          # Wait for the gRPC port to accept connections (fail fast if startup broke)
+          timeout 60 bash -c 'until (echo > /dev/tcp/localhost/15002) >/dev/null 2>&1; do sleep 1; done'
+          # Verify server is running
+          ps aux | grep SparkConnectServer | grep -v grep
+
+      - name: Run V2 integration tests
+        env:
+          SPARK_REMOTE: "sc://localhost:15002"
+        run: |
+          poetry run pytest tests/v2/ -v --ignore=tests/v2/test_unit.py
+
+      - name: Stop Spark Connect Server
+        if: always()
+        run: |
+          $SPARK_HOME/sbin/stop-connect-server.sh || true

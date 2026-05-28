@@ -10,7 +10,6 @@ from pydeequ.pandas_utils import ensure_pyspark_df
 from pydeequ.repository import MetricsRepository, ResultKey
 from enum import Enum
 from pydeequ.scala_utils import to_scala_seq
-from pydeequ.configs import SPARK_VERSION
 
 class _AnalyzerObject:
     """
