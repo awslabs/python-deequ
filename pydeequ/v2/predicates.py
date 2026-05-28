@@ -40,6 +40,26 @@ class Predicate(ABC):
     def __repr__(self) -> str:
         raise NotImplementedError
 
+    @abstractmethod
+    def to_callable(self):
+        """
+        Convert predicate to a callable function.
+
+        Returns:
+            A callable that takes a value and returns True/False
+
+        Example:
+            pred = gte(0.95)
+            func = pred.to_callable()
+            assert func(0.96) == True
+            assert func(0.90) == False
+        """
+        raise NotImplementedError
+
+    def __call__(self, value: float) -> bool:
+        """Allow predicates to be called directly like functions."""
+        return self.to_callable()(value)
+
 
 @dataclass
 class Comparison(Predicate):
@@ -62,6 +82,26 @@ class Comparison(Predicate):
         }
         return f"x {op_map.get(self.operator, '?')} {self.value}"
 
+    def to_callable(self):
+        """Convert to a callable function."""
+        op = self.operator
+        target = self.value
+
+        if op == proto.PredicateMessage.Operator.EQ:
+            return lambda x: abs(x - target) < 1e-9 if x is not None else False
+        elif op == proto.PredicateMessage.Operator.NE:
+            return lambda x: abs(x - target) >= 1e-9 if x is not None else False
+        elif op == proto.PredicateMessage.Operator.GT:
+            return lambda x: x > target if x is not None else False
+        elif op == proto.PredicateMessage.Operator.GE:
+            return lambda x: x >= target if x is not None else False
+        elif op == proto.PredicateMessage.Operator.LT:
+            return lambda x: x < target if x is not None else False
+        elif op == proto.PredicateMessage.Operator.LE:
+            return lambda x: x <= target if x is not None else False
+        else:
+            return lambda x: False
+
 
 @dataclass
 class Between(Predicate):
@@ -79,6 +119,12 @@ class Between(Predicate):
 
     def __repr__(self) -> str:
         return f"{self.lower} <= x <= {self.upper}"
+
+    def to_callable(self):
+        """Convert to a callable function."""
+        lower = self.lower
+        upper = self.upper
+        return lambda x: lower <= x <= upper if x is not None else False
 
 
 # ============================================================================

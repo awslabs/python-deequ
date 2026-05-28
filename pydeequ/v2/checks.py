@@ -19,7 +19,7 @@ Example usage:
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence
 
 from pydeequ.v2.predicates import Predicate, is_one
 from pydeequ.v2.proto import deequ_connect_pb2 as proto

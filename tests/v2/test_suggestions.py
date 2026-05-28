@@ -9,42 +9,42 @@ DataFrame columns and suggests appropriate data quality constraints.
 import pytest
 from pyspark.sql import Row
 
-from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules
+from pydeequ.v2.suggestions import ConstraintSuggestionRunner, Rules, _SparkConstraintSuggestionRunBuilder
 
 
 class TestBasicSuggestions:
     """Test basic constraint suggestion generation."""
 
-    def test_default_rules_generate_suggestions(self, spark, suggestion_df):
+    def test_default_rules_generate_suggestions(self, engine, suggestion_df):
         """Test DEFAULT rules generate suggestions."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         assert len(rows) > 0
 
         # Check required columns exist
-        columns = result.columns
+        columns = list(result.columns)
         assert "column_name" in columns
         assert "constraint_name" in columns
         assert "code_for_constraint" in columns
         assert "description" in columns
         assert "suggesting_rule" in columns
 
-    def test_completeness_suggestion(self, spark, suggestion_df):
+    def test_completeness_suggestion(self, engine, suggestion_df):
         """Test completeness constraints are suggested for complete columns."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         id_suggestions = [r for r in rows if r["column_name"] == "id"]
 
         # id column is complete, should have completeness-related suggestion
@@ -54,16 +54,16 @@ class TestBasicSuggestions:
             for name in constraint_names
         )
 
-    def test_categorical_suggestion(self, spark, suggestion_df):
+    def test_categorical_suggestion(self, engine, suggestion_df):
         """Test categorical constraints are suggested for low-cardinality columns."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         status_suggestions = [r for r in rows if r["column_name"] == "status"]
 
         constraint_names = [s["constraint_name"] for s in status_suggestions]
@@ -79,16 +79,16 @@ class TestBasicSuggestions:
 class TestRulesCombinations:
     """Test different rule combinations."""
 
-    def test_numerical_rules(self, spark, suggestion_df):
+    def test_numerical_rules(self, engine, suggestion_df):
         """Test NUMERICAL rules generate statistical constraints."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.NUMERICAL)
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         score_suggestions = [r for r in rows if r["column_name"] == "score"]
 
         # Numerical rules should suggest min/max/mean constraints for numeric column
@@ -102,42 +102,42 @@ class TestRulesCombinations:
         # Either we have numeric constraints or the rule set is empty
         assert has_numeric_constraint or len(rows) == 0
 
-    def test_extended_rules(self, spark, suggestion_df):
+    def test_extended_rules(self, engine, suggestion_df):
         """Test EXTENDED rules include all rule types."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.EXTENDED)
             .run()
         )
 
-        extended_count = result.count()
+        extended_count = len(result)
 
         # Extended should generate suggestions
         assert extended_count >= 0
 
-    def test_multiple_rules_combined(self, spark, suggestion_df):
+    def test_multiple_rules_combined(self, engine, suggestion_df):
         """Test adding multiple rule sets."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .addConstraintRules(Rules.NUMERICAL)
             .run()
         )
 
-        assert result.count() >= 0
+        assert len(result) >= 0
 
-    def test_common_rules_uniqueness(self, spark, suggestion_df):
+    def test_common_rules_uniqueness(self, engine, suggestion_df):
         """Test COMMON rules suggest uniqueness for unique columns."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.COMMON)
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         id_suggestions = [r for r in rows if r["column_name"] == "id"]
 
         constraint_names = [s["constraint_name"] for s in id_suggestions]
@@ -148,13 +148,12 @@ class TestRulesCombinations:
 
 
 class TestTrainTestSplit:
-    """Test train/test split evaluation."""
+    """Test train/test split evaluation (Spark-specific, uses internal builder)."""
 
     def test_train_test_split_evaluation(self, spark, suggestion_df):
         """Test suggestions are evaluated on test set."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            _SparkConstraintSuggestionRunBuilder(spark, suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .useTrainTestSplitWithTestsetRatio(0.3)
             .run()
@@ -168,16 +167,14 @@ class TestTrainTestSplit:
     def test_train_test_with_seed(self, spark, suggestion_df):
         """Test reproducible train/test split with seed."""
         result1 = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            _SparkConstraintSuggestionRunBuilder(spark, suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .useTrainTestSplitWithTestsetRatio(0.3, seed=42)
             .run()
         )
 
         result2 = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            _SparkConstraintSuggestionRunBuilder(spark, suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .useTrainTestSplitWithTestsetRatio(0.3, seed=42)
             .run()
@@ -190,8 +187,7 @@ class TestTrainTestSplit:
         """Test invalid train/test ratio raises error."""
         with pytest.raises(ValueError, match="between 0.0 and 1.0"):
             (
-                ConstraintSuggestionRunner(spark)
-                .onData(suggestion_df)
+                _SparkConstraintSuggestionRunBuilder(spark, suggestion_df)
                 .addConstraintRules(Rules.DEFAULT)
                 .useTrainTestSplitWithTestsetRatio(1.5)
                 .run()
@@ -199,8 +195,7 @@ class TestTrainTestSplit:
 
         with pytest.raises(ValueError, match="between 0.0 and 1.0"):
             (
-                ConstraintSuggestionRunner(spark)
-                .onData(suggestion_df)
+                _SparkConstraintSuggestionRunBuilder(spark, suggestion_df)
                 .addConstraintRules(Rules.DEFAULT)
                 .useTrainTestSplitWithTestsetRatio(0.0)
                 .run()
@@ -210,32 +205,32 @@ class TestTrainTestSplit:
 class TestSuggestionOptions:
     """Test suggestion configuration options."""
 
-    def test_restrict_to_columns(self, spark, suggestion_df):
+    def test_restrict_to_columns(self, engine, suggestion_df):
         """Test restricting suggestions to specific columns."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .restrictToColumns(["id", "status"])
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         columns_with_suggestions = set(r["column_name"] for r in rows)
 
         # Should only have suggestions for restricted columns
         assert columns_with_suggestions.issubset({"id", "status"})
 
-    def test_code_for_constraint_format(self, spark, suggestion_df):
+    def test_code_for_constraint_format(self, engine, suggestion_df):
         """Test code_for_constraint is valid Python-like syntax."""
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(suggestion_df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=suggestion_df)
             .addConstraintRules(Rules.DEFAULT)
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         for row in rows:
             code = row["code_for_constraint"]
             # Should be non-empty string
@@ -245,48 +240,48 @@ class TestSuggestionOptions:
             assert "Some(" not in code
             assert "Seq(" not in code
 
-    def test_no_rules_raises_error(self, spark, suggestion_df):
+    def test_no_rules_raises_error(self, engine, suggestion_df):
         """Test that running without rules raises an error."""
         with pytest.raises(ValueError, match="At least one constraint rule"):
-            ConstraintSuggestionRunner(spark).onData(suggestion_df).run()
+            ConstraintSuggestionRunner(engine).onData(dataframe=suggestion_df).run()
 
 
 class TestSuggestionEdgeCases:
     """Test edge cases for suggestions."""
 
-    def test_single_row(self, spark):
+    def test_single_row(self, spark, engine):
         """Test suggestions on single row DataFrame."""
         df = spark.createDataFrame([Row(id=1, value="test")])
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=df)
             .addConstraintRules(Rules.DEFAULT)
             .run()
         )
 
         # Should handle gracefully
-        assert result.count() >= 0
+        assert len(result) >= 0
 
-    def test_high_cardinality_column(self, spark):
+    def test_high_cardinality_column(self, spark, engine):
         """Test suggestions for high cardinality column."""
         df = spark.createDataFrame(
             [Row(id=i, unique_value=f"value_{i}") for i in range(100)]
         )
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=df)
             .addConstraintRules(Rules.DEFAULT)
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         unique_suggestions = [r for r in rows if r["column_name"] == "unique_value"]
 
         # Should NOT suggest IsIn for high cardinality
         constraint_names = [s["constraint_name"] for s in unique_suggestions]
         assert not any("IsIn" in name for name in constraint_names)
 
-    def test_all_null_column(self, spark):
+    def test_all_null_column(self, spark, engine):
         """Test suggestions for column with all nulls."""
         from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
@@ -301,13 +296,13 @@ class TestSuggestionEdgeCases:
             schema=schema,
         )
         result = (
-            ConstraintSuggestionRunner(spark)
-            .onData(df)
+            ConstraintSuggestionRunner(engine)
+            .onData(dataframe=df)
             .addConstraintRules(Rules.DEFAULT)
             .run()
         )
 
-        rows = result.collect()
+        rows = result.to_dict('records')
         # Should handle all-null column gracefully
         assert len(rows) >= 0
 

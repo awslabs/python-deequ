@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
       - uses: actions/setup-python@v5
         name: Install Python 3.12
         with:
@@ -27,45 +30,55 @@ jobs:
           distribution: "corretto"
           java-version: "17"
 
+      - name: Cache Spark and Deequ JAR
+        id: cache-spark
+        uses: actions/cache@v4
+        with:
+          path: |
+            spark-3.5.0-bin-hadoop3
+            deequ_2.12-2.1.0b-spark-3.5.jar
+          key: spark-3.5.0-deequ-2.1.0b
+
       - name: Download Spark 3.5
+        if: steps.cache-spark.outputs.cache-hit != 'true'
         run: |
           curl -L -o spark-3.5.0-bin-hadoop3.tgz \
             https://archive.apache.org/dist/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz
           tar -xzf spark-3.5.0-bin-hadoop3.tgz
-          echo "SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3" >> $GITHUB_ENV
+          rm spark-3.5.0-bin-hadoop3.tgz
 
       - name: Download Deequ JAR
+        if: steps.cache-spark.outputs.cache-hit != 'true'
         run: |
           curl -L -o deequ_2.12-2.1.0b-spark-3.5.jar \
             https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ_2.12-2.1.0b-spark-3.5.jar
 
+      - name: Set SPARK_HOME
+        run: echo "SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3" >> $GITHUB_ENV
+
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip setuptools
-          pip install poetry==1.7.1
-          poetry install
-          poetry add "pyspark[connect]==3.5.0"
+          uv pip install -e ".[dev]" --system
+          uv pip install "pyspark[connect]==3.5.0" --system
 
       - name: Run V2 unit tests
         run: |
-          poetry run pytest tests/v2/test_unit.py -v
+          pytest tests/v2/test_unit.py -v
 
       - name: Start Spark Connect Server
         run: |
           $SPARK_HOME/sbin/start-connect-server.sh \
             --packages org.apache.spark:spark-connect_2.12:3.5.0 \
-            --jars $PWD/deequ_2.12-2.1.0b-spark-3.5.jar \
+            --jars ${{ github.workspace }}/deequ_2.12-2.1.0b-spark-3.5.jar \
             --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
-          # Wait for server to start
           sleep 20
-          # Verify server is running
           ps aux | grep SparkConnectServer | grep -v grep
 
       - name: Run V2 integration tests
         env:
           SPARK_REMOTE: "sc://localhost:15002"
         run: |
-          poetry run pytest tests/v2/ -v --ignore=tests/v2/test_unit.py
+          pytest tests/v2/ -v --ignore=tests/v2/test_unit.py
 
       - name: Stop Spark Connect Server
         if: always()

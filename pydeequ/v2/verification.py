@@ -1,25 +1,45 @@
 # -*- coding: utf-8 -*-
 """
-VerificationSuite for Deequ Spark Connect.
+VerificationSuite and AnalysisRunner for PyDeequ v2.
 
-This module provides the main entry point for running data quality checks
-via Spark Connect. It builds protobuf messages and sends them to the
-server-side Deequ plugin.
+Each runner is a single class with ``onData``, ``addCheck``/``addAnalyzer``,
+and ``run``. The data-binding seam lives at the engine
+(``BaseEngine.for_table`` / ``for_dataframe``); the runner owns the
+collected state and the call into the engine.
 
-Example usage:
-    from pyspark.sql import SparkSession
-    from pydeequ.v2.verification import VerificationSuite
+Example usage with DuckDB:
+    import duckdb
+    import pydeequ
+    from pydeequ.v2.verification import VerificationSuite, AnalysisRunner
     from pydeequ.v2.checks import Check, CheckLevel
-    from pydeequ.v2.predicates import gte, eq
+    from pydeequ.v2.analyzers import Size, Completeness
+    from pydeequ.v2.predicates import eq, gte
 
-    spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
+    con = duckdb.connect()
+    con.execute("CREATE TABLE test AS SELECT 1 as id, 'foo@bar.com' as email")
+    engine = pydeequ.connect(con)
 
     check = (Check(CheckLevel.Error, "Data quality check")
         .isComplete("id")
         .hasCompleteness("email", gte(0.95)))
 
-    result = (VerificationSuite(spark)
-        .onData(df)
+    result = (VerificationSuite(engine)
+        .onData(table="test")
+        .addCheck(check)
+        .run())
+
+Example usage with Spark Connect:
+    from pyspark.sql import SparkSession
+    import pydeequ
+    from pydeequ.v2.verification import VerificationSuite, AnalysisRunner
+    from pydeequ.v2.checks import Check, CheckLevel
+    from pydeequ.v2.predicates import eq
+
+    spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
+    engine = pydeequ.connect(spark)
+
+    result = (VerificationSuite(engine)
+        .onData(dataframe=df)
         .addCheck(check)
         .run())
 
@@ -28,252 +48,212 @@ Example usage:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any, List, Optional
 
-from google.protobuf import any_pb2
+import pandas as pd
 
 from pydeequ.v2.analyzers import _ConnectAnalyzer
 from pydeequ.v2.checks import Check
-from pydeequ.v2.proto import deequ_connect_pb2 as proto
-from pydeequ.v2.spark_helpers import create_deequ_plan, dataframe_from_plan
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
+    from pydeequ.engines import BaseEngine
+
+
+def _bind_engine(
+    engine: "BaseEngine",
+    *,
+    table: Optional[str],
+    dataframe: Optional[Any],
+) -> "BaseEngine":
+    """Resolve ``onData(table=…, dataframe=…)`` to a bound engine.
+
+    Exactly one of ``table`` or ``dataframe`` must be provided.
+    """
+    if table is not None and dataframe is not None:
+        raise ValueError("Provide either 'table' or 'dataframe', not both")
+    if table is not None:
+        return engine.for_table(table)
+    if dataframe is not None:
+        return engine.for_dataframe(dataframe)
+    raise ValueError("Must provide either 'table' or 'dataframe'")
 
 
 class VerificationSuite:
     """
-    Main entry point for running data quality verification.
+    Run data-quality verification.
 
-    VerificationSuite allows you to define checks and analyzers to run
-    on a DataFrame. When run() is called, the checks and analyzers are
-    serialized to protobuf and sent to the Spark Connect server where
-    the Deequ plugin executes them.
+    ``onData()`` returns a fresh suite bound to the chosen data; the
+    original instance is left untouched. This means a single suite
+    object can be reused across multiple tables or dataframes without
+    state bleeding between runs.
 
     Example:
-        suite = VerificationSuite(spark)
-        result = (suite
-            .onData(df)
+        result = (VerificationSuite(engine)
+            .onData(table="users")
             .addCheck(check)
             .run())
     """
 
-    def __init__(self, spark: "SparkSession"):
+    def __init__(self, engine: "BaseEngine"):
+        self._engine = engine
+        self._checks: List[Check] = []
+
+    def onData(
+        self,
+        *,
+        table: Optional[str] = None,
+        dataframe: "Optional[DataFrame]" = None,
+    ) -> "VerificationSuite":
+        """Return a fresh suite bound to the given data (keyword-only).
+
+        Checks added before ``onData`` are carried into the new suite, so
+        the call order ``Suite(engine).addCheck(...).onData(...).run()``
+        produces the same result as ``Suite(engine).onData(...).addCheck(...).run()``.
         """
-        Create a new VerificationSuite.
+        bound = VerificationSuite(
+            _bind_engine(self._engine, table=table, dataframe=dataframe)
+        )
+        bound._checks = list(self._checks)
+        return bound
 
-        Args:
-            spark: SparkSession connected via Spark Connect
-        """
-        self._spark = spark
+    def addCheck(self, check: Check) -> "VerificationSuite":
+        self._checks.append(check)
+        return self
 
-    def onData(self, df: "DataFrame") -> "VerificationRunBuilder":
-        """
-        Specify the DataFrame to run verification on.
-
-        Args:
-            df: DataFrame to verify
-
-        Returns:
-            VerificationRunBuilder for method chaining
-        """
-        return VerificationRunBuilder(self._spark, df)
+    def run(self) -> pd.DataFrame:
+        """Execute verification and return results as a pandas DataFrame."""
+        results = self._engine.run_checks(self._checks)
+        return self._engine.constraints_to_dataframe(results)
 
 
-class VerificationRunBuilder:
+class AnalysisRunner:
     """
-    Builder for configuring and executing a verification run.
+    Run analyzers without checks.
 
-    This class collects checks and analyzers, then executes them
-    when run() is called.
+    ``onData()`` returns a fresh runner bound to the chosen data; the
+    original instance is left untouched.
+
+    Example:
+        result = (AnalysisRunner(engine)
+            .onData(table="users")
+            .addAnalyzer(Size())
+            .addAnalyzer(Completeness("email"))
+            .run())
     """
+
+    def __init__(self, engine: "BaseEngine"):
+        self._engine = engine
+        self._analyzers: List[_ConnectAnalyzer] = []
+
+    def onData(
+        self,
+        *,
+        table: Optional[str] = None,
+        dataframe: "Optional[DataFrame]" = None,
+    ) -> "AnalysisRunner":
+        """Return a fresh runner bound to the given data (keyword-only).
+
+        Analyzers added before ``onData`` are carried into the new runner.
+        """
+        bound = AnalysisRunner(
+            _bind_engine(self._engine, table=table, dataframe=dataframe)
+        )
+        bound._analyzers = list(self._analyzers)
+        return bound
+
+    def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "AnalysisRunner":
+        self._analyzers.append(analyzer)
+        return self
+
+    def run(self) -> pd.DataFrame:
+        """Execute analysis and return metrics as a pandas DataFrame."""
+        results = self._engine.compute_metrics(self._analyzers)
+        return self._engine.metrics_to_dataframe(results)
+
+
+# Backwards-compatible aliases for the previously-exposed builder classes.
+# The deepening collapses the runner and its builder into a single class —
+# anything that imported the builder name still resolves.
+EngineVerificationRunBuilder = VerificationSuite
+EngineAnalysisRunBuilder = AnalysisRunner
+
+
+# ---------------------------------------------------------------------------
+# Private Spark Connect builders (used internally by SparkEngine)
+# ---------------------------------------------------------------------------
+
+class _SparkVerificationRunBuilder:
+    """Internal builder for Spark Connect verification (protobuf-based)."""
 
     def __init__(self, spark: "SparkSession", df: "DataFrame"):
-        """
-        Create a new VerificationRunBuilder.
-
-        Args:
-            spark: SparkSession
-            df: DataFrame to verify
-        """
         self._spark = spark
         self._df = df
         self._checks: List[Check] = []
         self._analyzers: List[_ConnectAnalyzer] = []
 
-    def addCheck(self, check: Check) -> "VerificationRunBuilder":
-        """
-        Add a check to run.
-
-        Args:
-            check: Check to add
-
-        Returns:
-            self for method chaining
-        """
+    def addCheck(self, check: Check) -> "_SparkVerificationRunBuilder":
         self._checks.append(check)
         return self
 
-    def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "VerificationRunBuilder":
-        """
-        Add an analyzer to run (in addition to those required by checks).
-
-        Args:
-            analyzer: Analyzer to add
-
-        Returns:
-            self for method chaining
-        """
+    def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "_SparkVerificationRunBuilder":
         self._analyzers.append(analyzer)
         return self
 
     def run(self) -> "DataFrame":
-        """
-        Execute the verification and return results as a DataFrame.
+        from google.protobuf import any_pb2
+        from pydeequ.v2.proto import deequ_connect_pb2 as proto
+        from pydeequ.v2.spark_helpers import create_deequ_plan, dataframe_from_plan
 
-        The result DataFrame contains columns:
-        - check: Check description
-        - check_level: Error or Warning
-        - check_status: Success, Warning, or Error
-        - constraint: Constraint description
-        - constraint_status: Success or Failure
-        - constraint_message: Details about failures
-
-        Returns:
-            DataFrame with verification results
-
-        Raises:
-            RuntimeError: If the Deequ plugin is not available on the server
-        """
-        # Build the protobuf message
         msg = proto.DeequVerificationRelation()
-
-        # Add checks
         for check in self._checks:
             msg.checks.append(check.to_proto())
-
-        # Add required analyzers
         for analyzer in self._analyzers:
             msg.required_analyzers.append(analyzer.to_proto())
 
-        # Get the input DataFrame's plan as serialized bytes
-        # We serialize just the Relation (plan.root), not the full Plan,
-        # because Scala expects to parse it as a Relation
         input_plan = self._df._plan.to_proto(self._spark._client)
         msg.input_relation = input_plan.root.SerializeToString()
 
-        # Wrap our Deequ message in a google.protobuf.Any
         extension = any_pb2.Any()
         extension.Pack(msg, type_url_prefix="type.googleapis.com")
-
-        # Create a proper LogicalPlan subclass with the extension
         plan = create_deequ_plan(extension)
-
-        # Create DataFrame from the plan (handles Spark 3.x vs 4.x)
         return dataframe_from_plan(plan, self._spark)
 
 
-class AnalysisRunner:
-    """
-    Entry point for running analyzers without checks.
-
-    Use this when you want to compute metrics without defining
-    pass/fail constraints.
-
-    Example:
-        from pydeequ.v2.analyzers import Size, Completeness, Mean
-
-        result = (AnalysisRunner(spark)
-            .onData(df)
-            .addAnalyzer(Size())
-            .addAnalyzer(Completeness("email"))
-            .addAnalyzer(Mean("amount"))
-            .run())
-    """
-
-    def __init__(self, spark: "SparkSession"):
-        """
-        Create a new AnalysisRunner.
-
-        Args:
-            spark: SparkSession connected via Spark Connect
-        """
-        self._spark = spark
-
-    def onData(self, df: "DataFrame") -> "AnalysisRunBuilder":
-        """
-        Specify the DataFrame to analyze.
-
-        Args:
-            df: DataFrame to analyze
-
-        Returns:
-            AnalysisRunBuilder for method chaining
-        """
-        return AnalysisRunBuilder(self._spark, df)
-
-
-class AnalysisRunBuilder:
-    """Builder for configuring and executing an analysis run."""
+class _SparkAnalysisRunBuilder:
+    """Internal builder for Spark Connect analysis (protobuf-based)."""
 
     def __init__(self, spark: "SparkSession", df: "DataFrame"):
-        """
-        Create a new AnalysisRunBuilder.
-
-        Args:
-            spark: SparkSession
-            df: DataFrame to analyze
-        """
         self._spark = spark
         self._df = df
         self._analyzers: List[_ConnectAnalyzer] = []
 
-    def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "AnalysisRunBuilder":
-        """
-        Add an analyzer to run.
-
-        Args:
-            analyzer: Analyzer to add
-
-        Returns:
-            self for method chaining
-        """
+    def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "_SparkAnalysisRunBuilder":
         self._analyzers.append(analyzer)
         return self
 
     def run(self) -> "DataFrame":
-        """
-        Execute the analysis and return metrics as DataFrame.
+        from google.protobuf import any_pb2
+        from pydeequ.v2.proto import deequ_connect_pb2 as proto
+        from pydeequ.v2.spark_helpers import create_deequ_plan, dataframe_from_plan
 
-        Returns:
-            DataFrame with computed metrics
-        """
-        # Build protobuf message
         msg = proto.DeequAnalysisRelation()
         for analyzer in self._analyzers:
             msg.analyzers.append(analyzer.to_proto())
 
-        # Get the input DataFrame's plan as serialized bytes
-        # We serialize just the Relation (plan.root), not the full Plan,
-        # because Scala expects to parse it as a Relation
         input_plan = self._df._plan.to_proto(self._spark._client)
         msg.input_relation = input_plan.root.SerializeToString()
 
-        # Wrap our Deequ message in a google.protobuf.Any
         extension = any_pb2.Any()
         extension.Pack(msg, type_url_prefix="type.googleapis.com")
-
-        # Create a proper LogicalPlan subclass with the extension
         plan = create_deequ_plan(extension)
-
-        # Create DataFrame from the plan (handles Spark 3.x vs 4.x)
         return dataframe_from_plan(plan, self._spark)
 
 
 # Export all public symbols
 __all__ = [
     "VerificationSuite",
-    "VerificationRunBuilder",
+    "EngineVerificationRunBuilder",
     "AnalysisRunner",
-    "AnalysisRunBuilder",
+    "EngineAnalysisRunBuilder",
 ]

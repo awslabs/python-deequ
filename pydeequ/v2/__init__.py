@@ -13,12 +13,12 @@ Key differences from the legacy Py4J-based PyDeequ:
 3. No direct JVM access required
 
 Example usage:
-    from pyspark.sql import SparkSession
+    import pydeequ
     from pydeequ.v2 import VerificationSuite, Check, CheckLevel
     from pydeequ.v2.predicates import gte, eq
 
-    # Connect to Spark Connect server
-    spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
+    # Create engine from connection
+    engine = pydeequ.connect(spark)  # or pydeequ.connect(duckdb_con)
 
     # Create a check with constraints
     check = (Check(CheckLevel.Error, "Data quality check")
@@ -27,13 +27,11 @@ Example usage:
         .hasSize(eq(1000)))
 
     # Run verification
-    result = (VerificationSuite(spark)
-        .onData(df)
+    result = (VerificationSuite(engine)
+        .onData(dataframe=df)       # Spark: dataframe=
+        # .onData(table="users")    # DuckDB: table=
         .addCheck(check)
         .run())
-
-    # Result is a DataFrame with check results
-    result.show()
 """
 
 # Import analyzers
@@ -87,22 +85,22 @@ from pydeequ.v2.predicates import (
 # Import profiles
 from pydeequ.v2.profiles import (
     ColumnProfilerRunner,
-    ColumnProfilerRunBuilder,
+    EngineColumnProfilerRunBuilder,
     KLLParameters,
 )
 
 # Import suggestions
 from pydeequ.v2.suggestions import (
     ConstraintSuggestionRunner,
-    ConstraintSuggestionRunBuilder,
+    EngineConstraintSuggestionRunBuilder,
     Rules,
 )
 
 # Import verification
 from pydeequ.v2.verification import (
-    AnalysisRunBuilder,
+    EngineAnalysisRunBuilder,
     AnalysisRunner,
-    VerificationRunBuilder,
+    EngineVerificationRunBuilder,
     VerificationSuite,
 )
 
@@ -148,15 +146,15 @@ __all__ = [
     "DataType",
     # Profiles
     "ColumnProfilerRunner",
-    "ColumnProfilerRunBuilder",
+    "EngineColumnProfilerRunBuilder",
     "KLLParameters",
     # Suggestions
     "ConstraintSuggestionRunner",
-    "ConstraintSuggestionRunBuilder",
+    "EngineConstraintSuggestionRunBuilder",
     "Rules",
     # Verification
     "VerificationSuite",
-    "VerificationRunBuilder",
+    "EngineVerificationRunBuilder",
     "AnalysisRunner",
-    "AnalysisRunBuilder",
+    "EngineAnalysisRunBuilder",
 ]
