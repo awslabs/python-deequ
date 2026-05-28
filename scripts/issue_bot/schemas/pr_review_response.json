@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "properties": {
+    "comments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["BUG", "EDGE_CASE", "MISSING_TEST", "DESIGN", "NIT"]
+          },
+          "comment": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "line",
+          "severity",
+          "comment",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "comments"
+  ],
+  "additionalProperties": false
+}

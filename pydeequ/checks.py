@@ -242,15 +242,18 @@ class Check:
         Currently only checks uniqueness, but reserved for primary key checks if there is another
         assertion to run on primary key columns.
 
-        #  how does column and columns differ
-        :param str column: Column in Data Frame to run the assertion on.
+        Uniqueness is checked for the list of all columns: [column] + columns.
+
+        :param str column: The 1st column in Data Frame to run the assertion on.
+        :param list[str] columns: Additional columns to run the assertion on.
         :param str hint: A hint that states why a constraint could have failed.
-        :param list[str] columns: Columns to run the assertion on.
         :return: isPrimaryKey self: A Check.scala object that asserts completion in the columns.
         """
+        # This relies on Py4J's implicit conversion from Seq to varargs:
+        columns_seq = to_scala_seq(self._jvm, columns)
         hint = self._jvm.scala.Option.apply(hint)
-        print(f"Unsolved integration: {hint}")
-        raise NotImplementedError("Unsolved integration of Python tuple => varArgs")
+        self._Check = self._Check.isPrimaryKey(column, hint, columns_seq)
+        return self
 
     def hasUniqueness(self, columns, assertion, hint=None):
         """

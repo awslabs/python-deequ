@@ -37,7 +37,7 @@ pyspark = {version = ">=3.5.0,<4.0.0", extras = ["connect"]}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
-pytest-cov = "^4.1.0"
+pytest-cov = "^5.0"
 coverage = "^7.4.0"
 black = "^24.0.0"
 pre-commit = "^3.6.0"

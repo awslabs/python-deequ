@@ -1,17 +1,24 @@
 # -*- coding: utf-8 -*-
 import unittest
 from pyspark.sql import Row
-from pydeequ.analyzers import KLLParameters
-from pydeequ.profiles import ColumnProfilerRunBuilder, ColumnProfilerRunner
+from pydeequ.profiles import (
+    ColumnProfilerRunBuilder,
+    ColumnProfilerRunner,
+    DistributionValue,
+    StringColumnProfile,
+)
 from pydeequ.analyzers import KLLParameters, DataTypeInstances
 from tests.conftest import setup_pyspark
+
 
 class TestProfiles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.spark = setup_pyspark().appName("test-profiles-local").getOrCreate()
         cls.sc = cls.spark.sparkContext
-        cls.df = cls.sc.parallelize([Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="baz", b=3, c=None)]).toDF()
+        cls.df = cls.sc.parallelize(
+            [Row(a="foo", b=1, c=5), Row(a="bar", b=2, c=6), Row(a="baz", b=3, c=None)]
+        ).toDF()
 
     @classmethod
     def tearDownClass(cls):
@@ -19,10 +26,18 @@ class TestProfiles(unittest.TestCase):
         cls.spark.stop()
 
     def test_setPredefinedTypes(self):
-        result = ColumnProfilerRunner(self.spark) \
-            .onData(self.df) \
-            .setPredefinedTypes({'a': DataTypeInstances.Unknown, 'b': DataTypeInstances.String, 'c': DataTypeInstances.Fractional}) \
+        result = (
+            ColumnProfilerRunner(self.spark)
+            .onData(self.df)
+            .setPredefinedTypes(
+                {
+                    "a": DataTypeInstances.Unknown,
+                    "b": DataTypeInstances.String,
+                    "c": DataTypeInstances.Fractional,
+                }
+            )
             .run()
+        )
         print(result)
         for col, profile in result.profiles.items():
             print("Profiles:", profile)
@@ -71,6 +86,50 @@ class TestProfiles(unittest.TestCase):
             raise Exception("Did not raise TypeError")
         except TypeError:
             pass
+
+    def test_profile_numRecords(self):
+        result = ColumnProfilerRunner(self.spark).onData(self.df).run()
+        self.assertEqual(result.numRecords, 3)
+
+    def test_StringColumnProfile(self):
+        df = self.sc.parallelize(
+            [
+                Row(a="ant", b="dragonfly"),
+                Row(a="bee", b="earwig"),
+                Row(a="bee", b=None),
+                Row(a="cricket", b=None),
+            ]
+        ).toDF()
+        result = ColumnProfilerRunner(self.spark).onData(df).run()
+        column_profile = result.profiles["a"]
+        self.assertIsInstance(column_profile, StringColumnProfile)
+        self.assertEqual(column_profile.minLength, 3)
+        self.assertEqual(column_profile.maxLength, 7)
+        self.assertEqual(str(column_profile)[0:29], "StringProfiles for column: a:")
+        self.assertIn('"minLength": 3', str(column_profile))
+
+        self.assertEqual(column_profile.completeness, 1)
+        self.assertEqual(column_profile.approximateNumDistinctValues, 3)
+        self.assertEqual(column_profile.typeCounts["String"], 4)
+        self.assertEqual(column_profile.isDataTypeInferred, False)
+        actual_histogram = sorted(column_profile.histogram, key=lambda x: x.value)
+        self.assertEqual(len(actual_histogram), 3)
+        expected_histogram = [
+            DistributionValue("ant", 1, 0.25),
+            DistributionValue("bee", 2, 0.5),
+            DistributionValue("cricket", 1, 0.25),
+        ]
+        for actual, expected in zip(actual_histogram, expected_histogram):
+            self.assertEqual(actual.value, expected.value)
+            self.assertEqual(actual.count, expected.count)
+            self.assertAlmostEqual(actual.ratio, expected.ratio)
+
+        column_profile = result.profiles["b"]
+        self.assertEqual(column_profile.completeness, 0.5)
+        self.assertEqual(column_profile.approximateNumDistinctValues, 2)
+        self.assertEqual(column_profile.typeCounts["String"], 2)
+        self.assertEqual(column_profile.minLength, 0)
+        self.assertEqual(column_profile.maxLength, 9)
 
 
 if __name__ == "__main__":
