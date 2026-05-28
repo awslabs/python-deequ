@@ -95,16 +95,23 @@ class ColumnProfilerRunner:
         table: Optional[str] = None,
         dataframe: "Optional[DataFrame]" = None,
     ) -> "ColumnProfilerRunner":
-        """Return a fresh runner bound to the given data (keyword-only)."""
+        """Return a fresh runner bound to the given data (keyword-only).
+
+        Configuration set before ``onData`` (``restrictToColumns``,
+        ``withLowCardinalityHistogramThreshold``) is carried into the new runner.
+        """
         if table is not None and dataframe is not None:
             raise ValueError("Provide either 'table' or 'dataframe', not both")
         if table is not None:
-            bound = self._engine.for_table(table)
+            engine = self._engine.for_table(table)
         elif dataframe is not None:
-            bound = self._engine.for_dataframe(dataframe)
+            engine = self._engine.for_dataframe(dataframe)
         else:
             raise ValueError("Must provide either 'table' or 'dataframe'")
-        return ColumnProfilerRunner(bound)
+        bound = ColumnProfilerRunner(engine)
+        bound._restrict_to_columns = self._restrict_to_columns
+        bound._low_cardinality_threshold = self._low_cardinality_threshold
+        return bound
 
     def restrictToColumns(self, columns: Sequence[str]) -> "ColumnProfilerRunner":
         self._restrict_to_columns = columns

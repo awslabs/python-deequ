@@ -91,16 +91,23 @@ class ConstraintSuggestionRunner:
         table: Optional[str] = None,
         dataframe: "Optional[DataFrame]" = None,
     ) -> "ConstraintSuggestionRunner":
-        """Return a fresh runner bound to the given data (keyword-only)."""
+        """Return a fresh runner bound to the given data (keyword-only).
+
+        Rules and column restrictions set before ``onData`` are carried
+        into the new runner.
+        """
         if table is not None and dataframe is not None:
             raise ValueError("Provide either 'table' or 'dataframe', not both")
         if table is not None:
-            bound = self._engine.for_table(table)
+            engine = self._engine.for_table(table)
         elif dataframe is not None:
-            bound = self._engine.for_dataframe(dataframe)
+            engine = self._engine.for_dataframe(dataframe)
         else:
             raise ValueError("Must provide either 'table' or 'dataframe'")
-        return ConstraintSuggestionRunner(bound)
+        bound = ConstraintSuggestionRunner(engine)
+        bound._rules = list(self._rules)
+        bound._restrict_to_columns = self._restrict_to_columns
+        return bound
 
     def addConstraintRules(self, rules: Rules) -> "ConstraintSuggestionRunner":
         self._rules.append(rules)

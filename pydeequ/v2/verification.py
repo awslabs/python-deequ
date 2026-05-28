@@ -105,10 +105,17 @@ class VerificationSuite:
         table: Optional[str] = None,
         dataframe: "Optional[DataFrame]" = None,
     ) -> "VerificationSuite":
-        """Return a fresh suite bound to the given data (keyword-only)."""
-        return VerificationSuite(
+        """Return a fresh suite bound to the given data (keyword-only).
+
+        Checks added before ``onData`` are carried into the new suite, so
+        the call order ``Suite(engine).addCheck(...).onData(...).run()``
+        produces the same result as ``Suite(engine).onData(...).addCheck(...).run()``.
+        """
+        bound = VerificationSuite(
             _bind_engine(self._engine, table=table, dataframe=dataframe)
         )
+        bound._checks = list(self._checks)
+        return bound
 
     def addCheck(self, check: Check) -> "VerificationSuite":
         self._checks.append(check)
@@ -145,10 +152,15 @@ class AnalysisRunner:
         table: Optional[str] = None,
         dataframe: "Optional[DataFrame]" = None,
     ) -> "AnalysisRunner":
-        """Return a fresh runner bound to the given data (keyword-only)."""
-        return AnalysisRunner(
+        """Return a fresh runner bound to the given data (keyword-only).
+
+        Analyzers added before ``onData`` are carried into the new runner.
+        """
+        bound = AnalysisRunner(
             _bind_engine(self._engine, table=table, dataframe=dataframe)
         )
+        bound._analyzers = list(self._analyzers)
+        return bound
 
     def addAnalyzer(self, analyzer: _ConnectAnalyzer) -> "AnalysisRunner":
         self._analyzers.append(analyzer)
