@@ -70,7 +70,7 @@ class TestRowLevelResults(unittest.TestCase):
     def test_row_level_results_multiple_constraints_anded(self):
         """Test that multiple constraints in one Check are ANDed into a single column."""
         check = Check(self.spark, CheckLevel.Error, "multi_check")
-        check = check.isComplete("a").isComplete("c")
+        check = check.isContainedIn("a", ["foo", "baz"]).isComplete("c")
 
         result = VerificationSuite(self.spark).onData(self.df).addCheck(check).run()
         row_level_df = VerificationResult.rowLevelResultsAsDataFrame(self.spark, result, self.df)
@@ -78,10 +78,12 @@ class TestRowLevelResults(unittest.TestCase):
         self.assertIn("multi_check", row_level_df.columns)
 
         # Order by b to ensure deterministic row ordering
-        # b=1: a,c complete -> True, b=2: a,c complete -> True, b=3: c=None -> False
+        # b=1: a=foo (contained), c=5 (complete) -> True AND True = True
+        # b=2: a=bar (NOT contained), c=6 (complete) -> False AND True = False
+        # b=3: a=baz (contained), c=None (NOT complete) -> True AND False = False
         results = row_level_df.orderBy("b").select("multi_check").collect()
         values = [row["multi_check"] for row in results]
-        self.assertEqual(values, [True, True, False])
+        self.assertEqual(values, [True, False, False])
 
     def test_row_level_results_aggregate_only_check(self):
         """Test that aggregate-only checks (hasSize) don't add columns."""

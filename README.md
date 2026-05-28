@@ -129,7 +129,7 @@ rowLevelResult_df = VerificationResult.rowLevelResultsAsDataFrame(spark, checkRe
 rowLevelResult_df.show()
 ```
 
-Each check produces a Boolean column (named after the check description) indicating pass/fail per row. Only checks with row-level-capable constraints (e.g., `isComplete`, `isContainedIn`, `hasPattern`, `isUnique`) will produce output columns.
+Each check produces a Boolean column (named after the check description) indicating pass/fail per row. When a single Check contains multiple constraints, they are ANDed together into one Boolean column — the row passes only if all constraints in that Check pass. Only checks with row-level-capable constraints (e.g., `isComplete`, `isContainedIn`, `hasPattern`, `isUnique`) will produce output columns.
 
 ### Repository
 
