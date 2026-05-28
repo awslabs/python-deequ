@@ -45,7 +45,7 @@ def __getattr__(name):
         return _f2j_maven_coord
 
     if name in ("AnalysisRunner", "Check", "CheckLevel", "ColumnProfilerRunner",
-                "PyDeequSession", "DEEQU_MAVEN_COORD"):
+                "DEEQU_MAVEN_COORD"):
         # Import legacy modules on demand
         if name == "AnalysisRunner":
             from pydeequ.analyzers import AnalysisRunner

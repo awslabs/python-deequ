@@ -75,6 +75,6 @@ def setup_pyspark():
             return self
 
         def getOrCreate(self):
-            return get_spark_connect_session()
+            return create_spark_connect_session()
 
     return SparkConnectBuilder()

@@ -56,8 +56,8 @@ jobs:
             --packages org.apache.spark:spark-connect_2.12:3.5.0 \
             --jars $PWD/deequ_2.12-2.1.0b-spark-3.5.jar \
             --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
-          # Wait for server to start
-          sleep 20
+          # Wait for the gRPC port to accept connections (fail fast if startup broke)
+          timeout 60 bash -c 'until (echo > /dev/tcp/localhost/15002) >/dev/null 2>&1; do sleep 1; done'
           # Verify server is running
           ps aux | grep SparkConnectServer | grep -v grep
 

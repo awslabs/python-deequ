@@ -901,8 +901,9 @@ class Check:
         Example:
             check.isComplete("email").where("status = 'active'")
         """
-        if self._constraints:
-            self._constraints[-1].where = filter_condition
+        if not self._constraints:
+            raise ValueError("where() called before any constraint was added")
+        self._constraints[-1].where = filter_condition
         return self
 
     # ========================================================================
