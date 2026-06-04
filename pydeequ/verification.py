@@ -143,6 +143,34 @@ class VerificationResult:
         )
         return DataFrame(df, sql_ctx).toPandas() if pandas else DataFrame(df, sql_ctx)
 
+    @classmethod
+    def rowLevelResultsAsDataFrame(
+        cls, spark_session: SparkSession, verificationResult, data: DataFrame, pandas: bool = False
+    ):
+        """
+        Returns the original DataFrame with additional Boolean columns indicating which rows
+        passed or failed each Check. Each Check produces one Boolean column named after its
+        description, where multiple constraints within a Check are ANDed together.
+
+        Only checks with row-level-capable constraints (e.g., isComplete, hasPattern, isContainedIn,
+        isUnique) will produce output columns. Aggregate-only checks (e.g., hasSize) are skipped.
+
+        :param SparkSession spark_session: SparkSession
+        :param verificationResult: The results of the verification run
+        :param DataFrame data: The original input DataFrame that was verified
+        :param bool pandas: If True, return a Pandas DataFrame instead of PySpark
+        :return: DataFrame with original columns plus Boolean columns per qualifying Check
+        """
+        df = spark_session._jvm.com.amazon.deequ.VerificationResult.rowLevelResultsAsDataFrame(
+            spark_session._jsparkSession, verificationResult.verificationRun, data._jdf
+        )
+        sql_ctx = SQLContext(
+            sparkContext=spark_session._sc,
+            sparkSession=spark_session,
+            jsqlContext=spark_session._jsparkSession.sqlContext(),
+        )
+        return DataFrame(df, sql_ctx).toPandas() if pandas else DataFrame(df, sql_ctx)
+
 
 class VerificationRunBuilder:
     # TODO Remaining Methods
