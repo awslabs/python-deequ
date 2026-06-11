@@ -125,7 +125,7 @@ class ColumnProfilerRunBuilder:
         self._spark = spark
         self._df = df
         self._restrict_to_columns: Optional[Sequence[str]] = None
-        self._low_cardinality_threshold: int = 0
+        self._low_cardinality_threshold: Optional[int] = None
         self._enable_kll: bool = False
         self._kll_parameters: Optional[KLLParameters] = None
         self._predefined_types: Optional[Dict[str, str]] = None
@@ -239,8 +239,9 @@ class ColumnProfilerRunBuilder:
         if self._restrict_to_columns:
             msg.restrict_to_columns.extend(self._restrict_to_columns)
 
-        # Set histogram threshold
-        if self._low_cardinality_threshold > 0:
+        # Set histogram threshold (presence-based; user setting <= 0 is rejected
+        # at the builder level rather than silently falling back here)
+        if self._low_cardinality_threshold is not None:
             msg.low_cardinality_histogram_threshold = self._low_cardinality_threshold
 
         # Set KLL profiling

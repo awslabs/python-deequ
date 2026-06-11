@@ -2,9 +2,9 @@
 """
 Unit tests for PyDeequ V2 Spark Connect module.
 
-These tests verify the Python client API works correctly without
-requiring a Spark session. They test protobuf serialization of
-predicates, checks, and analyzers.
+These tests verify the Python client API works correctly without requiring a
+Spark session. They cover protobuf serialization of predicates, checks, and
+analyzers under the Stage 1 schema (oneof arms per builder method).
 """
 
 import unittest
@@ -23,40 +23,43 @@ from pydeequ.v2 import (
     gte,
     is_one,
 )
+
+
 class TestPredicates(unittest.TestCase):
     """Test predicate serialization.
 
-    These tests use hardcoded numeric values for operator enums to detect
-    proto sync issues between deequ (source of truth) and python-deequ.
+    Hardcoded numeric values detect proto sync issues between deequ (source of
+    truth) and python-deequ.
 
-    Expected values from deequ_connect.proto:
-        UNSPECIFIED = 0, EQ = 1, NE = 2, GT = 3, GE = 4, LT = 5, LE = 6, BETWEEN = 7
+    Expected values from deequ_connect.proto's CompareOp enum:
+        COMPARE_OP_UNSPECIFIED = 0, EQ = 1, NE = 2, GT = 3, GE = 4,
+        LT = 5, LE = 6, BETWEEN = 7
     """
 
     def test_eq_predicate(self):
         p = eq(100)
-        proto = p.to_proto()
-        self.assertEqual(proto.operator, 1)  # EQ
-        self.assertEqual(proto.value, 100.0)
+        msg = p.to_proto()
+        self.assertEqual(msg.op, 1)  # COMPARE_OP_EQ
+        self.assertEqual(msg.value, 100.0)
 
     def test_gte_predicate(self):
         p = gte(0.95)
-        proto = p.to_proto()
-        self.assertEqual(proto.operator, 4)  # GE
-        self.assertEqual(proto.value, 0.95)
+        msg = p.to_proto()
+        self.assertEqual(msg.op, 4)  # COMPARE_OP_GE
+        self.assertEqual(msg.value, 0.95)
 
     def test_between_predicate(self):
         p = between(10, 20)
-        proto = p.to_proto()
-        self.assertEqual(proto.operator, 7)  # BETWEEN
-        self.assertEqual(proto.lower_bound, 10.0)
-        self.assertEqual(proto.upper_bound, 20.0)
+        msg = p.to_proto()
+        self.assertEqual(msg.op, 7)  # COMPARE_OP_BETWEEN
+        self.assertEqual(msg.lower_bound, 10.0)
+        self.assertEqual(msg.upper_bound, 20.0)
 
     def test_is_one_predicate(self):
         p = is_one()
-        proto = p.to_proto()
-        self.assertEqual(proto.operator, 1)  # EQ
-        self.assertEqual(proto.value, 1.0)
+        msg = p.to_proto()
+        self.assertEqual(msg.op, 1)  # COMPARE_OP_EQ
+        self.assertEqual(msg.value, 1.0)
 
 
 class TestCheckBuilder(unittest.TestCase):
@@ -70,25 +73,32 @@ class TestCheckBuilder(unittest.TestCase):
             .hasSize(eq(100))
         )
 
-        proto = check.to_proto()
+        msg = check.to_proto()
 
-        self.assertEqual(proto.level, 0)  # ERROR
-        self.assertEqual(proto.description, "Test check")
-        self.assertEqual(len(proto.constraints), 3)
+        # CHECK_LEVEL_ERROR = 1
+        self.assertEqual(msg.level, 1)
+        self.assertEqual(msg.description, "Test check")
+        self.assertEqual(len(msg.constraints), 3)
 
-        # Check constraint types
-        self.assertEqual(proto.constraints[0].type, "isComplete")
-        self.assertEqual(proto.constraints[0].column, "id")
+        # Each constraint sets exactly one oneof arm.
+        self.assertEqual(msg.constraints[0].WhichOneof("body"), "is_complete")
+        self.assertEqual(msg.constraints[0].is_complete.column, "id")
 
-        self.assertEqual(proto.constraints[1].type, "hasCompleteness")
-        self.assertEqual(proto.constraints[1].column, "email")
+        self.assertEqual(msg.constraints[1].WhichOneof("body"), "has_completeness")
+        self.assertEqual(msg.constraints[1].has_completeness.column, "email")
+        self.assertEqual(msg.constraints[1].has_completeness.assertion.op, 4)  # GE
 
-        self.assertEqual(proto.constraints[2].type, "hasSize")
+        self.assertEqual(msg.constraints[2].WhichOneof("body"), "has_size")
+        self.assertEqual(msg.constraints[2].has_size.assertion.op, 1)  # EQ
 
     def test_check_warning_level(self):
         check = Check(CheckLevel.Warning, "Warning check")
-        proto = check.to_proto()
-        self.assertEqual(proto.level, 1)  # WARNING
+        msg = check.to_proto()
+        self.assertEqual(msg.level, 2)  # CHECK_LEVEL_WARNING
+
+    def test_where_raises_without_constraints(self):
+        with self.assertRaises(ValueError):
+            Check(CheckLevel.Error, "x").where("y = 1")
 
 
 class TestAnalyzerBuilder(unittest.TestCase):
@@ -96,26 +106,26 @@ class TestAnalyzerBuilder(unittest.TestCase):
 
     def test_size_analyzer(self):
         analyzer = Size()
-        proto = analyzer.to_proto()
-        self.assertEqual(proto.type, "Size")
+        msg = analyzer.to_proto()
+        self.assertEqual(msg.WhichOneof("body"), "size")
 
     def test_completeness_analyzer(self):
         analyzer = Completeness("email")
-        proto = analyzer.to_proto()
-        self.assertEqual(proto.type, "Completeness")
-        self.assertEqual(proto.column, "email")
+        msg = analyzer.to_proto()
+        self.assertEqual(msg.WhichOneof("body"), "completeness")
+        self.assertEqual(msg.completeness.column, "email")
 
     def test_mean_analyzer(self):
         analyzer = Mean("amount")
-        proto = analyzer.to_proto()
-        self.assertEqual(proto.type, "Mean")
-        self.assertEqual(proto.column, "amount")
+        msg = analyzer.to_proto()
+        self.assertEqual(msg.WhichOneof("body"), "mean")
+        self.assertEqual(msg.mean.column, "amount")
 
     def test_analyzer_with_where(self):
         analyzer = Size(where="status = 'active'")
-        proto = analyzer.to_proto()
-        self.assertEqual(proto.type, "Size")
-        self.assertEqual(proto.where, "status = 'active'")
+        msg = analyzer.to_proto()
+        self.assertEqual(msg.WhichOneof("body"), "size")
+        self.assertEqual(msg.where, "status = 'active'")
 
 
 if __name__ == "__main__":

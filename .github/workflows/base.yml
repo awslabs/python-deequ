@@ -35,6 +35,10 @@ jobs:
           echo "SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3" >> $GITHUB_ENV
 
       - name: Download Deequ JAR
+        # The pinned JAR must match the schema in pydeequ/v2/proto/.
+        # When the schema changes, both the deequ JAR (built from the
+        # corresponding deequ branch) and this URL need to update in the
+        # same PR pair (per ADR-0004 in the deequ repo).
         run: |
           curl -L -o deequ_2.12-2.1.0b-spark-3.5.jar \
             https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ_2.12-2.1.0b-spark-3.5.jar
@@ -45,6 +49,17 @@ jobs:
           pip install poetry==1.7.1
           poetry install
           poetry add "pyspark[connect]==3.5.0"
+
+      - name: Verify checked-in proto stubs are not stale
+        # ADR-0005 drift safeguard: regenerate the stubs from the JAR's
+        # bundled .proto and assert the diff is empty.
+        # NOTE: this requires a JAR that ships META-INF/protobuf/deequ_connect.proto
+        # — only deequ JARs built from the protobuf-stage1 branch onward do.
+        # Until the matching JAR is released, this step is skipped.
+        if: false
+        run: |
+          DEEQU_JAR_PATH=$PWD/deequ_2.12-2.1.0b-spark-3.5.jar poetry run python scripts/regen_proto.py
+          git diff --exit-code pydeequ/v2/proto/
 
       - name: Run V2 unit tests
         run: |

@@ -47,7 +47,8 @@ class Rules(Enum):
     """
     Constraint suggestion rule sets.
 
-    Different rule sets analyze different aspects of the data:
+    Each value is the corresponding `ConstraintRuleSet` enum value on the wire
+    (see CONTEXT.md in the deequ repo).
 
     - DEFAULT: Core rules for completeness, type retention, categorical ranges
     - STRING: String-specific rules for length constraints
@@ -56,21 +57,11 @@ class Rules(Enum):
     - EXTENDED: All rules combined
     """
 
-    DEFAULT = "DEFAULT"
-    """Core rules: CompleteIfComplete, RetainCompleteness, RetainType,
-    CategoricalRange, FractionalCategoricalRange, NonNegativeNumbers"""
-
-    STRING = "STRING"
-    """String rules: HasMinLength, HasMaxLength"""
-
-    NUMERICAL = "NUMERICAL"
-    """Numeric rules: HasMin, HasMax, HasMean, HasStandardDeviation"""
-
-    COMMON = "COMMON"
-    """Common patterns: UniqueIfApproximatelyUnique"""
-
-    EXTENDED = "EXTENDED"
-    """All rules combined: DEFAULT + STRING + NUMERICAL + COMMON"""
+    DEFAULT = proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_DEFAULT
+    STRING = proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_STRING
+    NUMERICAL = proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_NUMERICAL
+    COMMON = proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_COMMON
+    EXTENDED = proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_EXTENDED
 
 
 class ConstraintSuggestionRunner:
@@ -129,12 +120,13 @@ class ConstraintSuggestionRunBuilder:
         self._df = df
         self._rules: List[Rules] = []
         self._restrict_to_columns: Optional[Sequence[str]] = None
-        self._low_cardinality_threshold: int = 0
+        self._low_cardinality_threshold: Optional[int] = None
         self._enable_kll: bool = False
         self._kll_parameters: Optional[KLLParameters] = None
         self._predefined_types: Optional[Dict[str, str]] = None
-        self._testset_ratio: float = 0.0
+        self._testset_ratio: Optional[float] = None
         self._testset_seed: Optional[int] = None
+        self._testset_seed_set: bool = False  # distinguishes "set to 0" from "unset"
 
     def addConstraintRules(self, rules: Rules) -> "ConstraintSuggestionRunBuilder":
         """
@@ -241,7 +233,9 @@ class ConstraintSuggestionRunBuilder:
         if not 0.0 < ratio < 1.0:
             raise ValueError("testset_ratio must be between 0.0 and 1.0 (exclusive)")
         self._testset_ratio = ratio
-        self._testset_seed = seed
+        if seed is not None:
+            self._testset_seed = seed
+            self._testset_seed_set = True
         return self
 
     def run(self) -> "DataFrame":
@@ -283,7 +277,7 @@ class ConstraintSuggestionRunBuilder:
         """Build the protobuf suggestion message."""
         msg = proto.DeequConstraintSuggestionRelation()
 
-        # Add constraint rules
+        # Add constraint rules (typed enum on the wire)
         for rule in self._rules:
             msg.constraint_rules.append(rule.value)
 
@@ -291,8 +285,8 @@ class ConstraintSuggestionRunBuilder:
         if self._restrict_to_columns:
             msg.restrict_to_columns.extend(self._restrict_to_columns)
 
-        # Set histogram threshold
-        if self._low_cardinality_threshold > 0:
+        # Set histogram threshold (presence-based)
+        if self._low_cardinality_threshold is not None:
             msg.low_cardinality_histogram_threshold = self._low_cardinality_threshold
 
         # Set KLL profiling
@@ -305,10 +299,11 @@ class ConstraintSuggestionRunBuilder:
             for col, dtype in self._predefined_types.items():
                 msg.predefined_types[col] = dtype
 
-        # Set train/test split
-        if self._testset_ratio > 0:
+        # Set train/test split. Both fields are presence-checked on the
+        # wire so seed=0 is a legal user choice (per ADR-0001 F1).
+        if self._testset_ratio is not None:
             msg.testset_ratio = self._testset_ratio
-            if self._testset_seed is not None:
+            if self._testset_seed_set:
                 msg.testset_split_random_seed = self._testset_seed
 
         return msg

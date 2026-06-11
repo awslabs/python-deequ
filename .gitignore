@@ -148,5 +148,12 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# DS_STORE 
+# Note: pydeequ/v2/proto/deequ_connect_pb2.py and _pb2.pyi are
+# CHECKED IN per ADR-0005 (graphframes pattern). Run scripts/regen_proto.py
+# to refresh them when the deequ schema changes.
+# The intermediate .proto extracted by regen_proto.py is NOT checked in —
+# the canonical schema lives in the deequ repo.
+pydeequ/v2/proto/deequ_connect.proto
+
+# DS_STORE
 .DS_Store

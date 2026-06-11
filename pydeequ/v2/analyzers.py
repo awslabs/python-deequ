@@ -2,14 +2,11 @@
 """
 Analyzer classes for Deequ Spark Connect.
 
-This module provides Spark Connect compatible analyzer classes that build
-protobuf messages instead of using Py4J to call Scala code directly.
+Each analyzer's `to_proto()` builds a `proto.Analyzer` with the appropriate
+`oneof` arm populated. See ADR-0001 in the deequ repo for the design.
 
 Example usage:
-    from pydeequ.v2.analyzers import (
-        AnalysisRunner, AnalyzerContext,
-        Size, Completeness, Mean, Maximum, Minimum
-    )
+    from pydeequ.v2.analyzers import Size, Completeness, Mean
 
     result = (AnalysisRunner(spark)
         .onData(df)
@@ -17,15 +14,13 @@ Example usage:
         .addAnalyzer(Completeness("email"))
         .addAnalyzer(Mean("amount"))
         .run())
-
-    metrics = AnalyzerContext.successMetricsAsDataFrame(result)
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Union
+from dataclasses import dataclass
+from typing import Optional, Sequence, Union
 
 from pydeequ.v2.proto import deequ_connect_pb2 as proto
 
@@ -34,7 +29,7 @@ class _ConnectAnalyzer(ABC):
     """Base class for Spark Connect compatible analyzers."""
 
     @abstractmethod
-    def to_proto(self) -> proto.AnalyzerMessage:
+    def to_proto(self) -> proto.Analyzer:
         """Convert analyzer to protobuf message."""
         raise NotImplementedError
 
@@ -43,600 +38,205 @@ class _ConnectAnalyzer(ABC):
         raise NotImplementedError
 
 
+def _set_where(msg: proto.Analyzer, where: Optional[str]) -> None:
+    if where:
+        msg.where = where
+
+
 # ============================================================================
-# Size Analyzer
+# Size — no parameters
 # ============================================================================
 
 
 @dataclass
 class Size(_ConnectAnalyzer):
-    """
-    Computes the number of rows in a DataFrame.
-
-    Args:
-        where: Optional SQL WHERE clause to filter rows before counting
-
-    Example:
-        Size()  # Count all rows
-        Size(where="status = 'active'")  # Count only active rows
-    """
+    """Number of rows in a DataFrame."""
 
     where: Optional[str] = None
 
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Size")
-        if self.where:
-            msg.where = self.where
+    def to_proto(self) -> proto.Analyzer:
+        msg = proto.Analyzer()
+        msg.size.SetInParent()  # populate the EmptySpec oneof arm
+        _set_where(msg, self.where)
         return msg
 
     def __repr__(self) -> str:
-        if self.where:
-            return f"Size(where='{self.where}')"
-        return "Size()"
+        return f"Size(where='{self.where}')" if self.where else "Size()"
 
 
 # ============================================================================
-# Completeness Analyzers
+# Single-column analyzers — share ColumnAnalyzerSpec
 # ============================================================================
 
 
-@dataclass
-class Completeness(_ConnectAnalyzer):
-    """
-    Computes the fraction of non-null values in a column.
+def _column_arm_factory(arm_name: str, deequ_name: str):
+    """Return a dataclass-decorated analyzer class for column-only arms."""
 
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
+    @dataclass
+    class _SingleColumnAnalyzer(_ConnectAnalyzer):
+        column: str
+        where: Optional[str] = None
 
-    Example:
-        Completeness("email")
-        Completeness("email", where="status = 'active'")
-    """
+        def to_proto(self) -> proto.Analyzer:
+            msg = proto.Analyzer()
+            getattr(msg, arm_name).column = self.column
+            _set_where(msg, self.where)
+            return msg
 
-    column: str
-    where: Optional[str] = None
+        def __repr__(self) -> str:
+            return f"{deequ_name}('{self.column}')"
 
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Completeness", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        if self.where:
-            return f"Completeness('{self.column}', where='{self.where}')"
-        return f"Completeness('{self.column}')"
+    _SingleColumnAnalyzer.__name__ = deequ_name
+    _SingleColumnAnalyzer.__qualname__ = deequ_name
+    return _SingleColumnAnalyzer
 
 
-# ============================================================================
-# Statistical Analyzers
-# ============================================================================
-
-
-@dataclass
-class Mean(_ConnectAnalyzer):
-    """
-    Computes the mean of a numeric column.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Mean", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        if self.where:
-            return f"Mean('{self.column}', where='{self.where}')"
-        return f"Mean('{self.column}')"
-
-
-@dataclass
-class Sum(_ConnectAnalyzer):
-    """
-    Computes the sum of a numeric column.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Sum", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        if self.where:
-            return f"Sum('{self.column}', where='{self.where}')"
-        return f"Sum('{self.column}')"
-
-
-@dataclass
-class Maximum(_ConnectAnalyzer):
-    """
-    Computes the maximum value of a numeric column.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Maximum", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        if self.where:
-            return f"Maximum('{self.column}', where='{self.where}')"
-        return f"Maximum('{self.column}')"
-
-
-@dataclass
-class Minimum(_ConnectAnalyzer):
-    """
-    Computes the minimum value of a numeric column.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Minimum", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        if self.where:
-            return f"Minimum('{self.column}', where='{self.where}')"
-        return f"Minimum('{self.column}')"
-
-
-@dataclass
-class StandardDeviation(_ConnectAnalyzer):
-    """
-    Computes the standard deviation of a numeric column.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="StandardDeviation", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        if self.where:
-            return f"StandardDeviation('{self.column}', where='{self.where}')"
-        return f"StandardDeviation('{self.column}')"
+Completeness = _column_arm_factory("completeness", "Completeness")
+Mean = _column_arm_factory("mean", "Mean")
+Sum = _column_arm_factory("sum", "Sum")
+StandardDeviation = _column_arm_factory("standard_deviation", "StandardDeviation")
+Minimum = _column_arm_factory("minimum", "Minimum")
+Maximum = _column_arm_factory("maximum", "Maximum")
+MinLength = _column_arm_factory("min_length", "MinLength")
+MaxLength = _column_arm_factory("max_length", "MaxLength")
+ApproxCountDistinct = _column_arm_factory("approx_count_distinct", "ApproxCountDistinct")
+Entropy = _column_arm_factory("entropy", "Entropy")
+DataType = _column_arm_factory("data_type", "DataType")
 
 
 # ============================================================================
-# Uniqueness Analyzers
+# Multi-column analyzers — share ColumnsAnalyzerSpec
+# ============================================================================
+
+
+def _columns_arm_factory(arm_name: str, deequ_name: str):
+    @dataclass
+    class _MultiColumnAnalyzer(_ConnectAnalyzer):
+        columns: Union[str, Sequence[str]]
+        where: Optional[str] = None
+
+        def __post_init__(self):
+            if isinstance(self.columns, str):
+                self.columns = [self.columns]
+
+        def to_proto(self) -> proto.Analyzer:
+            msg = proto.Analyzer()
+            getattr(msg, arm_name).columns.extend(self.columns)
+            _set_where(msg, self.where)
+            return msg
+
+        def __repr__(self) -> str:
+            return f"{deequ_name}({list(self.columns)})"
+
+    _MultiColumnAnalyzer.__name__ = deequ_name
+    _MultiColumnAnalyzer.__qualname__ = deequ_name
+    return _MultiColumnAnalyzer
+
+
+Uniqueness = _columns_arm_factory("uniqueness", "Uniqueness")
+Distinctness = _columns_arm_factory("distinctness", "Distinctness")
+UniqueValueRatio = _columns_arm_factory("unique_value_ratio", "UniqueValueRatio")
+CountDistinct = _columns_arm_factory("count_distinct", "CountDistinct")
+MutualInformation = _columns_arm_factory("mutual_information", "MutualInformation")
+
+
+# ============================================================================
+# Pair-of-columns analyzer
 # ============================================================================
 
 
 @dataclass
-class Distinctness(_ConnectAnalyzer):
-    """
-    Computes the fraction of distinct values in column(s).
+class Correlation(_ConnectAnalyzer):
+    """Pearson correlation between two columns."""
 
-    Args:
-        columns: Column name(s) to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    columns: Union[str, Sequence[str]]
+    column_a: str
+    column_b: str
     where: Optional[str] = None
 
-    def __post_init__(self):
-        if isinstance(self.columns, str):
-            self.columns = [self.columns]
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Distinctness")
-        msg.columns.extend(self.columns)
-        if self.where:
-            msg.where = self.where
+    def to_proto(self) -> proto.Analyzer:
+        msg = proto.Analyzer()
+        msg.correlation.column_a = self.column_a
+        msg.correlation.column_b = self.column_b
+        _set_where(msg, self.where)
         return msg
 
     def __repr__(self) -> str:
-        return f"Distinctness({self.columns})"
-
-
-@dataclass
-class Uniqueness(_ConnectAnalyzer):
-    """
-    Computes the fraction of unique values (appearing exactly once) in column(s).
-
-    Args:
-        columns: Column name(s) to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    columns: Union[str, Sequence[str]]
-    where: Optional[str] = None
-
-    def __post_init__(self):
-        if isinstance(self.columns, str):
-            self.columns = [self.columns]
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Uniqueness")
-        msg.columns.extend(self.columns)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"Uniqueness({self.columns})"
-
-
-@dataclass
-class UniqueValueRatio(_ConnectAnalyzer):
-    """
-    Computes the ratio of unique values to total distinct values.
-
-    Args:
-        columns: Column name(s) to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    columns: Union[str, Sequence[str]]
-    where: Optional[str] = None
-
-    def __post_init__(self):
-        if isinstance(self.columns, str):
-            self.columns = [self.columns]
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="UniqueValueRatio")
-        msg.columns.extend(self.columns)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"UniqueValueRatio({self.columns})"
-
-
-@dataclass
-class CountDistinct(_ConnectAnalyzer):
-    """
-    Computes the count of distinct values in column(s).
-
-    Args:
-        columns: Column name(s) to analyze
-    """
-
-    columns: Union[str, Sequence[str]]
-
-    def __post_init__(self):
-        if isinstance(self.columns, str):
-            self.columns = [self.columns]
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="CountDistinct")
-        msg.columns.extend(self.columns)
-        return msg
-
-    def __repr__(self) -> str:
-        return f"CountDistinct({self.columns})"
-
-
-@dataclass
-class ApproxCountDistinct(_ConnectAnalyzer):
-    """
-    Computes approximate count distinct using HyperLogLog.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="ApproxCountDistinct", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"ApproxCountDistinct('{self.column}')"
+        return f"Correlation('{self.column_a}', '{self.column_b}')"
 
 
 # ============================================================================
-# Quantile Analyzers
+# Approx quantile analyzers
 # ============================================================================
 
 
 @dataclass
 class ApproxQuantile(_ConnectAnalyzer):
-    """
-    Computes an approximate quantile of a numeric column.
-
-    Args:
-        column: Column name to analyze
-        quantile: Quantile to compute (0.0 to 1.0)
-        relative_error: Relative error tolerance (default 0.01)
-        where: Optional SQL WHERE clause to filter rows
-    """
+    """Approximate quantile of a numeric column."""
 
     column: str
-    quantile: float
-    relative_error: float = 0.01
+    quantile: Optional[float] = None
+    relative_error: Optional[float] = None
     where: Optional[str] = None
 
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(
-            type="ApproxQuantile",
-            column=self.column,
-            quantile=self.quantile,
-            relative_error=self.relative_error,
-        )
-        if self.where:
-            msg.where = self.where
+    def to_proto(self) -> proto.Analyzer:
+        msg = proto.Analyzer()
+        spec = msg.approx_quantile
+        spec.column = self.column
+        if self.quantile is not None:
+            spec.quantile = self.quantile
+        if self.relative_error is not None:
+            spec.relative_error = self.relative_error
+        _set_where(msg, self.where)
         return msg
 
     def __repr__(self) -> str:
         return f"ApproxQuantile('{self.column}', {self.quantile})"
 
 
-# ============================================================================
-# Correlation Analyzers
-# ============================================================================
-
-
 @dataclass
-class Correlation(_ConnectAnalyzer):
-    """
-    Computes Pearson correlation between two columns.
-
-    Args:
-        column1: First column name
-        column2: Second column name
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column1: str
-    column2: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Correlation")
-        msg.columns.extend([self.column1, self.column2])
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"Correlation('{self.column1}', '{self.column2}')"
-
-
-@dataclass
-class MutualInformation(_ConnectAnalyzer):
-    """
-    Computes mutual information between columns.
-
-    Args:
-        columns: Column names to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    columns: Sequence[str]
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="MutualInformation")
-        msg.columns.extend(self.columns)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"MutualInformation({self.columns})"
-
-
-# ============================================================================
-# String Analyzers
-# ============================================================================
-
-
-@dataclass
-class MaxLength(_ConnectAnalyzer):
-    """
-    Computes the maximum string length in a column.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
+class ApproxQuantiles(_ConnectAnalyzer):
+    """Multiple approximate quantiles of a numeric column."""
 
     column: str
+    quantiles: Sequence[float] = ()
+    relative_error: Optional[float] = None
     where: Optional[str] = None
 
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="MaxLength", column=self.column)
-        if self.where:
-            msg.where = self.where
+    def to_proto(self) -> proto.Analyzer:
+        msg = proto.Analyzer()
+        spec = msg.approx_quantiles
+        spec.column = self.column
+        if self.quantiles:
+            spec.quantiles.extend(self.quantiles)
+        if self.relative_error is not None:
+            spec.relative_error = self.relative_error
+        _set_where(msg, self.where)
         return msg
 
     def __repr__(self) -> str:
-        return f"MaxLength('{self.column}')"
-
-
-@dataclass
-class MinLength(_ConnectAnalyzer):
-    """
-    Computes the minimum string length in a column.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="MinLength", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"MinLength('{self.column}')"
+        return f"ApproxQuantiles('{self.column}', {list(self.quantiles)})"
 
 
 # ============================================================================
-# Pattern Analyzers
-# ============================================================================
-
-
-@dataclass
-class PatternMatch(_ConnectAnalyzer):
-    """
-    Computes the fraction of values matching a regex pattern.
-
-    Args:
-        column: Column name to analyze
-        pattern: Regex pattern to match
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    pattern: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(
-            type="PatternMatch", column=self.column, pattern=self.pattern
-        )
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"PatternMatch('{self.column}', '{self.pattern}')"
-
-
-# ============================================================================
-# Compliance Analyzer
-# ============================================================================
-
-
-@dataclass
-class Compliance(_ConnectAnalyzer):
-    """
-    Computes the fraction of rows satisfying a SQL condition.
-
-    Args:
-        instance: Name for this compliance check
-        predicate: SQL predicate (WHERE clause condition)
-        where: Optional additional SQL WHERE clause to filter rows
-    """
-
-    instance: str
-    predicate: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        # Use column for instance name and pattern for predicate
-        msg = proto.AnalyzerMessage(
-            type="Compliance", column=self.instance, pattern=self.predicate
-        )
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"Compliance('{self.instance}', '{self.predicate}')"
-
-
-# ============================================================================
-# Entropy Analyzer
-# ============================================================================
-
-
-@dataclass
-class Entropy(_ConnectAnalyzer):
-    """
-    Computes the entropy of a column.
-
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
-    where: Optional[str] = None
-
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Entropy", column=self.column)
-        if self.where:
-            msg.where = self.where
-        return msg
-
-    def __repr__(self) -> str:
-        return f"Entropy('{self.column}')"
-
-
-# ============================================================================
-# Histogram Analyzer
+# Histogram
 # ============================================================================
 
 
 @dataclass
 class Histogram(_ConnectAnalyzer):
-    """
-    Computes histogram of values in a column.
-
-    Args:
-        column: Column name to analyze
-        max_detail_bins: Maximum number of bins for detailed output
-        where: Optional SQL WHERE clause to filter rows
-    """
+    """Histogram of values in a column."""
 
     column: str
     max_detail_bins: Optional[int] = None
     where: Optional[str] = None
 
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="Histogram", column=self.column)
+    def to_proto(self) -> proto.Analyzer:
+        msg = proto.Analyzer()
+        spec = msg.histogram
+        spec.column = self.column
         if self.max_detail_bins is not None:
-            msg.max_detail_bins = self.max_detail_bins
-        if self.where:
-            msg.where = self.where
+            spec.max_detail_bins = self.max_detail_bins
+        _set_where(msg, self.where)
         return msg
 
     def __repr__(self) -> str:
@@ -644,69 +244,81 @@ class Histogram(_ConnectAnalyzer):
 
 
 # ============================================================================
-# DataType Analyzer
+# Compliance
 # ============================================================================
 
 
 @dataclass
-class DataType(_ConnectAnalyzer):
-    """
-    Analyzes the data types present in a column.
+class Compliance(_ConnectAnalyzer):
+    """Fraction of rows satisfying a SQL predicate, named by `instance`."""
 
-    Args:
-        column: Column name to analyze
-        where: Optional SQL WHERE clause to filter rows
-    """
-
-    column: str
+    instance: str
+    predicate: str
     where: Optional[str] = None
 
-    def to_proto(self) -> proto.AnalyzerMessage:
-        msg = proto.AnalyzerMessage(type="DataType", column=self.column)
-        if self.where:
-            msg.where = self.where
+    def to_proto(self) -> proto.Analyzer:
+        msg = proto.Analyzer()
+        msg.compliance.instance = self.instance
+        msg.compliance.predicate = self.predicate
+        _set_where(msg, self.where)
         return msg
 
     def __repr__(self) -> str:
-        return f"DataType('{self.column}')"
+        return f"Compliance('{self.instance}', '{self.predicate}')"
 
 
-# Export all public symbols
+# ============================================================================
+# PatternMatch
+# ============================================================================
+
+
+@dataclass
+class PatternMatch(_ConnectAnalyzer):
+    """Fraction of rows whose column value matches a regex."""
+
+    column: str
+    pattern: str
+    where: Optional[str] = None
+
+    def to_proto(self) -> proto.Analyzer:
+        msg = proto.Analyzer()
+        msg.pattern_match.column = self.column
+        msg.pattern_match.pattern = self.pattern
+        _set_where(msg, self.where)
+        return msg
+
+    def __repr__(self) -> str:
+        return f"PatternMatch('{self.column}', '{self.pattern}')"
+
+
 __all__ = [
-    # Base class
     "_ConnectAnalyzer",
-    # Size
+    # Single-column
     "Size",
-    # Completeness
     "Completeness",
-    # Statistical
     "Mean",
     "Sum",
-    "Maximum",
-    "Minimum",
     "StandardDeviation",
-    # Uniqueness
-    "Distinctness",
+    "Minimum",
+    "Maximum",
+    "MinLength",
+    "MaxLength",
+    "ApproxCountDistinct",
+    "Entropy",
+    "DataType",
+    # Multi-column
     "Uniqueness",
+    "Distinctness",
     "UniqueValueRatio",
     "CountDistinct",
-    "ApproxCountDistinct",
+    "MutualInformation",
+    # Pair
+    "Correlation",
     # Quantile
     "ApproxQuantile",
-    # Correlation
-    "Correlation",
-    "MutualInformation",
-    # String
-    "MaxLength",
-    "MinLength",
-    # Pattern
-    "PatternMatch",
-    # Compliance
-    "Compliance",
-    # Entropy
-    "Entropy",
-    # Histogram
+    "ApproxQuantiles",
+    # Specialised
     "Histogram",
-    # DataType
-    "DataType",
+    "Compliance",
+    "PatternMatch",
 ]

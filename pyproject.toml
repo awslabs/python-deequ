@@ -42,6 +42,9 @@ coverage = "^7.4.0"
 black = "^24.0.0"
 pre-commit = "^3.6.0"
 pytest-rerunfailures = "^14.0"
+# Bundles a pinned protoc binary; used by scripts/regen_proto.py to
+# generate Python stubs from the .proto extracted from the deequ JAR.
+grpcio-tools = "^1.60"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

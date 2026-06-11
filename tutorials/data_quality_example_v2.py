@@ -11,7 +11,7 @@ Prerequisites:
 
    $SPARK_HOME/sbin/start-connect-server.sh \
      --packages org.apache.spark:spark-connect_2.12:3.5.0 \
-     --jars /path/to/deequ_2.12-2.1.0b-spark-3.5.jar \
+     --jars /path/to/deequ_2.12-2.0.17-spark-3.5.jar \
      --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
 
 2. Run this script:
