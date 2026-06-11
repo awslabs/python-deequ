@@ -13,6 +13,14 @@ jobs:
   v2-tests:
     runs-on: ubuntu-latest
 
+    env:
+      # Source for the deequ JAR built into the integration-test Spark Connect server.
+      # See ADR-0004 (deequ repo): the python-deequ wheel and the deequ JAR must be
+      # paired by release. During PR-review iteration we build from the deequ branch
+      # tip; flip to a SHA / merged-master / release tag before merging the pair.
+      DEEQU_REPO: chenliu0831/deequ
+      DEEQU_REF: protobuf-stage1
+
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -27,6 +35,43 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      # Side-checkout of the deequ source so we can build the JAR with the
+      # matching wire-format schema in this same job.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        name: Checkout deequ
+        with:
+          repository: ${{ env.DEEQU_REPO }}
+          ref: ${{ env.DEEQU_REF }}
+          path: deequ-source
+
+      # Cache Maven local repo so subsequent CI runs don't re-download the
+      # ~hundreds-of-MB plugin/dependency jars. Key on the deequ pom + the
+      # protobuf-maven-plugin major version so the cache invalidates whenever
+      # build dependencies change.
+      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        name: Cache Maven local repo
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('deequ-source/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build Deequ JAR
+        # Produces target/deequ_2.12-X.Y.Z-spark-3.5.jar with META-INF/protobuf/
+        # NOT shipped (per ADR-0005 — schema lives in source, not in the JAR).
+        # Pins the JAR path into $GITHUB_ENV so subsequent steps reference it.
+        run: |
+          cd deequ-source
+          mvn -B -ntp -DskipTests package
+          DEEQU_JAR=$(ls target/deequ_2.12-*-spark-3.5.jar | grep -v 'tests\|original' | head -1)
+          if [ -z "$DEEQU_JAR" ] || [ ! -f "$DEEQU_JAR" ]; then
+            echo "ERROR: deequ JAR not produced under deequ-source/target/"
+            ls -la target/ || true
+            exit 1
+          fi
+          echo "DEEQU_JAR=$PWD/$DEEQU_JAR" >> $GITHUB_ENV
+          echo "Built deequ JAR: $PWD/$DEEQU_JAR"
+
       - name: Download Spark 3.5
         run: |
           curl -L -o spark-3.5.0-bin-hadoop3.tgz \
@@ -34,31 +79,21 @@ jobs:
           tar -xzf spark-3.5.0-bin-hadoop3.tgz
           echo "SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3" >> $GITHUB_ENV
 
-      - name: Download Deequ JAR
-        # The pinned JAR must match the schema in pydeequ/v2/proto/.
-        # When the schema changes, both the deequ JAR (built from the
-        # corresponding deequ branch) and this URL need to update in the
-        # same PR pair (per ADR-0004 in the deequ repo).
-        run: |
-          curl -L -o deequ_2.12-2.1.0b-spark-3.5.jar \
-            https://github.com/awslabs/python-deequ/releases/download/v2.0.0b1/deequ_2.12-2.1.0b-spark-3.5.jar
-
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip setuptools
-          pip install poetry==1.7.1
+          pip install "poetry>=2.0,<3.0"
           poetry install
           poetry add "pyspark[connect]==3.5.0"
 
       - name: Verify checked-in proto stubs are not stale
-        # ADR-0005 drift safeguard: regenerate the stubs from the JAR's
-        # bundled .proto and assert the diff is empty.
-        # NOTE: this requires a JAR that ships META-INF/protobuf/deequ_connect.proto
-        # — only deequ JARs built from the protobuf-stage1 branch onward do.
-        # Until the matching JAR is released, this step is skipped.
-        if: false
+        # ADR-0005 drift safeguard: regenerate the stubs from the deequ
+        # source tree we just cloned, assert the diff is empty. Catches
+        # cases where the .proto changed in deequ but pydeequ/v2/proto/*_pb2.py
+        # weren't refreshed via scripts/regen_proto.py.
         run: |
-          DEEQU_JAR_PATH=$PWD/deequ_2.12-2.1.0b-spark-3.5.jar poetry run python scripts/regen_proto.py
+          DEEQU_PROTO_DIR=$PWD/deequ-source/src/main/protobuf \
+            poetry run python scripts/regen_proto.py
           git diff --exit-code pydeequ/v2/proto/
 
       - name: Run V2 unit tests
@@ -69,7 +104,7 @@ jobs:
         run: |
           $SPARK_HOME/sbin/start-connect-server.sh \
             --packages org.apache.spark:spark-connect_2.12:3.5.0 \
-            --jars $PWD/deequ_2.12-2.1.0b-spark-3.5.jar \
+            --jars $DEEQU_JAR \
             --conf spark.connect.extensions.relation.classes=com.amazon.deequ.connect.DeequRelationPlugin
           # Wait for the gRPC port to accept connections (fail fast if startup broke)
           timeout 60 bash -c 'until (echo > /dev/tcp/localhost/15002) >/dev/null 2>&1; do sleep 1; done'
