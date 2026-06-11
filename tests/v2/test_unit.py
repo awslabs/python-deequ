@@ -4,7 +4,8 @@ Unit tests for PyDeequ V2 Spark Connect module.
 
 These tests verify the Python client API works correctly without requiring a
 Spark session. They cover protobuf serialization of predicates, checks, and
-analyzers under the Stage 1 schema (oneof arms per builder method).
+analyzers under the Stage 2 schema (oneof arms throughout, including the
+Predicate-level Comparison/Range split).
 """
 
 import unittest
@@ -33,33 +34,37 @@ class TestPredicates(unittest.TestCase):
 
     Expected values from deequ_connect.proto's CompareOp enum:
         COMPARE_OP_UNSPECIFIED = 0, EQ = 1, NE = 2, GT = 3, GE = 4,
-        LT = 5, LE = 6, BETWEEN = 7
+        LT = 5, LE = 6
+    (BETWEEN was removed in Stage 2 — range checks use the `range` arm.)
     """
 
     def test_eq_predicate(self):
         p = eq(100)
         msg = p.to_proto()
-        self.assertEqual(msg.op, 1)  # COMPARE_OP_EQ
-        self.assertEqual(msg.value, 100.0)
+        self.assertEqual(msg.WhichOneof("body"), "comparison")
+        self.assertEqual(msg.comparison.op, 1)  # COMPARE_OP_EQ
+        self.assertEqual(msg.comparison.value, 100.0)
 
     def test_gte_predicate(self):
         p = gte(0.95)
         msg = p.to_proto()
-        self.assertEqual(msg.op, 4)  # COMPARE_OP_GE
-        self.assertEqual(msg.value, 0.95)
+        self.assertEqual(msg.WhichOneof("body"), "comparison")
+        self.assertEqual(msg.comparison.op, 4)  # COMPARE_OP_GE
+        self.assertEqual(msg.comparison.value, 0.95)
 
     def test_between_predicate(self):
         p = between(10, 20)
         msg = p.to_proto()
-        self.assertEqual(msg.op, 7)  # COMPARE_OP_BETWEEN
-        self.assertEqual(msg.lower_bound, 10.0)
-        self.assertEqual(msg.upper_bound, 20.0)
+        self.assertEqual(msg.WhichOneof("body"), "range")
+        self.assertEqual(msg.range.lower, 10.0)
+        self.assertEqual(msg.range.upper, 20.0)
 
     def test_is_one_predicate(self):
         p = is_one()
         msg = p.to_proto()
-        self.assertEqual(msg.op, 1)  # COMPARE_OP_EQ
-        self.assertEqual(msg.value, 1.0)
+        self.assertEqual(msg.WhichOneof("body"), "comparison")
+        self.assertEqual(msg.comparison.op, 1)  # COMPARE_OP_EQ
+        self.assertEqual(msg.comparison.value, 1.0)
 
 
 class TestCheckBuilder(unittest.TestCase):
@@ -86,10 +91,11 @@ class TestCheckBuilder(unittest.TestCase):
 
         self.assertEqual(msg.constraints[1].WhichOneof("body"), "has_completeness")
         self.assertEqual(msg.constraints[1].has_completeness.column, "email")
-        self.assertEqual(msg.constraints[1].has_completeness.assertion.op, 4)  # GE
+        self.assertEqual(
+            msg.constraints[1].has_completeness.assertion.comparison.op, 4)  # GE
 
         self.assertEqual(msg.constraints[2].WhichOneof("body"), "has_size")
-        self.assertEqual(msg.constraints[2].has_size.assertion.op, 1)  # EQ
+        self.assertEqual(msg.constraints[2].has_size.assertion.comparison.op, 1)  # EQ
 
     def test_check_warning_level(self):
         check = Check(CheckLevel.Warning, "Warning check")

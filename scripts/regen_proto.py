@@ -1,19 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-Regenerate Python protobuf stubs from a deequ JAR.
+Regenerate Python protobuf stubs from the deequ proto sources.
 
-Per ADR-0005 (in the deequ repo), the canonical `.proto` schema lives in
-the deequ repo. The generated `_pb2.py` and `_pb2.pyi` files in
-`pydeequ/v2/proto/` are checked in and committed alongside the source
-(GraphFrames pattern). This script is a developer convenience: run it
-manually whenever the schema changes in the deequ repo, then commit the
-regenerated stubs.
+Per ADR-0005 and ADR-0006, the canonical .proto schema lives in the deequ
+repo, split per surface (common.proto, verification.proto, analysis.proto,
+column_profiler.proto, constraint_suggestion.proto). The generated _pb2.py
+and _pb2.pyi files in `pydeequ/v2/proto/` are checked in alongside the
+source (GraphFrames pattern). This script is a developer convenience: run
+it manually whenever any .proto changes in the deequ repo, then commit
+the diff.
 
 Usage:
-    DEEQU_JAR_PATH=/path/to/deequ_2.12-X.Y.Z.jar python scripts/regen_proto.py
+    DEEQU_PROTO_DIR=/path/to/deequ/src/main/protobuf python scripts/regen_proto.py
 
-CI also runs this script and asserts `git diff --exit-code pydeequ/v2/proto/`
-to catch stale stubs.
+Backwards compatibility: the legacy DEEQU_PROTO_PATH (pointing at a single
+.proto file) is still accepted; the script will use its parent directory.
 """
 from __future__ import annotations
 
@@ -21,92 +22,98 @@ import os
 import shutil
 import subprocess
 import sys
-import zipfile
 from pathlib import Path
-
-PROTO_RESOURCE_PATH = "META-INF/protobuf/deequ_connect.proto"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROTO_OUT_DIR = REPO_ROOT / "pydeequ" / "v2" / "proto"
 
 
-def resolve_jar_path() -> Path:
-    """Require an explicit local JAR path. No download fallback (per ADR-0005)."""
-    raw = os.environ.get("DEEQU_JAR_PATH")
-    if not raw:
-        sys.exit(
-            "DEEQU_JAR_PATH is required. Set it to a locally-built deequ JAR, e.g.:\n"
-            "  DEEQU_JAR_PATH=/path/to/deequ/target/deequ_2.12-X.Y.Z.jar "
-            "python scripts/regen_proto.py"
-        )
-    path = Path(raw).expanduser().resolve()
-    if not path.exists():
-        sys.exit(f"DEEQU_JAR_PATH points to a missing file: {path}")
+def resolve_proto_dir() -> Path:
+    """Locate the directory containing the .proto source files."""
+    raw_dir = os.environ.get("DEEQU_PROTO_DIR")
+    if raw_dir:
+        path = Path(raw_dir).expanduser().resolve()
+    else:
+        # Backwards-compatible fallback: a single .proto path.
+        raw_path = os.environ.get("DEEQU_PROTO_PATH")
+        if not raw_path:
+            sys.exit(
+                "DEEQU_PROTO_DIR is required. Set it to the directory containing "
+                "the deequ .proto sources, e.g.:\n"
+                "  DEEQU_PROTO_DIR=/path/to/deequ/src/main/protobuf "
+                "python scripts/regen_proto.py"
+            )
+        path = Path(raw_path).expanduser().resolve().parent
+    if not path.is_dir():
+        sys.exit(f"Proto source directory does not exist: {path}")
     return path
 
 
-def extract_proto(jar: Path) -> Path:
-    """Extract META-INF/protobuf/deequ_connect.proto from the JAR.
-
-    Note: until ADR-0005's drift-check pattern is wired into the deequ build,
-    we can either pin to a JAR that does ship the .proto under META-INF/, or
-    point this script at the schema directly via DEEQU_PROTO_PATH. Today the
-    deequ JAR no longer ships the .proto (per ADR-0005) — pass the raw .proto
-    via DEEQU_PROTO_PATH.
-    """
-    proto_override = os.environ.get("DEEQU_PROTO_PATH")
-    if proto_override:
-        src = Path(proto_override).expanduser().resolve()
-        if not src.exists():
-            sys.exit(f"DEEQU_PROTO_PATH points to a missing file: {src}")
-        dst = PROTO_OUT_DIR / "deequ_connect.proto"
-        shutil.copyfile(src, dst)
-        print(f"Copied .proto -> {dst}")
-        return dst
-
+def copy_protos(src_dir: Path) -> list[Path]:
+    """Copy all .proto files from src_dir to PROTO_OUT_DIR. Return their dst paths."""
     PROTO_OUT_DIR.mkdir(parents=True, exist_ok=True)
-    proto_dst = PROTO_OUT_DIR / "deequ_connect.proto"
-    with zipfile.ZipFile(jar) as zf:
-        names = set(zf.namelist())
-        if PROTO_RESOURCE_PATH not in names:
-            sys.exit(
-                f"{jar} is missing {PROTO_RESOURCE_PATH}. "
-                "Either rebuild the JAR with that resource or set DEEQU_PROTO_PATH "
-                "to the .proto file directly."
-            )
-        with zf.open(PROTO_RESOURCE_PATH) as src, open(proto_dst, "wb") as dst:
-            shutil.copyfileobj(src, dst)
-    print(f"Extracted .proto -> {proto_dst}")
-    return proto_dst
+    # Wipe stale .proto files in the destination before copying fresh ones.
+    for stale in PROTO_OUT_DIR.glob("*.proto"):
+        stale.unlink()
+    sources = sorted(src_dir.glob("*.proto"))
+    if not sources:
+        sys.exit(f"No .proto files found in {src_dir}")
+    dsts = []
+    for src in sources:
+        dst = PROTO_OUT_DIR / src.name
+        shutil.copyfile(src, dst)
+        dsts.append(dst)
+        print(f"Copied {src.name} -> {dst}")
+    return dsts
 
 
-def run_protoc(proto: Path) -> None:
-    """Generate _pb2.py and _pb2.pyi using grpcio-tools' bundled protoc."""
+def run_protoc(protos: list[Path]) -> None:
+    """Generate _pb2.py and _pb2.pyi for every .proto using grpcio-tools."""
     cmd = [
         sys.executable,
         "-m",
         "grpc_tools.protoc",
-        f"--proto_path={proto.parent}",
+        f"--proto_path={PROTO_OUT_DIR}",
         f"--python_out={PROTO_OUT_DIR}",
         f"--pyi_out={PROTO_OUT_DIR}",
-        str(proto),
-    ]
+    ] + [str(p) for p in protos]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)
-    pb2 = PROTO_OUT_DIR / "deequ_connect_pb2.py"
-    if not pb2.exists():
-        sys.exit(f"protoc did not produce {pb2}")
-    print(f"Generated stubs -> {pb2}")
+    for p in protos:
+        pb2 = PROTO_OUT_DIR / f"{p.stem}_pb2.py"
+        if not pb2.exists():
+            sys.exit(f"protoc did not produce {pb2}")
+        print(f"Generated stubs -> {pb2}")
+    # Post-process: protoc emits absolute `import x_pb2 as y` for cross-file
+    # references, which won't resolve when the stubs live inside a Python
+    # package. Rewrite to relative imports.
+    fix_cross_file_imports()
+
+
+def fix_cross_file_imports() -> None:
+    """Rewrite `import X_pb2 as Y` -> `from . import X_pb2 as Y` in generated .py files."""
+    import re
+
+    pattern = re.compile(r"^import (\w+_pb2) as (\w+)$", re.MULTILINE)
+    for pb2 in PROTO_OUT_DIR.glob("*_pb2.py"):
+        text = pb2.read_text()
+        new_text = pattern.sub(r"from . import \1 as \2", text)
+        if new_text != text:
+            pb2.write_text(new_text)
+            print(f"Fixed cross-file imports in {pb2.name}")
+
+
+def cleanup_intermediate_protos() -> None:
+    """Remove the .proto files we copied — they're not part of the wheel."""
+    for stale in PROTO_OUT_DIR.glob("*.proto"):
+        stale.unlink()
 
 
 def main() -> None:
-    if os.environ.get("DEEQU_PROTO_PATH"):
-        # The .proto path was provided directly; skip JAR resolution.
-        proto = extract_proto(jar=Path("/dev/null"))
-    else:
-        jar = resolve_jar_path()
-        proto = extract_proto(jar)
-    run_protoc(proto)
+    src_dir = resolve_proto_dir()
+    protos = copy_protos(src_dir)
+    run_protoc(protos)
+    cleanup_intermediate_protos()
 
 
 if __name__ == "__main__":

@@ -290,9 +290,12 @@ class ConstraintSuggestionRunBuilder:
             msg.low_cardinality_histogram_threshold = self._low_cardinality_threshold
 
         # Set KLL profiling
+        # Stage 2: when KLL is enabled, always send concrete parameters
+        # (server-side fallback removed; client-side defaults via KLLParameters()).
         msg.enable_kll_profiling = self._enable_kll
-        if self._kll_parameters:
-            msg.kll_parameters.CopyFrom(self._kll_parameters.to_proto())
+        if self._enable_kll:
+            params = self._kll_parameters or KLLParameters()
+            msg.kll_parameters.CopyFrom(params.to_proto())
 
         # Set predefined types
         if self._predefined_types:

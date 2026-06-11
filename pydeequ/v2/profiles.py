@@ -244,10 +244,13 @@ class ColumnProfilerRunBuilder:
         if self._low_cardinality_threshold is not None:
             msg.low_cardinality_histogram_threshold = self._low_cardinality_threshold
 
-        # Set KLL profiling
+        # Set KLL profiling. Stage 2: when enabled, always send concrete
+        # parameters — the server-side fallback was removed in favor of
+        # client-side defaults (KLLParameters() dataclass defaults).
         msg.enable_kll_profiling = self._enable_kll
-        if self._kll_parameters:
-            msg.kll_parameters.CopyFrom(self._kll_parameters.to_proto())
+        if self._enable_kll:
+            params = self._kll_parameters or KLLParameters()
+            msg.kll_parameters.CopyFrom(params.to_proto())
 
         # Set predefined types
         if self._predefined_types:

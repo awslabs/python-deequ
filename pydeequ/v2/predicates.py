@@ -6,6 +6,11 @@ These predicates replace Python lambda functions that were used in the Py4J-base
 PyDeequ. Since lambdas cannot be serialized over Spark Connect's gRPC channel,
 we use these predicate classes that serialize to protobuf messages.
 
+Stage 2: Predicate is a `oneof body { Comparison; Range; }`. `Comparison`
+carries a binary CompareOp (EQ/NE/GT/GE/LT/LE); `Range` carries an inclusive
+[lower, upper] interval. BETWEEN is no longer a CompareOp variant — it is the
+Range arm.
+
 Example usage:
     from pydeequ.v2.predicates import gte, eq, between
 
@@ -38,13 +43,16 @@ class Predicate(ABC):
 
 @dataclass
 class Comparison(Predicate):
-    """Comparison predicate for single-value comparisons."""
+    """Comparison predicate: x <op> value."""
 
     op: "proto.Predicate.CompareOp.ValueType"
     value: float
 
     def to_proto(self) -> proto.Predicate:
-        return proto.Predicate(op=self.op, value=self.value)
+        msg = proto.Predicate()
+        msg.comparison.op = self.op
+        msg.comparison.value = self.value
+        return msg
 
     def __repr__(self) -> str:
         op_map = {
@@ -60,17 +68,16 @@ class Comparison(Predicate):
 
 @dataclass
 class Between(Predicate):
-    """Between predicate for range checks (inclusive)."""
+    """Inclusive range predicate: lower <= x <= upper."""
 
     lower: float
     upper: float
 
     def to_proto(self) -> proto.Predicate:
-        return proto.Predicate(
-            op=proto.Predicate.CompareOp.COMPARE_OP_BETWEEN,
-            lower_bound=self.lower,
-            upper_bound=self.upper,
-        )
+        msg = proto.Predicate()
+        msg.range.lower = self.lower
+        msg.range.upper = self.upper
+        return msg
 
     def __repr__(self) -> str:
         return f"{self.lower} <= x <= {self.upper}"
@@ -112,7 +119,7 @@ def lte(value: Union[int, float]) -> Predicate:
 
 
 def between(lower: Union[int, float], upper: Union[int, float]) -> Predicate:
-    """Create a between predicate (lower <= x <= upper)."""
+    """Create an inclusive range predicate (lower <= x <= upper)."""
     return Between(float(lower), float(upper))
 
 
