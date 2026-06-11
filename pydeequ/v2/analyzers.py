@@ -250,16 +250,26 @@ class Histogram(_ConnectAnalyzer):
 
 @dataclass
 class Compliance(_ConnectAnalyzer):
-    """Fraction of rows satisfying a SQL predicate, named by `instance`."""
+    """
+    Fraction of rows satisfying a SQL predicate, named by `instance`.
+
+    `columns` should list every column name referenced in `predicate`. Deequ
+    uses it for an upfront precondition check so missing-column mistakes
+    surface as a clear DeequAnalysisException rather than a confusing
+    Spark SQL error during execution. Empty list disables the check.
+    """
 
     instance: str
     predicate: str
     where: Optional[str] = None
+    columns: Sequence[str] = ()
 
     def to_proto(self) -> proto.Analyzer:
         msg = proto.Analyzer()
         msg.compliance.instance = self.instance
         msg.compliance.predicate = self.predicate
+        if self.columns:
+            msg.compliance.columns.extend(self.columns)
         _set_where(msg, self.where)
         return msg
 

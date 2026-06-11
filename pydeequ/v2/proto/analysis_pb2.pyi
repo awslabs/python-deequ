@@ -59,12 +59,14 @@ class HistogramSpec(_message.Message):
     def __init__(self, column: _Optional[str] = ..., max_detail_bins: _Optional[int] = ...) -> None: ...
 
 class ComplianceAnalyzerSpec(_message.Message):
-    __slots__ = ("instance", "predicate")
+    __slots__ = ("instance", "predicate", "columns")
     INSTANCE_FIELD_NUMBER: _ClassVar[int]
     PREDICATE_FIELD_NUMBER: _ClassVar[int]
+    COLUMNS_FIELD_NUMBER: _ClassVar[int]
     instance: str
     predicate: str
-    def __init__(self, instance: _Optional[str] = ..., predicate: _Optional[str] = ...) -> None: ...
+    columns: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, instance: _Optional[str] = ..., predicate: _Optional[str] = ..., columns: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class PatternMatchSpec(_message.Message):
     __slots__ = ("column", "pattern")
