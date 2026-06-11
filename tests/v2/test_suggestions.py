@@ -313,18 +313,26 @@ class TestSuggestionEdgeCases:
 
 
 class TestRulesEnum:
-    """Unit tests for Rules enum (no Spark needed)."""
+    """Unit tests for Rules enum (no Spark needed).
+
+    Stage 1 (ADR-0001) changed the underlying type from a string ("DEFAULT")
+    to the proto ConstraintRuleSet enum value (an int). Tests assert against
+    that wire-format contract: the value MUST equal the matching proto enum
+    member, since `Rules.DEFAULT.value` is what gets serialized into
+    `DeequConstraintSuggestionRelation.constraint_rules` on the wire.
+    """
 
     def test_rules_values(self):
-        """Test Rules enum has expected values."""
-        assert Rules.DEFAULT.value == "DEFAULT"
-        assert Rules.STRING.value == "STRING"
-        assert Rules.NUMERICAL.value == "NUMERICAL"
-        assert Rules.COMMON.value == "COMMON"
-        assert Rules.EXTENDED.value == "EXTENDED"
+        """Each Rules entry maps 1:1 to its ConstraintRuleSet proto enum."""
+        from pydeequ.v2.proto import deequ_connect_pb2 as proto
+        assert Rules.DEFAULT.value == proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_DEFAULT
+        assert Rules.STRING.value == proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_STRING
+        assert Rules.NUMERICAL.value == proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_NUMERICAL
+        assert Rules.COMMON.value == proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_COMMON
+        assert Rules.EXTENDED.value == proto.ConstraintRuleSet.CONSTRAINT_RULE_SET_EXTENDED
 
     def test_all_rules_defined(self):
-        """Test all expected rules are defined."""
-        expected_rules = {"DEFAULT", "STRING", "NUMERICAL", "COMMON", "EXTENDED"}
-        actual_rules = {r.value for r in Rules}
-        assert actual_rules == expected_rules
+        """All five rule sets are present; the human-readable name is the enum member name."""
+        expected_names = {"DEFAULT", "STRING", "NUMERICAL", "COMMON", "EXTENDED"}
+        actual_names = {r.name for r in Rules}
+        assert actual_names == expected_names
