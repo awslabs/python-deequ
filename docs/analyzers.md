@@ -35,6 +35,39 @@ Here are the current supported functionalities of Analyzers.
 | UniqueValueRatio | UniqueValueRatio(columns) | Done|
 | AnalyzerContext | successMetricsAsDataFrame(spark_session, analyzerContext) | Done |
 |   | successMetricsAsJson(spark_session, analyzerContext) | Done |
+| Distance | Distance(spark_session).categoricalDistance(distribution1, distribution2, method) | Done |
 
 
+## Distance (categorical feature drift)
+
+`Distance` wraps Deequ's `com.amazon.deequ.analyzers.Distance` object to compute
+the distance (feature drift) between two categorical distributions, using either
+the L-infinity or chi-squared method.
+
+Unlike the other analyzers, Deequ's `Distance` is a static object rather than an
+`Analyzer`, so it is *not* added through `addAnalyzer(...)`. Instead, call it
+directly with two distributions, each a `dict` of `{category: count}` (for
+example, the output of the `Histogram` analyzer).
+
+```python
+from pydeequ.analyzers import Distance, CategoricalDistanceMethod
+
+distance = Distance(spark)
+
+# Two distributions as {category: count}
+reference = {"a": 10, "b": 20, "c": 30}
+current = {"a": 11, "b": 20, "c": 29}
+
+# L-infinity distance (default)
+linf = distance.categoricalDistance(reference, current)
+
+# Chi-squared distance
+chi = distance.categoricalDistance(
+    reference, current, method=CategoricalDistanceMethod.Chisquare
+)
+```
+
+Only the categorical path is supported. The numerical path
+(`numericalDistance`) requires a JVM `QuantileNonSample[Double]` and is out of
+scope (see issue #164).
  

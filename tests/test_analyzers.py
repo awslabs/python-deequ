@@ -12,9 +12,11 @@ from pydeequ.analyzers import (
     ApproxQuantiles,
     Completeness,
     Compliance,
+    CategoricalDistanceMethod,
     Correlation,
     CountDistinct,
     DataType,
+    Distance,
     Distinctness,
     Entropy,
     Histogram,
@@ -559,6 +561,64 @@ class TestAnalyzers(unittest.TestCase):
     @pytest.mark.xfail(reason="@unittest.expectedFailure")
     def test_fail_UniqueValueRatio(self):
         self.assertEqual(self.UniqueValueRatio(["a", "a"]), [])
+
+
+    def test_Distance_categorical_LInfinity(self):
+        distance = Distance(self.spark)
+        # Identical distributions -> zero raw L-infinity distance.
+        dist = {"a": 10, "b": 20, "c": 30}
+        self.assertEqual(
+            distance.categoricalDistance(dist, dist, correctForLowNumberOfSamples=True), 0.0
+        )
+
+        # Raw L-infinity is the max abs difference of relative frequencies.
+        # dist1: a=0.5, b=0.5 ; dist2: a=1.0 -> max diff = 0.5
+        result = distance.categoricalDistance(
+            {"a": 5, "b": 5}, {"a": 10}, correctForLowNumberOfSamples=True
+        )
+        self.assertAlmostEqual(result, 0.5)
+        self.assertTrue(0.0 <= result <= 1.0)
+
+        # With large samples, the default KS-corrected L-infinity is positive.
+        corrected = distance.categoricalDistance(
+            {"a": 1000, "b": 1000}, {"a": 2000, "b": 10}
+        )
+        self.assertGreater(corrected, 0.0)
+
+    def test_Distance_categorical_Chisquare(self):
+        distance = Distance(self.spark)
+        result = distance.categoricalDistance(
+            {"a": 100, "b": 100, "c": 100},
+            {"a": 80, "b": 100, "c": 120},
+            method=CategoricalDistanceMethod.Chisquare,
+        )
+        # A non-identical pair yields a strictly positive chi-squared distance.
+        self.assertGreater(result, 0.0)
+        self.assertIsInstance(result, float)
+
+    def test_Distance_categorical_single_category(self):
+        distance = Distance(self.spark)
+        # Single-category distributions: each is 100% of its only key, so the
+        # relative frequencies are identical and the raw L-infinity is 0.0.
+        result = distance.categoricalDistance(
+            {"a": 7}, {"a": 42}, correctForLowNumberOfSamples=True
+        )
+        self.assertEqual(result, 0.0)
+
+    def test_Distance_categorical_empty_dict_raises(self):
+        distance = Distance(self.spark)
+        with self.assertRaises(ValueError):
+            distance.categoricalDistance({}, {"a": 1})
+        with self.assertRaises(ValueError):
+            distance.categoricalDistance({"a": 1}, {})
+        with self.assertRaises(ValueError):
+            distance.categoricalDistance({}, {})
+
+    def test_Distance_categorical_invalid_method_raises(self):
+        distance = Distance(self.spark)
+        # A non-CategoricalDistanceMethod value hits the explicit else branch.
+        with self.assertRaises(ValueError):
+            distance.categoricalDistance({"a": 1}, {"a": 1}, method="not_a_method")
 
 
 if __name__ == "__main__":
