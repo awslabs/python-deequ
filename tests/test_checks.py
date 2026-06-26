@@ -1020,6 +1020,49 @@ class TestChecks(unittest.TestCase):
             self.isGreaterThanOrEqualTo("h", "f", lambda x: x == 1), [Row(constraint_status="Failure")]
         )
 
+    def test_comparator_against_literal(self):
+        # Regression test for issue #227: comparing a column to a SQL literal
+        # (rather than another column) must not fail with
+        # "Input data does not include column <literal>!".
+        # Column "b" holds values 1, 2, 3 -> all are >= 1 and all are <= 10.
+        self.assertEqual(
+            self.isGreaterThanOrEqualTo("b", "1", hint="Cluster should have at least one element"),
+            [Row(constraint_status="Success")],
+        )
+        self.assertEqual(
+            self.isLessThanOrEqualTo("b", "10", hint="b never exceeds 10"),
+            [Row(constraint_status="Success")],
+        )
+        self.assertEqual(
+            self.isGreaterThan("b", "0"),
+            [Row(constraint_status="Success")],
+        )
+        self.assertEqual(
+            self.isLessThan("b", "100"),
+            [Row(constraint_status="Success")],
+        )
+
+    def test_fail_comparator_against_literal(self):
+        # Column "b" holds values 1, 2, 3 -> not all are >= 3.
+        self.assertEqual(
+            self.isGreaterThanOrEqualTo("b", "3"), [Row(constraint_status="Failure")]
+        )
+
+    def test_comparator_column_name_with_space(self):
+        # Regression test for issue #227 review: columnA is always a real column
+        # and must be backtick-quoted so a name containing spaces/special chars
+        # (or a SQL reserved word) produces valid SQL.
+        df = self.df.withColumnRenamed("b", "my col")
+        check = Check(self.spark, CheckLevel.Warning, "test spaced column").isGreaterThanOrEqualTo(
+            "my col", "1", hint="values in 'my col' are at least 1"
+        )
+        result = VerificationSuite(self.spark).onData(df).addCheck(check).run()
+        result_df = VerificationResult.checkResultsAsDataFrame(self.spark, result)
+        self.assertEqual(
+            result_df.select("constraint_status").collect(),
+            [Row(constraint_status="Success")],
+        )
+
     def test_where(self):
         self.assertEqual(
             self.where(lambda x: x == 2.0, "boolean='true'", "column 'boolean' has two values true"),
