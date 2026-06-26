@@ -1072,6 +1072,12 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_status="Success")],
         )
 
+    def test_hasNumberOfDistinctValues_without_binning_args(self):
+        # Issue #81: binningUdf and maxBins must be optional
+        check = Check(self.spark, CheckLevel.Warning, "test hasNumberOfDistinctValues optional")
+        result = self.run_check(check.hasNumberOfDistinctValues("b", lambda x: x == 3))
+        self.assertEqual(result, [Row(constraint_status="Success")])
+
     def test_isPrimaryKey(self):
         check = Check(self.spark, CheckLevel.Warning, "test isPrimaryKey")
         check = (
@@ -1105,6 +1111,27 @@ class TestChecks(unittest.TestCase):
 
         check = Check(self.spark, CheckLevel.Warning, "test hasHistogramValues")
         result = self.run_check(check.hasHistogramValues("b", assertion_func, None, 3))
+        self.assertEqual(result, [Row(constraint_status="Success")])
+
+    def test_hasHistogramValues_without_binning_args(self):
+        # Issue #81: binningUdf and maxBins must be optional
+        def assertion_func(x):
+            def _parse_dv(dv):
+                return dv.absolute(), dv.ratio()
+
+            distribution_values = scala_map_to_dict(self.spark._jvm, x.values())
+            dv1 = _parse_dv(distribution_values["1"])
+            dv2 = _parse_dv(distribution_values["2"])
+            dv3 = _parse_dv(distribution_values["3"])
+            return (
+                len(distribution_values) == 3
+                and dv1 == (1, 1 / 3)
+                and dv2 == (1, 1 / 3)
+                and dv3 == (1, 1 / 3)
+            )
+
+        check = Check(self.spark, CheckLevel.Warning, "test hasHistogramValues optional")
+        result = self.run_check(check.hasHistogramValues("b", assertion_func))
         self.assertEqual(result, [Row(constraint_status="Success")])
 
     def test_kllSketchSatisfies(self):
