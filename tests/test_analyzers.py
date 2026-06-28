@@ -585,6 +585,28 @@ class TestAnalyzers(unittest.TestCase):
         )
         self.assertGreater(corrected, 0.0)
 
+    def test_Distance_categorical_LInfinity_alpha(self):
+        # Exercises the LInfinity ``alpha`` path -- the only branch that marshals an
+        # ``Option[Double]`` into the JVM (``LInfinityMethod(Option.apply(alpha))``),
+        # which no other test covers. A supplied alpha scales the distance by the
+        # Kolmogorov-Smirnov critical value at that significance level.
+        distance = Distance(self.spark)
+        d1 = {"a": 1000, "b": 1000}
+        d2 = {"a": 2000, "b": 10}
+
+        with_alpha = distance.categoricalDistance(
+            d1, d2, method=CategoricalDistanceMethod.LInfinity, alpha=0.05
+        )
+        # The Option[Double] is genuinely consumed: a different significance level
+        # produces a different distance (it is ignored / unmarshalled only if broken).
+        other_alpha = distance.categoricalDistance(
+            d1, d2, method=CategoricalDistanceMethod.LInfinity, alpha=0.5
+        )
+        self.assertIsInstance(with_alpha, float)
+        self.assertIsInstance(other_alpha, float)
+        self.assertGreaterEqual(with_alpha, 0.0)
+        self.assertNotEqual(with_alpha, other_alpha)
+
     def test_Distance_categorical_Chisquare(self):
         distance = Distance(self.spark)
         result = distance.categoricalDistance(
