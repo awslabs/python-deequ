@@ -46,4 +46,4 @@ jobs:
           pip install poetry==1.7.1
           poetry install
           poetry run pip install pyspark==$SPARK_VERSION
-          poetry run python -m pytest -s tests --ignore=tests/test_bot.py
+          poetry run python -m pytest -s tests
