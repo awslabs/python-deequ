@@ -1,9 +1,11 @@
-name: PyDeequ Bot
+name: PyDeequ Bot   # load-bearing: auto-approve.yml keys on this exact name
+# To upgrade the engine, bump the SHA in BOTH `uses:` and `shadow_ref` below
+# (GitHub forbids expressions in `uses:`, so they can't share a variable).
 
 on:
   issues:
     types: [opened, reopened]
-  pull_request_target: # Runs base branch code with secrets; safe because bot fetches diff via API, never executes PR code. NEVER add ref: to checkout.
+  pull_request_target:  # base-branch checkout only; never add ref: (see SECURITY A1)
     types: [opened, reopened, synchronize]
   issue_comment:
     types: [created]
@@ -17,114 +19,41 @@ on:
         type: boolean
         default: true
 
-# Serialize per issue/PR to prevent duplicate comments
+# Union of the reusable workflow's nested-job permissions; a caller must grant
+# these or the call fails at startup (each nested job still narrows its own set).
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+  issues: write
+
+# inputs.issue_number fallback: workflow_dispatch has no event PR/issue number.
 concurrency:
   group: bot-${{ github.event.issue.number || github.event.pull_request.number || inputs.issue_number }}
   cancel-in-progress: false
 
 jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  shadow:
+    # Avoid self-triggered loops (bot's own comments) and double-reviewing a PR
+    # from both issue_comment and pull_request_target; dispatch is always manual.
     if: >-
       (github.event_name == 'workflow_dispatch') ||
       (github.actor != 'github-actions[bot]' &&
        (github.event.issue.pull_request == null || github.event_name == 'pull_request_target'))
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install requests==2.33.1 boto3==1.42.94
-
-      - name: Run analysis
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || inputs.issue_number }}
-          EVENT_TYPE: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action }}
-          EVENT_BEFORE: ${{ github.event.before }}
-          EVENT_AFTER: ${{ github.event.pull_request.head.sha || github.event.after }}
-          GITHUB_ACTOR: ${{ github.actor }}
-          KB_S3_BUCKET: ${{ secrets.KB_S3_BUCKET }}
-          KB_S3_KEY: ${{ secrets.KB_S3_KEY }}
-          BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}
-          GUARDRAIL_ID: ${{ secrets.GUARDRAIL_ID }}
-          GUARDRAIL_VERSION: ${{ secrets.GUARDRAIL_VERSION }}
-          SM_ISSUE_CLASSIFY_PROMPT: pydeequ-bot/issue-classify-prompt
-          SM_ISSUE_RESPOND_PROMPT: pydeequ-bot/issue-respond-prompt
-          SM_PR_FILE_REVIEW_PROMPT: pydeequ-bot/pr-file-review-prompt
-          SM_FOLLOWUP_PROMPT: pydeequ-bot/followup-prompt
-          CODEBASE_SRC_DIR: pydeequ
-          CODEBASE_FILE_EXT: .py
-          DRY_RUN: ${{ inputs.dry_run || 'false' }}
-          ARTIFACT_PATH: ${{ runner.temp }}/bot_result.json
-        run: python -m issue_bot.main analyze
-        working-directory: scripts
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: bot-result
-          path: ${{ runner.temp }}/bot_result.json
-          retention-days: 30
-
-  act:
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    needs: analyze
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install requests==2.33.1 boto3==1.42.94
-
-      - name: Download artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: bot-result
-          path: ${{ runner.temp }}
-
-      - name: Execute actions
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || inputs.issue_number }}
-          EVENT_TYPE: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          DRY_RUN: ${{ inputs.dry_run || 'false' }}
-          ARTIFACT_PATH: ${{ runner.temp }}/bot_result.json
-        run: python -m issue_bot.main act
-        working-directory: scripts
+    uses: sudsali/shadow/.github/workflows/shadow-review.yml@54ec94e0ca8c90d9b58ff95a2a06b175a115784e
+    with:
+      pr_number: ${{ inputs.issue_number }}
+      dry_run: ${{ inputs.dry_run && 'true' || 'false' }}
+      shadow_ref: 54ec94e0ca8c90d9b58ff95a2a06b175a115784e
+      aws_region: us-east-1
+      prompt_sm_prefix: pydeequ-bot
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      GUARDRAIL_ID: ${{ secrets.GUARDRAIL_ID }}
+      GUARDRAIL_VERSION: ${{ secrets.GUARDRAIL_VERSION }}
+      KB_S3_BUCKET: ${{ secrets.KB_S3_BUCKET }}
+      KB_S3_KEY: ${{ secrets.KB_S3_KEY }}
+      BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}
+      BEDROCK_REPORTER_MODEL_ID: ${{ vars.BEDROCK_REPORTER_MODEL_ID }}
+      BEDROCK_CRITIC_MODEL_ID: ${{ vars.BEDROCK_CRITIC_MODEL_ID }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

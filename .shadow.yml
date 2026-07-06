@@ -1,0 +1,20 @@
+# Shadow engine config for awslabs/python-deequ.
+
+codebase:
+  src_dir: pydeequ
+  file_ext: .py
+  test_dir: tests
+  language: python
+
+bot:
+  name: deequ-bot   # not pydeequ-bot: must render the <!-- deequ-bot:clean --> marker auto-approve.yml greps for
+  attribution: "Reviewed by Shadow · github.com/sudsali/shadow"
+  escalate_label: needs-human
+  max_replies: 2
+  max_runs_per_hour: 20
+
+models:
+  investigator: us.anthropic.claude-opus-4-7
+  critic: us.anthropic.claude-opus-4-7
+  reporter: us.anthropic.claude-haiku-4-5-20251001-v1:0
+  issue: us.anthropic.claude-sonnet-4-6
