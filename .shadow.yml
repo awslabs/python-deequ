@@ -7,7 +7,7 @@ codebase:
   language: python
 
 bot:
-  name: deequ-bot   # not pydeequ-bot: must render the <!-- deequ-bot:clean --> marker auto-approve.yml greps for
+  name: shadow   # renders the <!-- shadow:clean --> marker auto-approve.yml greps for
   attribution: "Reviewed by Shadow · github.com/sudsali/shadow"
   escalate_label: needs-human
   max_replies: 2

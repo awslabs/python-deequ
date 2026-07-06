@@ -1,4 +1,4 @@
-name: PyDeequ Bot   # load-bearing: auto-approve.yml keys on this exact name
+name: Shadow   # load-bearing: auto-approve.yml keys on this exact name
 # To upgrade the engine, bump the SHA in BOTH `uses:` and `shadow_ref` below
 # (GitHub forbids expressions in `uses:`, so they can't share a variable).
 
