@@ -2,8 +2,8 @@ name: Publish to PyPI
 
 # Manually triggered release, mirroring awslabs/deequ's publish flow: the
 # operator supplies the release version, the workflow sets it, builds, and
-# publishes to PyPI, then tags the release and opens a follow-up PR that bumps
-# the version in the repo. The PyPI token is never stored in GitHub — it is
+# publishes to PyPI, then tags the release and opens a follow-up PR that records
+# the released version in the repo. The PyPI token is never stored in GitHub — it is
 # fetched at run time from AWS Secrets Manager via OIDC and passed to Poetry
 # through an env var.
 
@@ -173,9 +173,11 @@ jobs:
             git push origin "v${VERSION}"
           fi
 
-      - name: Bump version and open PR
-        # Idempotent: skip if the bump branch/PR already exist or master is
-        # already at this version (e.g. a re-run after a partial failure).
+      - name: Record release version in master and open PR
+        # Records the just-released version in the repo (sets pyproject +
+        # __init__ to ${VERSION}); it does NOT advance to a next dev version.
+        # Idempotent: skip if the branch/PR already exist or master is already
+        # at this version (e.g. a re-run after a partial failure).
         run: |
           BRANCH_NAME="bump-version-${VERSION}"
           if git ls-remote --exit-code --heads origin "${BRANCH_NAME}" >/dev/null 2>&1; then
