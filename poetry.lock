@@ -815,13 +815,13 @@ virtualenv = ">=20.10.0"
 
 [[package]]
 name = "py4j"
-version = "0.10.9.5"
+version = "0.10.9.9"
 description = "Enables Python programs to dynamically access arbitrary Java objects"
 optional = true
 python-versions = "*"
 files = [
-    {file = "py4j-0.10.9.5-py2.py3-none-any.whl", hash = "sha256:52d171a6a2b031d8a5d1de6efe451cf4f5baff1a2819aabc3741c8406539ba04"},
-    {file = "py4j-0.10.9.5.tar.gz", hash = "sha256:276a4a3c5a2154df1860ef3303a927460e02e97b047dc0a47c1c3fb8cce34db6"},
+    {file = "py4j-0.10.9.9-py2.py3-none-any.whl", hash = "sha256:c7c26e4158defb37b0bb124933163641a2ff6e3a3913f7811b0ddbe07ed61533"},
+    {file = "py4j-0.10.9.9.tar.gz", hash = "sha256:f694cad19efa5bd1dee4f3e5270eb406613c974394035e5bfc4ec1aba870b879"},
 ]
 
 [[package]]
@@ -890,22 +890,23 @@ plugins = ["importlib-metadata"]
 
 [[package]]
 name = "pyspark"
-version = "3.3.2"
+version = "3.5.8"
 description = "Apache Spark Python API"
 optional = true
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "pyspark-3.3.2.tar.gz", hash = "sha256:0dfd5db4300c1f6cc9c16d8dbdfb82d881b4b172984da71344ede1a9d4893da8"},
+    {file = "pyspark-3.5.8.tar.gz", hash = "sha256:54cca0767b21b40e3953ad1d30f8601c53abf9cbda763653289cdcfcac52313c"},
 ]
 
 [package.dependencies]
-py4j = "0.10.9.5"
+py4j = ">=0.10.9.7,<0.10.9.10"
 
 [package.extras]
-ml = ["numpy (>=1.15)"]
-mllib = ["numpy (>=1.15)"]
-pandas-on-spark = ["numpy (>=1.15)", "pandas (>=1.0.5)", "pyarrow (>=1.0.0)"]
-sql = ["pandas (>=1.0.5)", "pyarrow (>=1.0.0)"]
+connect = ["googleapis-common-protos (>=1.56.4)", "grpcio (>=1.56.0)", "grpcio-status (>=1.56.0)", "numpy (>=1.15,<2)", "pandas (>=1.0.5)", "pyarrow (>=4.0.0)"]
+ml = ["numpy (>=1.15,<2)"]
+mllib = ["numpy (>=1.15,<2)"]
+pandas-on-spark = ["numpy (>=1.15,<2)", "pandas (>=1.0.5)", "pyarrow (>=4.0.0)"]
+sql = ["numpy (>=1.15,<2)", "pandas (>=1.0.5)", "pyarrow (>=4.0.0)"]
 
 [[package]]
 name = "pytest"
@@ -1298,4 +1299,4 @@ pyspark = ["pyspark"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4"
-content-hash = "9ca1d776b68eead781bf0161f4f2ee552085c8e201b482b6f78d18c06a2a5d79"
+content-hash = "fded78caf1dc1536fcb2034f8c3a21a239d21087f74bca9a02e4d0e32046b273"
