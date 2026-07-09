@@ -411,6 +411,9 @@ class TestAnalyzers(unittest.TestCase):
         )
 
     def test_Histogram_maxBins(self):
+        # Deequ 2.0.10+ emits a trailing Histogram.tailCount metric when the
+        # number of distinct values (3) exceeds maxDetailBins (2): tailCount =
+        # 3 - 2 = 1, so the final Row(value=1.0) is the rolled-up tail.
         self.assertEqual(
             self.Histogram_maxBins("b", maxDetailBins=2),
             [
@@ -419,6 +422,7 @@ class TestAnalyzers(unittest.TestCase):
                 Row(value=0.3333333333333333),
                 Row(value=1.0),
                 Row(value=0.3333333333333333),
+                Row(value=1.0),
             ],
         )
         self.assertEqual(
@@ -429,6 +433,7 @@ class TestAnalyzers(unittest.TestCase):
                 Row(value=0.3333333333333333),
                 Row(value=1.0),
                 Row(value=0.3333333333333333),
+                Row(value=1.0),
             ],
         )
 
