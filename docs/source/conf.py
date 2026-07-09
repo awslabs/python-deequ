@@ -12,6 +12,7 @@
 #
 import os
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from recommonmark.parser import CommonMarkParser
 sys.path.insert(0, os.path.abspath('../..'))
 
@@ -22,8 +23,11 @@ project = 'PyDeequ'
 copyright = 'Copyright 2020, Amazon'
 author = 'Calvin Wang, Chris Ghyzel, Joan Aoanan, Veronika Megler'
 
-# The full version, including alpha/beta/rc tags
-release = '0.0.4'
+# Track the installed package version so the docs don't drift from releases.
+try:
+    release = version("pydeequ")
+except PackageNotFoundError:
+    release = "0.0.0"
 
 
 # -- General configuration ---------------------------------------------------
