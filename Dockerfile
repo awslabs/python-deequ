@@ -21,8 +21,7 @@ COPY pyproject.toml /python-deequ
 COPY poetry.lock /python-deequ
 WORKDIR python-deequ
 
-RUN poetry install -vvv
-RUN poetry add pyspark==3.5.0 -vvv
+RUN poetry install --extras pyspark -vvv
 
 ENV SPARK_VERSION=3.5
 COPY . /python-deequ
