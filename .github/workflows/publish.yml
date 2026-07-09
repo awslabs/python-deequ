@@ -132,8 +132,9 @@ jobs:
 
   tag-and-bump:
     # Runs ONLY after a successful real publish (needs: publish gates on
-    # success). Creates the release tag as a record of what is now on PyPI (tag
-    # after publish, never before), then opens a PR recording the version.
+    # success). Creates the GitHub release (and its tag) as a record of what is
+    # now on PyPI — after publish, never before — then opens a PR recording the
+    # version.
     needs: publish
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
@@ -160,18 +161,24 @@ jobs:
       - name: Install Poetry
         run: pip install poetry==1.7.1
 
-      - name: Tag the published release
-        # Tag the exact published commit, now that PyPI has the artifact.
-        # Idempotent: skip if the tag already exists remotely.
+      - name: Create GitHub release
+        # Create a GitHub release (which also creates the v${VERSION} tag) on the
+        # exact published commit, now that PyPI has the artifact — matching the
+        # repo's historical convention of publishing Releases, not bare tags.
+        # Idempotent: skip if the release already exists. Note --target is
+        # honored only when the tag is new; on an already-existing tag GitHub
+        # ignores it (releases must always use a fresh version, per above).
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git ls-remote --exit-code --tags origin "v${VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${VERSION} already exists — skipping."
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists — skipping."
           else
-            git tag -a "v${VERSION}" "${RELEASE_SHA}" -m "Release ${VERSION}"
-            git push origin "v${VERSION}"
+            gh release create "v${VERSION}" \
+              --target "${RELEASE_SHA}" \
+              --title "v${VERSION}" \
+              --generate-notes
           fi
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Record release version in master and open PR
         # Records the just-released version in the repo (sets pyproject +
