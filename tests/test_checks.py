@@ -452,6 +452,59 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isUnique("b", "All rows are unique"), [Row(constraint_status="Success")])
         self.assertEqual(self.isUnique("email", "All rows are unique"), [Row(constraint_status="Success")])
 
+    def test_lambda_check_uses_dynamic_callback_port(self):
+        """Regression test for the py4j callback-server default-port (25334) collision.
+
+        Closes #86, #19, #7, #72, #156, #173, #198.
+
+        With older gateways PythonCallback let py4j bind the hardcoded default
+        callback port 25334. Concurrent or repeated runs on the same host that
+        used a lambda-based Check then collided with
+        ``OSError: [Errno 98] Address already in use (127.0.0.1:25334)``. The fix
+        forces a dynamic (OS-assigned) port by setting the gateway's existing
+        callback-server parameters to ``port = 0`` before starting the server the
+        stock way, so PySpark's callback wiring -- and clean shutdown -- are
+        preserved.
+
+        This test runs lambda-assertion Checks and asserts that the resulting
+        callback server is listening on a dynamic port -- never the hardcoded
+        default 25334. The second lambda assertion additionally exercises the #19
+        path: reusing PySpark's parameters keeps the JVM callback client pointed
+        at the bound port, otherwise the check would fail with "Error while
+        obtaining a new communication channel".
+
+        This test is deliberately NON-INVASIVE: it does not start, stop, restart,
+        or close the shared py4j callback server, and it does not bind any port
+        itself. Manipulating the shared callback server here was found to either
+        hang ``tearDownClass``'s ``shutdown_callback_server`` (a callback thread
+        left blocked in ``recv`` never joins) or break later lambda tests that
+        reuse the connection. So we only observe the port the production fix chose.
+        """
+        gateway = self.spark.sparkContext._gateway
+
+        # A lambda assertion ensures the py4j callback server is running (started by
+        # PythonCallback via the fix on an OS-assigned dynamic port).
+        result = self.hasSize(lambda x: x == 3.0)
+        self.assertEqual(result, [Row(constraint_status="Success")])
+
+        callback_server = gateway.get_callback_server()
+        self.assertIsNotNone(callback_server, "a lambda Check should have started the callback server")
+        listening_port = callback_server.get_listening_port()
+        self.assertNotEqual(
+            listening_port,
+            25334,
+            "Callback server must not use the hardcoded default port 25334; "
+            f"got {listening_port}",
+        )
+        self.assertGreater(listening_port, 0, "callback server should be bound to a real port")
+
+        # A second lambda assertion in the same process exercises the #19 path
+        # (the JVM callback client must point at the dynamic port). If the client
+        # were not reset, this would raise "Error while obtaining a new
+        # communication channel" instead of returning a result.
+        result2 = self.hasSize(lambda x: x >= 2.0 and x < 5.0)
+        self.assertEqual(result2, [Row(constraint_status="Success")])
+
     def test_fail_isUnique(self):
         self.assertEqual(self.isUnique("d"), [Row(constraint_status="Failure")])
         self.assertEqual(self.isUnique("f", "All rows are unique"), [Row(constraint_status="Failure")])
