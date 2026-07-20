@@ -16,6 +16,7 @@ Here are the current supported functionalities of Analyzers.
 | Compliance | Compliance(instance, predicate) | Done|
 | Correlation | Correlation(column1, column2) | Done| 
 | CountDistinct | CountDistinct(columns) | Done| 
+| CustomSql | CustomSql(expression, disambiguator) | Done| 
 | Datatype | Datatype(column) | Done| 
 | Distinctness | Distinctness(columns) | Done| 
 | Entropy | Entropy(column) | Done| 
