@@ -829,6 +829,165 @@ class UniqueValueRatio(_AnalyzerObject):
             self._jvm.scala.Option.apply(None)
         )
 
+class CategoricalDistanceMethod(Enum):
+    """
+    Enum of the categorical distance methods supported by Deequ's
+    ``com.amazon.deequ.analyzers.Distance.categoricalDistance``.
+
+    - ``LInfinity``: the L-infinity distance between the two distributions
+      (the maximum absolute difference between the per-category relative
+      frequencies). Optionally a Kolmogorov-Smirnov ``alpha`` can be supplied
+      to scale the result by the critical value.
+    - ``Chisquare``: the chi-squared distance between the two distributions,
+      with the standard Yates/Cochran corrections for low sample counts.
+    """
+
+    LInfinity = "LInfinity"
+    Chisquare = "Chisquare"
+
+
+class Distance:
+    """
+    Computes the distance (feature drift) between two categorical
+    distributions, mirroring Deequ's ``com.amazon.deequ.analyzers.Distance``
+    object.
+
+    In Deequ, ``Distance`` is a plain object exposing static-style methods
+    rather than an ``Analyzer`` subclass, so it is not added through
+    ``AnalysisRunBuilder.addAnalyzer(...)``. This class is therefore a thin,
+    faithful Python wrapper that bridges the two histograms to the JVM and
+    returns the numeric distance.
+
+    The two input distributions are absolute category counts, e.g. as produced
+    by the :class:`Histogram` analyzer. Each is a ``dict`` mapping the category
+    value (``str``) to its count (``int``).
+
+    Only the categorical path is wrapped. The numerical path
+    (``Distance.numericalDistance``) requires a JVM
+    ``QuantileNonSample[Double]`` instance which has no convenient Python
+    construction path and is intentionally left out of scope (see issue #164).
+
+    :param SparkSession spark_session: SparkSession used to reach the JVM.
+    """
+
+    def __init__(self, spark_session: SparkSession):
+        self._spark_session = spark_session
+        self._jvm = spark_session._jvm
+        self._gateway = spark_session.sparkContext._gateway
+
+    def _to_scala_mutable_long_map(self, distribution: dict):
+        """
+        Build a ``scala.collection.mutable.Map[String, Long]`` from a Python
+        dict of ``{str: int}``, as required by ``Distance.categoricalDistance``.
+
+        py4j auto-unboxes any individual ``java.lang.Long`` it returns to (or
+        receives from) Python into a Python ``int``, which then re-enters the
+        JVM as an ``Integer``. Building the map value-by-value therefore yields
+        an ``Integer``-typed map, and Deequ's ``e._2.toDouble`` throws a
+        ``ClassCastException``. To keep the values genuinely typed as ``Long``
+        without firing a Spark job, we assign the counts into a JVM
+        ``java.lang.Long[]`` array (array element slots preserve the ``Long``
+        boxing JVM-side), wrap both the key and value arrays as Scala
+        sequences, ``zip`` them, and materialize the result as a
+        ``mutable.HashMap[String, Long]``. No element is ever read back into
+        Python, so the ``Long`` typing survives end to end.
+
+        These calls use only core Scala 2.12 stdlib APIs
+        (``Predef.genericWrapArray``, ``Seq.canBuildFrom``, ``Seq.zip``,
+        ``Seq.toMap``, ``mutable.HashMap``), which are present and identical
+        across every Spark/Deequ build PyDeequ supports (3.1-3.5, all Scala
+        2.12). We do not rely on any ambient Java->Scala conversion implicits.
+        """
+        items = list(distribution.items())
+        size = len(items)
+
+        keys = self._gateway.new_array(self._jvm.java.lang.String, size)
+        values = self._gateway.new_array(self._jvm.java.lang.Long, size)
+        for index, (key, count) in enumerate(items):
+            keys[index] = str(key)
+            # Assigning a Python int into a java.lang.Long[] slot stores a
+            # genuine java.lang.Long JVM-side (verified on Deequ 2.0.8).
+            values[index] = int(count)
+
+        keys_seq = self._jvm.scala.Predef.genericWrapArray(keys)
+        values_seq = self._jvm.scala.Predef.genericWrapArray(values)
+        can_build_from = self._jvm.scala.collection.Seq.canBuildFrom()
+        zipped = keys_seq.zip(values_seq, can_build_from)
+        conforms = getattr(self._jvm.scala.Predef, "$conforms")()
+        immutable_map = zipped.toMap(conforms)
+
+        # Copy the immutable Scala Map[String, Long] into a mutable.HashMap,
+        # which is the exact type categoricalDistance expects.
+        empty_mutable = self._jvm.scala.collection.mutable.HashMap()
+        return getattr(empty_mutable, "$plus$plus$eq")(immutable_map)
+
+    def categoricalDistance(
+        self,
+        distribution1: dict,
+        distribution2: dict,
+        correctForLowNumberOfSamples: bool = False,
+        method: CategoricalDistanceMethod = CategoricalDistanceMethod.LInfinity,
+        alpha: float = None,
+        absThresholdYates: int = 5,
+        percThresholdYates: float = 0.2,
+        absThresholdCochran: int = 10,
+    ) -> float:
+        """
+        Computes the categorical distance between two distributions.
+
+        :param dict distribution1: First distribution as ``{category: count}``,
+            e.g. the histogram of a column on a reference dataset.
+        :param dict distribution2: Second distribution as ``{category: count}``,
+            e.g. the histogram of the same column on a new dataset.
+        :param bool correctForLowNumberOfSamples: If True, returns the raw
+            statistic (the unscaled L-infinity distance, or the chi-squared
+            statistic) instead of the normalized result (the
+            Kolmogorov-Smirnov-corrected L-infinity distance, or the
+            chi-squared p-value). For small samples the normalized result may
+            be 0.0, so set this to True when the sample count is low. Defaults
+            to False.
+        :param CategoricalDistanceMethod method: Distance method to use,
+            ``LInfinity`` (default) or ``Chisquare``.
+        :param float alpha: Only used for ``LInfinity``. Optional
+            Kolmogorov-Smirnov alpha used to scale the distance by the critical
+            value. Ignored for ``Chisquare``.
+        :param int absThresholdYates: Only used for ``Chisquare``. Absolute
+            threshold for the Yates correction. Defaults to 5.
+        :param float percThresholdYates: Only used for ``Chisquare``.
+            Percentage threshold for the Yates correction. Defaults to 0.2.
+        :param int absThresholdCochran: Only used for ``Chisquare``. Absolute
+            threshold for the Cochran correction. Defaults to 10.
+        :return float: The computed distance between the two distributions.
+        :raises ValueError: If either distribution is empty.
+        """
+        if not distribution1 or not distribution2:
+            raise ValueError(
+                "Both distribution1 and distribution2 must be non-empty "
+                "dicts of {category: count}."
+            )
+
+        sample1 = self._to_scala_mutable_long_map(distribution1)
+        sample2 = self._to_scala_mutable_long_map(distribution2)
+
+        # LInfinityMethod and ChisquareMethod are case classes nested inside the
+        # Deequ ``Distance`` object, so they are reached via Distance.<name>.
+        _distance = self._jvm.com.amazon.deequ.analyzers.Distance
+        if method == CategoricalDistanceMethod.LInfinity:
+            jvm_method = _distance.LInfinityMethod(self._jvm.scala.Option.apply(alpha))
+        elif method == CategoricalDistanceMethod.Chisquare:
+            jvm_method = _distance.ChisquareMethod(
+                int(absThresholdYates),
+                float(percThresholdYates),
+                int(absThresholdCochran),
+            )
+        else:
+            raise ValueError(f"{method} is not a valid CategoricalDistanceMethod")
+
+        return _distance.categoricalDistance(
+            sample1, sample2, correctForLowNumberOfSamples, jvm_method
+        )
+
+
 class DataTypeInstances(Enum):
     """
     An enum class that types columns to scala datatypes
