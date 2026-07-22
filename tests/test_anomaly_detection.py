@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
 import unittest
 
 import pytest
@@ -282,13 +281,6 @@ class TestAnomalies(unittest.TestCase):
             print(df.collect())
             return df.select("check_status").collect()
 
-    @pytest.mark.xfail(
-        os.environ.get("SPARK_VERSION", "").startswith(("3.1", "3.2")),
-        reason=(
-            "Not supported in Spark < 3.3: breeze.stats.DescriptiveStats "
-            "is in unnamed module of loader 'app'"
-        )
-    )
     def test_BatchNormalStrategy(self):
 
         # Interval is inclusive, so meet the requirements upper value is up to 9
@@ -357,13 +349,6 @@ class TestAnomalies(unittest.TestCase):
             [Row(check_status="Success")],
         )
 
-    @pytest.mark.xfail(
-        os.environ.get("SPARK_VERSION", "").startswith(("3.1", "3.2")),
-        reason=(
-            "Not supported in Spark < 3.3: breeze.stats.DescriptiveStats "
-            "is in unnamed module of loader 'app'"
-        )
-    )
     def test_holtWinters(self):
         # must have 15 points of data
         self.assertEqual(self.HoltWinters(Size(), 1, self.df_1), [Row(check_status="Success")])

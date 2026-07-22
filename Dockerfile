@@ -5,12 +5,12 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get install -y software-properties-common
 RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get install -y python3.8 python3-pip
-RUN apt-get install -y python3.8-distutils
-RUN apt-get install -y openjdk-11-jdk
+RUN apt-get install -y python3.9 python3-pip
+RUN apt-get install -y python3.9-distutils
+RUN apt-get install -y openjdk-17-jdk
 
 # Update symlink to point to latest
-RUN rm /usr/bin/python3 && ln -s /usr/bin/python3.8 /usr/bin/python3
+RUN rm /usr/bin/python3 && ln -s /usr/bin/python3.9 /usr/bin/python3
 RUN python3 --version
 RUN pip3 --version
 RUN java -version
@@ -21,8 +21,7 @@ COPY pyproject.toml /python-deequ
 COPY poetry.lock /python-deequ
 WORKDIR python-deequ
 
-RUN poetry install -vvv
-RUN poetry add pyspark==3.5.0 -vvv
+RUN poetry install --extras pyspark -vvv
 
 ENV SPARK_VERSION=3.5
 COPY . /python-deequ

@@ -29,6 +29,8 @@ You can install [PyDeequ via pip](https://pypi.org/project/pydeequ/).
 pip install pydeequ
 ```
 
+> **Supported Spark version:** PyDeequ 1.7.0+ tracks the Deequ 2.0.21 JVM library, which is published for **Spark 3.5 only**. For Spark 3.1–3.4, use PyDeequ 1.6.0 (the last release supporting them, on Deequ 2.0.8).
+
 ### Set up a PySpark session
 ```python
 from pyspark.sql import SparkSession, Row
@@ -214,8 +216,8 @@ Install Java Now open favourite terminal and enter the following:
 List the Apache Spark versions:
 $ sdk list spark
 
-To install For Spark 3
-$ sdk install spark 3.0.2
+To install For Spark 3.5
+$ sdk install spark 3.5.1
 ```
 
 ### Poetry
@@ -246,8 +248,8 @@ $ poetry run pytest
 If you have issues installing the dependencies listed above, another way to run the tests and verify your changes is through Docker. There is a Dockerfile that will install the required dependencies and run the tests in a container.
 
 ```
-docker build . -t spark-3.3-docker-test
-docker run spark-3.3-docker-test
+docker build . -t spark-3.5-docker-test
+docker run spark-3.5-docker-test
 ```
 
 ## Contributing
