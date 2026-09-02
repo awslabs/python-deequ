@@ -734,27 +734,10 @@ class Check:
         return self
 
     def _column_comparison(self, columnA, columnB, operator, description, assertion, hint):
-        """Builds a column comparison constraint via Deequ's ``satisfies``.
+        """Build a ``columnA <op> columnB`` predicate and apply it via ``satisfies``.
 
-        Deequ's native ``isLessThan``/``isGreaterThan`` family (since Deequ 2.0.x)
-        forwards ``columns = List(columnA, columnB)`` to ``satisfies``, which makes
-        Deequ require *both* operands to be existing columns. That breaks the long
-        supported column-vs-literal usage (e.g. ``isGreaterThanOrEqualTo("col", "1")``),
-        failing with ``Input data does not include column 1!`` (see issue #227).
-
-        We instead build the same Spark SQL predicate ourselves and call ``satisfies``
-        with an empty ``columns`` list (the pre-2.0 behaviour), so ``columnB`` may be
-        either a column name or a SQL literal/expression.
-
-        ``columnA`` is always a real column, so it is backtick-quoted to stay valid
-        when the name contains spaces/special characters or is a SQL reserved word.
-        ``columnB`` is left raw on purpose: it may be a column, a literal, or a SQL
-        expression, and quoting is the caller's responsibility (same as Deequ's
-        ``satisfies``).
+        ``columnB`` may be a column name or a SQL literal/expression.
         """
-        # The comparator family now genuinely routes through ``satisfies``, so its
-        # default assertion (``satisfies$default$3`` == ``_ == 1.0``) is the correct
-        # one to use; it matches each comparator's own Deequ default (also ``_ == 1.0``).
         assertion_func = (
             ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
             if assertion

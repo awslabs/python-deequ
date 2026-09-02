@@ -1049,10 +1049,7 @@ class TestChecks(unittest.TestCase):
         )
 
     def test_comparator_against_literal(self):
-        # Regression test for issue #227: comparing a column to a SQL literal
-        # (rather than another column) must not fail with
-        # "Input data does not include column <literal>!".
-        # Column "b" holds values 1, 2, 3 -> all are >= 1 and all are <= 10.
+        # column "b" holds 1, 2, 3
         self.assertEqual(
             self.isGreaterThanOrEqualTo("b", "1", hint="Cluster should have at least one element"),
             [Row(constraint_status="Success")],
@@ -1077,9 +1074,6 @@ class TestChecks(unittest.TestCase):
         )
 
     def test_comparator_column_name_with_space(self):
-        # Regression test for issue #227 review: columnA is always a real column
-        # and must be backtick-quoted so a name containing spaces/special chars
-        # (or a SQL reserved word) produces valid SQL.
         df = self.df.withColumnRenamed("b", "my col")
         check = Check(self.spark, CheckLevel.Warning, "test spaced column").isGreaterThanOrEqualTo(
             "my col", "1", hint="values in 'my col' are at least 1"
