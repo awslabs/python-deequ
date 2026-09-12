@@ -130,6 +130,25 @@ rowLevelResult_df.show()
 
 Each check produces a Boolean column (named after the check description) indicating pass/fail per row. When a single Check contains multiple constraints, they are ANDed together into one Boolean column — the row passes only if all constraints in that Check pass. Only checks with row-level-capable constraints (e.g., `isComplete`, `isContainedIn`, `hasPattern`, `isUnique`) will produce output columns.
 
+### DQDL Rules
+
+Rules can also be written in [DQDL](https://docs.aws.amazon.com/glue/latest/dg/dqdl.html) (Data Quality Definition Language). See the [Deequ README](https://github.com/awslabs/deequ#supported-dqdl-rules) for the supported rules, such as `DataFreshness` for checking how recent the data is:
+
+```python
+from pydeequ.dqdl import EvaluateDataQuality
+
+ruleset = """Rules=[
+    RowCount >= 3,
+    IsComplete "a",
+    DataFreshness "updated_at" <= 24 hours
+]"""
+
+outcomes_df = EvaluateDataQuality.process(spark, df, ruleset)
+outcomes_df.show()
+```
+
+Use `processRows()` to see which rows passed or failed each rule. It returns a dict with the `originalData`, `ruleOutcomes` and `rowLevelOutcomes` DataFrames. Rules without row-level support in Deequ (such as `RowCount` and `DataFreshness`) are listed under `DataQualityRulesSkip`. Dataset comparison rules such as `RowCountMatch "reference" >= 0.9` take their reference DataFrames through `additionalDataSources={"reference": reference_df}`.
+
 ### Repository
 
 Save to a Metrics Repository by adding the `useRepository()` and `saveOrAppendResult()` calls to your Analysis Runner.
