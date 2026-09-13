@@ -8,6 +8,7 @@ from typing import Dict, Optional
 from pyspark.sql import DataFrame, SparkSession
 
 from pydeequ.pandas_utils import ensure_pyspark_df
+from pydeequ.scala_utils import to_scala_map
 
 
 class EvaluateDataQuality:
@@ -92,4 +93,4 @@ class EvaluateDataQuality:
             alias: ensure_pyspark_df(spark_session, df)._jdf
             for alias, df in (additionalDataSources or {}).items()
         }
-        return data._jdf, rulesetDefinition, spark_session._jvm.PythonUtils.toScalaMap(sources)
+        return data._jdf, rulesetDefinition, to_scala_map(spark_session, sources)
