@@ -185,16 +185,24 @@ jobs:
         # __init__ to ${VERSION}); it does NOT advance to a next dev version.
         # Idempotent: skip if the branch/PR already exist or master is already
         # at this version (e.g. a re-run after a partial failure).
+        # continue-on-error: PyPI and the GitHub release are already done by this
+        # point, so a bookkeeping failure must not report the release as failed.
+        id: bump
+        continue-on-error: true
         run: |
           BRANCH_NAME="bump-version-${VERSION}"
           if git ls-remote --exit-code --heads origin "${BRANCH_NAME}" >/dev/null 2>&1; then
             echo "Branch ${BRANCH_NAME} already exists — skipping bump PR."
             exit 0
           fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin master
           git checkout -b "${BRANCH_NAME}" origin/master
           poetry version "${VERSION}"
           sed -i "s/^__version__ = .*/__version__ = \"${VERSION}\"/" pydeequ/__init__.py
+          grep -q "__version__ = \"${VERSION}\"" pydeequ/__init__.py || {
+            echo "::error::__init__ __version__ was not updated to ${VERSION}" >&2; exit 1; }
           if git diff --quiet -- pyproject.toml pydeequ/__init__.py; then
             echo "master already at ${VERSION} — nothing to bump."
             exit 0
@@ -209,3 +217,13 @@ jobs:
             --body "Automated version bump after publishing ${VERSION} to PyPI."
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Warn if the version was not recorded
+        if: ${{ steps.bump.outcome == 'failure' }}
+        run: |
+          echo "::warning::${VERSION} is published and tagged, but recording it in master failed."
+          {
+            echo "### Manual step required"
+            echo "\`${VERSION}\` is on PyPI and tagged \`v${VERSION}\`, but the version bump PR was not opened."
+            echo "Set \`version\` in \`pyproject.toml\` and \`__version__\` in \`pydeequ/__init__.py\` to \`${VERSION}\` in a PR."
+          } >> "$GITHUB_STEP_SUMMARY"
