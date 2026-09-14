@@ -303,32 +303,38 @@ class Check:
         self._Check = self._Check.hasUniqueValueRatio(columns_seq, assertion_func, hint, self._jvm.scala.Option.apply(None))
         return self
 
-    def hasNumberOfDistinctValues(self, column, assertion, binningUdf, maxBins, hint=None):
+    def hasNumberOfDistinctValues(self, column, assertion, binningUdf=None, maxBins=None, hint=None):
         """Creates a constraint that asserts on the number of distinct values a column has.
 
         :param str column: Column in Data Frame to run the assertion on.
         :param lambda assertion: A function that accepts an int or float parameter.
-        :param lambda binningUDF: An optional binning function.
+        :param lambda binningUDF: An optional binning function. Defaults to Deequ's default (no binning).
         :param int maxBins: Histogram details is only provided for N column values with top counts. MaxBins sets the N.
+                Defaults to Deequ's default (Histogram.MaximumAllowedDetailBins).
         :param str hint: A hint that states why a constraint could have failed.
         :return: hasNumberOfDistinctValues self: A Check object that asserts distinctness in the column.
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+        binningUdf = binningUdf if binningUdf is not None else getattr(self._Check, "hasNumberOfDistinctValues$default$3")()
+        maxBins = maxBins if maxBins is not None else getattr(self._Check, "hasNumberOfDistinctValues$default$4")()
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.hasNumberOfDistinctValues(column, assertion_func, binningUdf, maxBins, hint)
         return self
 
-    def hasHistogramValues(self, column, assertion, binningUdf, maxBins, hint=None):
+    def hasHistogramValues(self, column, assertion, binningUdf=None, maxBins=None, hint=None):
         """Creates a constraint that asserts on column's value distribution.
 
         :param str column: Column in Data Frame to run the assertion on.
         :param lambda assertion: A function that accepts an int or float parameter as a distribution input parameter.
-        :param str binningUDF: An optional binning function.
+        :param str binningUDF: An optional binning function. Defaults to Deequ's default (no binning).
         :param str maxBins: Histogram details is only provided for N column values with top counts. MaxBins sets the N.
+                Defaults to Deequ's default (Histogram.MaximumAllowedDetailBins).
         :param str hint: A hint that states why a constraint could have failed.
         :return: hasHistogramValues self: A Check object that asserts the column's value distribution in the column.
         """
         assertion_func = ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+        binningUdf = binningUdf if binningUdf is not None else getattr(self._Check, "hasHistogramValues$default$3")()
+        maxBins = maxBins if maxBins is not None else getattr(self._Check, "hasHistogramValues$default$4")()
         hint = self._jvm.scala.Option.apply(hint)
         self._Check = self._Check.hasHistogramValues(column, assertion_func, binningUdf, maxBins, hint)
         return self
