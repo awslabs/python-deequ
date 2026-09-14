@@ -4,6 +4,7 @@ Analyzers file for all the different analyzers classes in Deequ
 """
 import json
 
+from py4j.protocol import Py4JError
 from pyspark.sql import DataFrame, SparkSession, SQLContext
 
 from pydeequ.pandas_utils import ensure_pyspark_df
@@ -880,23 +881,10 @@ class Distance:
         Build a ``scala.collection.mutable.Map[String, Long]`` from a Python
         dict of ``{str: int}``, as required by ``Distance.categoricalDistance``.
 
-        py4j auto-unboxes any individual ``java.lang.Long`` it returns to (or
-        receives from) Python into a Python ``int``, which then re-enters the
-        JVM as an ``Integer``. Building the map value-by-value therefore yields
-        an ``Integer``-typed map, and Deequ's ``e._2.toDouble`` throws a
-        ``ClassCastException``. To keep the values genuinely typed as ``Long``
-        without firing a Spark job, we assign the counts into a JVM
-        ``java.lang.Long[]`` array (array element slots preserve the ``Long``
-        boxing JVM-side), wrap both the key and value arrays as Scala
-        sequences, ``zip`` them, and materialize the result as a
-        ``mutable.HashMap[String, Long]``. No element is ever read back into
-        Python, so the ``Long`` typing survives end to end.
-
-        These calls use only core Scala 2.12 stdlib APIs
-        (``Predef.genericWrapArray``, ``Seq.canBuildFrom``, ``Seq.zip``,
-        ``Seq.toMap``, ``mutable.HashMap``), which are present and identical
-        across every Spark/Deequ build PyDeequ supports (3.1-3.5, all Scala
-        2.12). We do not rely on any ambient Java->Scala conversion implicits.
+        Counts go into a ``java.lang.Long[]`` array because py4j converts a
+        ``java.lang.Long`` it hands to Python into a Python ``int``, which
+        re-enters the JVM boxed as an ``Integer``; array slots keep the ``Long``
+        boxing JVM-side.
         """
         items = list(distribution.items())
         size = len(items)
@@ -905,21 +893,18 @@ class Distance:
         values = self._gateway.new_array(self._jvm.java.lang.Long, size)
         for index, (key, count) in enumerate(items):
             keys[index] = str(key)
-            # Assigning a Python int into a java.lang.Long[] slot stores a
-            # genuine java.lang.Long JVM-side (verified on Deequ 2.0.8).
             values[index] = int(count)
 
         keys_seq = self._jvm.scala.Predef.genericWrapArray(keys)
         values_seq = self._jvm.scala.Predef.genericWrapArray(values)
-        can_build_from = self._jvm.scala.collection.Seq.canBuildFrom()
-        zipped = keys_seq.zip(values_seq, can_build_from)
-        conforms = getattr(self._jvm.scala.Predef, "$conforms")()
-        immutable_map = zipped.toMap(conforms)
+        try:
+            # Scala 2.12 zip takes an implicit CanBuildFrom; 2.13 dropped it.
+            zipped = keys_seq.zip(values_seq, self._jvm.scala.collection.Seq.canBuildFrom())
+        except Py4JError:
+            zipped = keys_seq.zip(values_seq)
 
-        # Copy the immutable Scala Map[String, Long] into a mutable.HashMap,
-        # which is the exact type categoricalDistance expects.
         empty_mutable = self._jvm.scala.collection.mutable.HashMap()
-        return getattr(empty_mutable, "$plus$plus$eq")(immutable_map)
+        return getattr(empty_mutable, "$plus$plus$eq")(zipped)
 
     def categoricalDistance(
         self,
