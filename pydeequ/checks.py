@@ -733,81 +733,80 @@ class Check:
         self._Check = self._Check.isPositive(column, assertion_func, hint)
         return self
 
+    def _column_comparison(self, columnA, columnB, operator, description, assertion, hint):
+        """Build a ``columnA <op> columnB`` predicate and apply it via ``satisfies``.
+
+        ``columnB`` may be a column name or a SQL literal/expression.
+        """
+        assertion_func = (
+            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
+            if assertion
+            else getattr(self._Check, "satisfies$default$3")()
+        )
+        hint = self._jvm.scala.Option.apply(hint)
+        column_condition = f"`{columnA}` {operator} {columnB}"
+        constraint_name = f"{columnA} is {description} {columnB}"
+        # Only columnA is always a column; columnB may be a literal or expression.
+        column_array = self._spark_session.sparkContext._gateway.new_array(self._jvm.java.lang.String, 1)
+        column_array[0] = columnA
+        columns = self._jvm.scala.Predef.genericWrapArray(column_array).toList()
+        self._Check = self._Check.satisfies(
+            column_condition,
+            constraint_name,
+            assertion_func,
+            hint,
+            columns,
+            self._jvm.scala.Option.apply(None),
+        )
+        return self
+
     def isLessThan(self, columnA, columnB, assertion=None, hint=None):
         """
         Asserts that, in each row, the value of columnA is less than the value of columnB
 
         :param str columnA: Column in DataFrame to run the assertion on.
-        :param str columnB: Column in DataFrame to run the assertion on.
+        :param str columnB: Column in DataFrame to compare against, or a SQL literal/expression.
         :param lambda assertion: A function that accepts an int or float parameter.
         :param str hint: A hint that states why a constraint could have failed.
         :return: isLessThan self : A Check object that checks the assertion on the columns.
         """
-        assertion_func = (
-            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
-            if assertion
-            else getattr(self._Check, "isLessThan$default$3")()
-        )
-        hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.isLessThan(columnA, columnB, assertion_func, hint)
-        return self
+        return self._column_comparison(columnA, columnB, "<", "less than", assertion, hint)
 
     def isLessThanOrEqualTo(self, columnA, columnB, assertion=None, hint=None):
         """
         Asserts that, in each row, the value of columnA is less than or equal to the value of columnB.
 
         :param str columnA: Column in DataFrame to run the assertion on.
-        :param str columnB: Column in DataFrame to run the assertion on.
+        :param str columnB: Column in DataFrame to compare against, or a SQL literal/expression.
         :param lambda assertion: A function that accepts an int or float parameter.
         :param str hint: A hint that states why a constraint could have failed.
         :return: isLessThanOrEqualTo self (isLessThanOrEqualTo): A Check object that checks the assertion on the columns.
         """
-        assertion_func = (
-            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
-            if assertion
-            else getattr(self._Check, "isLessThanOrEqualTo$default$3")()
-        )
-        hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.isLessThanOrEqualTo(columnA, columnB, assertion_func, hint)
-        return self
+        return self._column_comparison(columnA, columnB, "<=", "less than or equal to", assertion, hint)
 
     def isGreaterThan(self, columnA, columnB, assertion=None, hint=None):
         """
         Asserts that, in each row, the value of columnA is greater than the value of columnB
 
         :param str columnA: Column in DataFrame to run the assertion on.
-        :param str columnB: Column in DataFrame to run the assertion on.
+        :param str columnB: Column in DataFrame to compare against, or a SQL literal/expression.
         :param lambda assertion: A function that accepts an int or float parameter.
         :param str hint: A hint that states why a constraint could have failed.
         :return: isGreaterThan self: A Check object that runs the assertion on the columns.
         """
-        assertion_func = (
-            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
-            if assertion
-            else getattr(self._Check, "isGreaterThan$default$3")()
-        )
-        hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.isGreaterThan(columnA, columnB, assertion_func, hint)
-        return self
+        return self._column_comparison(columnA, columnB, ">", "greater than", assertion, hint)
 
     def isGreaterThanOrEqualTo(self, columnA, columnB, assertion=None, hint=None):
         """
         Asserts that, in each row, the value of columnA is greather than or equal to the value of columnB
 
         :param str columnA: Column in DataFrame to run the assertion on.
-        :param str columnB: Column in DataFrame to run the assertion on.
+        :param str columnB: Column in DataFrame to compare against, or a SQL literal/expression.
         :param lambda assertion: A function that accepts an int or float parameter.
         :param str hint: A hint that states why a constraint could have failed.
         :return: isGreaterThanOrEqualTo self: A Check object that runs the assertion on the columns.
         """
-        assertion_func = (
-            ScalaFunction1(self._spark_session.sparkContext._gateway, assertion)
-            if assertion
-            else getattr(self._Check, "isGreaterThanOrEqualTo$default$3")()
-        )
-        hint = self._jvm.scala.Option.apply(hint)
-        self._Check = self._Check.isGreaterThanOrEqualTo(columnA, columnB, assertion_func, hint)
-        return self
+        return self._column_comparison(columnA, columnB, ">=", "greater than or equal to", assertion, hint)
 
     def isContainedIn(self, column, allowed_values, assertion=None, hint=None):
         """
