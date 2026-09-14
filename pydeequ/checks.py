@@ -746,12 +746,16 @@ class Check:
         hint = self._jvm.scala.Option.apply(hint)
         column_condition = f"`{columnA}` {operator} {columnB}"
         constraint_name = f"{columnA} is {description} {columnB}"
+        # Only columnA is always a column; columnB may be a literal or expression.
+        column_array = self._spark_session.sparkContext._gateway.new_array(self._jvm.java.lang.String, 1)
+        column_array[0] = columnA
+        columns = self._jvm.scala.Predef.genericWrapArray(column_array).toList()
         self._Check = self._Check.satisfies(
             column_condition,
             constraint_name,
             assertion_func,
             hint,
-            self._jvm.scala.collection.Seq.empty(),
+            columns,
             self._jvm.scala.Option.apply(None),
         )
         return self
