@@ -4,6 +4,7 @@ Analyzers file for all the different analyzers classes in Deequ
 """
 import json
 
+from py4j.protocol import Py4JError
 from pyspark.sql import DataFrame, SparkSession, SQLContext
 
 from pydeequ.pandas_utils import ensure_pyspark_df
@@ -828,6 +829,149 @@ class UniqueValueRatio(_AnalyzerObject):
             self._jvm.scala.Option.apply(self.where),
             self._jvm.scala.Option.apply(None)
         )
+
+class CategoricalDistanceMethod(Enum):
+    """
+    Enum of the categorical distance methods supported by Deequ's
+    ``com.amazon.deequ.analyzers.Distance.categoricalDistance``.
+
+    - ``LInfinity``: the L-infinity distance between the two distributions
+      (the maximum absolute difference between the per-category relative
+      frequencies). Optionally a Kolmogorov-Smirnov ``alpha`` can be supplied
+      to scale the result by the critical value.
+    - ``Chisquare``: the chi-squared distance between the two distributions,
+      with the standard Yates/Cochran corrections for low sample counts.
+    """
+
+    LInfinity = "LInfinity"
+    Chisquare = "Chisquare"
+
+
+class Distance:
+    """
+    Computes the distance (feature drift) between two categorical
+    distributions, mirroring Deequ's ``com.amazon.deequ.analyzers.Distance``
+    object.
+
+    In Deequ, ``Distance`` is a plain object exposing static-style methods
+    rather than an ``Analyzer`` subclass, so it is not added through
+    ``AnalysisRunBuilder.addAnalyzer(...)``. This class is therefore a thin,
+    faithful Python wrapper that bridges the two histograms to the JVM and
+    returns the numeric distance.
+
+    The two input distributions are absolute category counts, e.g. as produced
+    by the :class:`Histogram` analyzer. Each is a ``dict`` mapping the category
+    value (``str``) to its count (``int``).
+
+    Only the categorical path is wrapped. The numerical path
+    (``Distance.numericalDistance``) requires a JVM
+    ``QuantileNonSample[Double]`` instance which has no convenient Python
+    construction path and is intentionally left out of scope (see issue #164).
+
+    :param SparkSession spark_session: SparkSession used to reach the JVM.
+    """
+
+    def __init__(self, spark_session: SparkSession):
+        self._spark_session = spark_session
+        self._jvm = spark_session._jvm
+        self._gateway = spark_session.sparkContext._gateway
+
+    def _to_scala_mutable_long_map(self, distribution: dict):
+        """
+        Build a ``scala.collection.mutable.Map[String, Long]`` from a Python
+        dict of ``{str: int}``, as required by ``Distance.categoricalDistance``.
+
+        Counts go into a ``java.lang.Long[]`` array because py4j converts a
+        ``java.lang.Long`` it hands to Python into a Python ``int``, which
+        re-enters the JVM boxed as an ``Integer``; array slots keep the ``Long``
+        boxing JVM-side.
+        """
+        items = list(distribution.items())
+        size = len(items)
+
+        keys = self._gateway.new_array(self._jvm.java.lang.String, size)
+        values = self._gateway.new_array(self._jvm.java.lang.Long, size)
+        for index, (key, count) in enumerate(items):
+            keys[index] = str(key)
+            values[index] = int(count)
+
+        keys_seq = self._jvm.scala.Predef.genericWrapArray(keys)
+        values_seq = self._jvm.scala.Predef.genericWrapArray(values)
+        try:
+            # Scala 2.12 zip takes an implicit CanBuildFrom; 2.13 dropped it.
+            zipped = keys_seq.zip(values_seq, self._jvm.scala.collection.Seq.canBuildFrom())
+        except Py4JError:
+            zipped = keys_seq.zip(values_seq)
+
+        empty_mutable = self._jvm.scala.collection.mutable.HashMap()
+        return getattr(empty_mutable, "$plus$plus$eq")(zipped)
+
+    def categoricalDistance(
+        self,
+        distribution1: dict,
+        distribution2: dict,
+        correctForLowNumberOfSamples: bool = False,
+        method: CategoricalDistanceMethod = CategoricalDistanceMethod.LInfinity,
+        alpha: float = None,
+        absThresholdYates: int = 5,
+        percThresholdYates: float = 0.2,
+        absThresholdCochran: int = 10,
+    ) -> float:
+        """
+        Computes the categorical distance between two distributions.
+
+        :param dict distribution1: First distribution as ``{category: count}``,
+            e.g. the histogram of a column on a reference dataset.
+        :param dict distribution2: Second distribution as ``{category: count}``,
+            e.g. the histogram of the same column on a new dataset.
+        :param bool correctForLowNumberOfSamples: If True, returns the raw
+            statistic (the unscaled L-infinity distance, or the chi-squared
+            statistic) instead of the normalized result (the
+            Kolmogorov-Smirnov-corrected L-infinity distance, or the
+            chi-squared p-value). For small samples the normalized result may
+            be 0.0, so set this to True when the sample count is low. Defaults
+            to False.
+        :param CategoricalDistanceMethod method: Distance method to use,
+            ``LInfinity`` (default) or ``Chisquare``.
+        :param float alpha: Only used for ``LInfinity``. Optional
+            Kolmogorov-Smirnov alpha used to scale the distance by the critical
+            value. Ignored for ``Chisquare``.
+        :param int absThresholdYates: Only used for ``Chisquare``. Absolute
+            threshold for the Yates correction. Defaults to 5.
+        :param float percThresholdYates: Only used for ``Chisquare``.
+            Percentage threshold for the Yates correction. Defaults to 0.2.
+        :param int absThresholdCochran: Only used for ``Chisquare``. Absolute
+            threshold for the Cochran correction. Defaults to 10.
+        :return float: The computed distance between the two distributions.
+        :raises ValueError: If either distribution is empty.
+        """
+        if not distribution1 or not distribution2:
+            raise ValueError(
+                "Both distribution1 and distribution2 must be non-empty "
+                "dicts of {category: count}."
+            )
+
+        sample1 = self._to_scala_mutable_long_map(distribution1)
+        sample2 = self._to_scala_mutable_long_map(distribution2)
+
+        # LInfinityMethod and ChisquareMethod are case classes nested inside the
+        # Deequ ``Distance`` object, so they are reached via Distance.<name>.
+        _distance = self._jvm.com.amazon.deequ.analyzers.Distance
+        if method == CategoricalDistanceMethod.LInfinity:
+            jvm_method = _distance.LInfinityMethod(self._jvm.scala.Option.apply(alpha))
+        elif method == CategoricalDistanceMethod.Chisquare:
+            jvm_method = _distance.ChisquareMethod(
+                int(absThresholdYates),
+                float(percThresholdYates),
+                int(absThresholdCochran),
+            )
+        else:
+            raise ValueError(f"{method} is not a valid CategoricalDistanceMethod")
+
+        return _distance.categoricalDistance(
+            sample1, sample2, correctForLowNumberOfSamples, jvm_method
+        )
+
 
 class DataTypeInstances(Enum):
     """
