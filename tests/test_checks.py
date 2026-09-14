@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 import unittest
 from typing import List, Union
 
@@ -683,7 +684,12 @@ class TestChecks(unittest.TestCase):
             [Row(constraint_status="Success")],
         )
         self.assertEqual(
-            self.hasMutualInformation("c", "b", lambda x: x == 0.7324081924454064),
+            # Spark 3.5 and 4.1 can differ by one ULP in mutual information results.
+            self.hasMutualInformation(
+                "c",
+                "b",
+                lambda x: math.isclose(x, 0.7324081924454064, rel_tol=0.0, abs_tol=1e-15),
+            ),
             [Row(constraint_status="Success")],
         )
 

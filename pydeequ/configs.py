@@ -4,10 +4,11 @@ import os
 import re
 
 
-# Deequ 2.0.10+ only publishes a spark-3.5 build; support for Spark 3.1/3.2/3.3
-# was dropped upstream, so pydeequ tracks Spark 3.5 only on Deequ 2.0.21.
+# Deequ 2.0.10+ only publishes spark-3.5 and spark-4.1 builds; support for
+# Spark 3.1/3.2/3.3 was dropped upstream, so pydeequ tracks Spark 3.5 and 4.1.
 SPARK_TO_DEEQU_COORD_MAPPING = {
     "3.5": "com.amazon.deequ:deequ:2.0.21-spark-3.5",
+    "4.1": "com.amazon.deequ:deequ:2.0.18-spark-4.1",
 }
 
 

@@ -1,5 +1,6 @@
 import pytest
 from pydeequ.configs import (
+    SPARK_TO_DEEQU_COORD_MAPPING,
     _extract_major_minor_versions,
     _get_deequ_maven_config,
     _get_spark_version,
@@ -37,5 +38,16 @@ def test_unsupported_spark_raises(monkeypatch, unsupported):
     try:
         with pytest.raises(RuntimeError, match="incompatible Spark version"):
             _get_deequ_maven_config()
+    finally:
+        _get_spark_version.cache_clear()
+
+
+def test_spark_4_1_deequ_coordinate(monkeypatch):
+    monkeypatch.setenv("SPARK_VERSION", "4.1.2")
+    _get_spark_version.cache_clear()
+
+    try:
+        assert _get_deequ_maven_config() == "com.amazon.deequ:deequ:2.0.18-spark-4.1"
+        assert SPARK_TO_DEEQU_COORD_MAPPING["4.1"] == "com.amazon.deequ:deequ:2.0.18-spark-4.1"
     finally:
         _get_spark_version.cache_clear()

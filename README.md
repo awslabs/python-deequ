@@ -29,7 +29,17 @@ You can install [PyDeequ via pip](https://pypi.org/project/pydeequ/).
 pip install pydeequ
 ```
 
-> **Supported Spark version:** PyDeequ 1.7.0+ tracks the Deequ 2.0.21 JVM library, which is published for **Spark 3.5 only**. For Spark 3.1–3.4, use PyDeequ 1.6.0 (the last release supporting them, on Deequ 2.0.8).
+### Select your Spark version
+
+PyDeequ 1.7.0+ tracks Deequ 2.0.21 (Spark 3.5) and Deequ 2.0.18 (Spark 4.1). For Spark 3.1–3.4, use PyDeequ 1.6.0 (the last release supporting them, on Deequ 2.0.8).
+
+Set `SPARK_VERSION` to match your Spark runtime before importing PyDeequ. Use `3.5` or `4.1`:
+
+```python
+import os
+
+os.environ["SPARK_VERSION"] = "4.1"
+```
 
 ### Set up a PySpark session
 ```python
@@ -269,4 +279,3 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 ## License
 
 This library is licensed under the Apache 2.0 License.
-
