@@ -25,6 +25,14 @@ Checks
    :undoc-members:
    :show-inheritance:
 
+DQDL
+-------------------
+
+.. automodule:: pydeequ.dqdl
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Profiles
 -----------------------
 
