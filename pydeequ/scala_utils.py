@@ -1,7 +1,21 @@
 # -*- coding: utf-8 -*-
 """A collection of utility functions and classes for manipulating with scala objects anc classes through py4j
 """
-from py4j.java_gateway import JavaObject
+from py4j.java_gateway import DEFAULT_PYTHON_PROXY_PORT, JavaObject
+
+
+def _ensure_dynamic_callback_port(gateway):
+    """Switch the gateway's callback server off the hardcoded default port (25334).
+
+    If it is still on ``DEFAULT_PYTHON_PROXY_PORT``, mutate the existing
+    ``callback_server_parameters`` to an OS-assigned free port (``0``) so
+    concurrent applications don't collide on 25334. Mutating the existing
+    parameters (rather than passing a fresh object) keeps PySpark's callback
+    wiring intact so shutdown stays clean.
+    """
+    params = getattr(gateway, "callback_server_parameters", None)
+    if params is not None and getattr(params, "port", 0) == DEFAULT_PYTHON_PROXY_PORT:
+        params.port = 0
 
 
 class PythonCallback:
@@ -12,16 +26,14 @@ class PythonCallback:
         # P4j will return false if the callback server is already started
         # https://github.com/bartdag/py4j/blob/master/py4j-python/src/py4j/java_gateway.py
         callback_server = self.gateway.get_callback_server()
-        # TODO clean
         if callback_server is None:
+            _ensure_dynamic_callback_port(self.gateway)
             self.gateway.start_callback_server()
             print("Python Callback server started!")  # TODO Logging
         elif callback_server.is_shutdown:
             callback_server.close()
+            _ensure_dynamic_callback_port(self.gateway)
             self.gateway.restart_callback_server()
-            # Have you tried turning it off and on again?
-            # TODO why do we need to restart this every time?
-            # TODO Will this break during chained function calls?
             print("PythonCallback server restarted!")
 
 

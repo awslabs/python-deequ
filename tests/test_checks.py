@@ -453,6 +453,28 @@ class TestChecks(unittest.TestCase):
         self.assertEqual(self.isUnique("b", "All rows are unique"), [Row(constraint_status="Success")])
         self.assertEqual(self.isUnique("email", "All rows are unique"), [Row(constraint_status="Success")])
 
+    def test_lambda_check_uses_dynamic_callback_port(self):
+        """A lambda-based Check should bind the callback server to a dynamic port, not 25334."""
+        gateway = self.spark.sparkContext._gateway
+
+        result = self.hasSize(lambda x: x == 3.0)
+        self.assertEqual(result, [Row(constraint_status="Success")])
+
+        callback_server = gateway.get_callback_server()
+        self.assertIsNotNone(callback_server, "a lambda Check should have started the callback server")
+        listening_port = callback_server.get_listening_port()
+        self.assertNotEqual(
+            listening_port,
+            25334,
+            "Callback server must not use the hardcoded default port 25334; "
+            f"got {listening_port}",
+        )
+        self.assertGreater(listening_port, 0, "callback server should be bound to a real port")
+
+        # second lambda Check: the JVM callback client must reach the dynamic port
+        result2 = self.hasSize(lambda x: x >= 2.0 and x < 5.0)
+        self.assertEqual(result2, [Row(constraint_status="Success")])
+
     def test_fail_isUnique(self):
         self.assertEqual(self.isUnique("d"), [Row(constraint_status="Failure")])
         self.assertEqual(self.isUnique("f", "All rows are unique"), [Row(constraint_status="Failure")])
