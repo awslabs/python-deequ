@@ -931,12 +931,12 @@ class TestChecks(unittest.TestCase):
 
     def test_hasPattern(self):
         self.assertEqual(
-            self.hasPattern("ssn", "\d{3}\-\d{2}\-\d{4}", lambda x: x == 2 / 3),
+            self.hasPattern("ssn", r"\d{3}\-\d{2}\-\d{4}", lambda x: x == 2 / 3),
             [Row(constraint_status="Success")],
         )
         self.assertEqual(
             self.hasPattern(
-                "ssn", "\d{3}\-\d{2}\-\d{4}", lambda x: x == 2 / 3, hint="it be should be above 0.66"
+                "ssn", r"\d{3}\-\d{2}\-\d{4}", lambda x: x == 2 / 3, hint="it be should be above 0.66"
             ),
             [Row(constraint_status="Success")],
         )
@@ -947,7 +947,7 @@ class TestChecks(unittest.TestCase):
 
     def test_fail_hasPattern(self):
         # Default assertion is 1, thus failure
-        self.assertEqual(self.hasPattern("ssn", "\d{3}\-\d{2}\-\d{4}"), [Row(constraint_status="Failure")])
+        self.assertEqual(self.hasPattern("ssn", r"\d{3}\-\d{2}\-\d{4}"), [Row(constraint_status="Failure")])
         self.assertEqual(
             self.hasPattern("ssn", r"\d{3}\d{2}\d{4}", lambda x: x == 2 / 3),
             [Row(constraint_status="Failure")],
